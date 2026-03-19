@@ -28,7 +28,7 @@ Supported syntax:
     to_number(x)
     to_text(x)
     round(x, digits?)
-    token_after(text, marker)
+    token_after(text, marker, case_sensitive?)
 """
 
 from __future__ import annotations
@@ -245,7 +245,7 @@ def fn_round(value: Any, digits: Any = 0) -> float | None:
     return round(number, int(digits_n or 0))
 
 
-def fn_token_after(text: Any, marker: Any) -> str:
+def fn_token_after(text: Any, marker: Any, case_sensitive: Any = False) -> str:
     """
     Return the first token that appears after `marker`.
 
@@ -258,7 +258,17 @@ def fn_token_after(text: Any, marker: Any) -> str:
     if not marker_s:
         return ""
 
-    idx = text_s.find(marker_s)
+    is_case_sensitive = False
+    if isinstance(case_sensitive, bool):
+        is_case_sensitive = case_sensitive
+    else:
+        case_sensitive_s = _to_text(case_sensitive).strip().lower()
+        is_case_sensitive = case_sensitive_s in {"1", "true", "yes", "y", "si", "sì"}
+
+    if is_case_sensitive:
+        idx = text_s.find(marker_s)
+    else:
+        idx = text_s.lower().find(marker_s.lower())
     if idx < 0:
         return ""
 
