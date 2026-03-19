@@ -332,12 +332,90 @@
       font-weight:600;
     }
 
+    .license-modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, .55);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 4200;
+      padding: 20px;
+    }
+    .license-modal-overlay.active { display: flex; }
+    .license-modal {
+      width: min(720px, 96vw);
+      background: #fff;
+      border: 1px solid #d0d5dd;
+      border-radius: 16px;
+      box-shadow: 0 30px 70px rgba(2, 6, 23, .28);
+      overflow: hidden;
+    }
+    .license-modal-head {
+      padding: 16px 18px;
+      border-bottom: 1px solid #eaecf0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .license-modal-grid {
+      padding: 16px 18px;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .license-kv {
+      border: 1px solid #eaecf0;
+      border-radius: 10px;
+      padding: 10px 12px;
+      background: #f9fafb;
+    }
+    .license-kv .k { font-size: 12px; color: #667085; }
+    .license-kv .v { margin-top: 2px; font-weight: 600; color: #101828; word-break: break-word; }
+    .license-feature-list {
+      margin: 0;
+      padding: 0 18px 18px;
+      list-style: none;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+    .license-feature-list li {
+      border: 1px solid #eaecf0;
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 13px;
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .license-feature-list .on { color: #027a48; font-weight: 700; }
+    .license-feature-list .off { color: #b42318; font-weight: 700; }
+    .settings-backup-box {
+      margin-top: 14px;
+      border: 1px dashed #d0d5dd;
+      border-radius: 12px;
+      padding: 12px;
+      background: #f8fafc;
+    }
+    .settings-backup-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+
 </style>
 <script>
 window.LICENSE_CONTEXT = {
   status: {{ (license_status or "demo")|tojson }},
   label: {{ (license_label or "Demo")|tojson }},
-  features: {{ (license_features or {})|tojson }}
+  features: {{ (license_features or {})|tojson }},
+  provider: {{ (license_provider or "")|tojson }},
+  message: {{ (license_message or "")|tojson }},
+  customer_name: {{ ((license.customer_name if license else "") or "")|tojson }},
+  customer_email: {{ ((license.customer_email if license else "") or "")|tojson }}
 };
 </script>
 
@@ -847,8 +925,17 @@ window.LICENSE_CONTEXT = {
 
     <div class="builder-actions">
       <button id="btnSaveSettings" type="button" class="primary" data-i18n="settings_save">Salva impostazioni</button>
-      <button id="btnExportBackup" type="button">Backup preset+impostazioni</button>
-      <button id="btnRestoreBackup" type="button">Ripristina backup</button>
+    </div>
+
+    <div class="settings-backup-box">
+      <div class="section-title" style="font-size:15px; margin-bottom:2px;">Backup & Restore</div>
+      <div class="small">
+        Esporta o ripristina preset e impostazioni. Funzione disponibile con licenza attiva.
+      </div>
+      <div class="settings-backup-actions">
+        <button id="btnExportBackup" type="button">Backup preset+impostazioni</button>
+        <button id="btnRestoreBackup" type="button">Ripristina backup</button>
+      </div>
       <input id="backupRestoreFile" type="file" accept=".json,application/json" style="display:none;">
     </div>
   </div>
@@ -905,6 +992,20 @@ window.LICENSE_CONTEXT = {
       <button id="btnDeleteCalculatedField" type="button" class="danger" style="display:none;">Elimina campo</button>
       <button id="btnSaveCalculatedField" type="button" class="primary">Salva campo</button>
     </div>
+  </div>
+</div>
+
+<div id="licenseDetailsModal" class="license-modal-overlay">
+  <div class="license-modal">
+    <div class="license-modal-head">
+      <div>
+        <div class="section-title" style="margin:0;">Dettagli licenza</div>
+        <div class="small">Panoramica stato e funzionalità abilitate.</div>
+      </div>
+      <button id="btnCloseLicenseDetails" type="button">Chiudi</button>
+    </div>
+    <div class="license-modal-grid" id="licenseDetailsGrid"></div>
+    <ul class="license-feature-list" id="licenseFeaturesList"></ul>
   </div>
 </div>
 
@@ -2890,6 +2991,10 @@ bindClick("btnSaveCalculatedField", () => {
   }
 });
 bindClick("btnDeleteCalculatedField", () => deleteCalculatedFieldFromModal());
+bindClick("btnCloseLicenseDetails", () => closeLicenseInfo());
+bindClick("licenseDetailsModal", ev => {
+  if (ev && ev.target && ev.target.id === "licenseDetailsModal") closeLicenseInfo();
+});
 
 bindClick("btnCloseSources", () => closeSourcesScreen());
 bindClick("btnSourceNew", () => resetSourceForm());
@@ -3167,8 +3272,13 @@ function enableRenderedTableSortingAndFilters(preset, runtimeOptions) {
 
 
 function hasFeature(name){
-  const features = (window.LICENSE_CONTEXT && window.LICENSE_CONTEXT.features) || {};
+  const ctx = window.LICENSE_CONTEXT || {};
+  const features = (ctx && ctx.features) || {};
   if (features["*"] === true) return true;
+  if (name === "backup_restore") {
+    const status = String(ctx.status || "").toLowerCase();
+    if (status && status !== "demo") return true;
+  }
   return !!features[name];
 }
 
@@ -3222,22 +3332,41 @@ function applyLicenseUiGuards(){
 }
 
 function showLicenseInfo(){
-  const lines = [];
-  lines.push("Licenza: {{ license_label or 'N/D' }}");
-  lines.push("Stato: {{ (license_status or 'unknown')|upper }}");
-  {% if license and license.customer_name %}
-  lines.push("Cliente: {{ license.customer_name }}");
-  {% endif %}
-  {% if license and license.customer_email %}
-  lines.push("Email: {{ license.customer_email }}");
-  {% endif %}
-  lines.push("Preview: {{ 'Sì' if license_features.preview else 'No' }}");
-  lines.push("Stampa: {{ 'Sì' if license_features.print else 'No' }}");
-  lines.push("Subtotali: {{ 'Sì' if license_features.subtotals else 'No' }}");
-  {% if license_features.plugins is defined %}
-  lines.push("Plugin: {{ 'Sì' if license_features.plugins else 'No' }}");
-  {% endif %}
-  alert(lines.join("\n"));
+  const ctx = window.LICENSE_CONTEXT || {};
+  const modal = document.getElementById("licenseDetailsModal");
+  const grid = document.getElementById("licenseDetailsGrid");
+  const featuresList = document.getElementById("licenseFeaturesList");
+  if (!modal || !grid || !featuresList) return;
+
+  const values = [
+    ["Licenza", ctx.label || "N/D"],
+    ["Stato", String(ctx.status || "unknown").toUpperCase()],
+    ["Provider", ctx.provider || "-"],
+    ["Cliente", ctx.customer_name || "-"],
+    ["Email", ctx.customer_email || "-"],
+    ["Messaggio", ctx.message || "-"]
+  ];
+
+  grid.innerHTML = values.map(([k, v]) =>
+    '<div class="license-kv"><div class="k">' + escapeHtml(k) + '</div><div class="v">' + escapeHtml(v) + '</div></div>'
+  ).join("");
+
+  const features = Object.assign({}, ctx.features || {});
+  if (!Object.prototype.hasOwnProperty.call(features, "backup_restore")) {
+    features.backup_restore = hasFeature("backup_restore");
+  }
+  const keys = Object.keys(features).filter(k => k !== "*").sort();
+  featuresList.innerHTML = keys.map(k => {
+    const on = !!features[k];
+    return '<li><span>' + escapeHtml(k) + '</span><span class="' + (on ? "on" : "off") + '">' + (on ? "ON" : "OFF") + '</span></li>';
+  }).join("");
+
+  modal.classList.add("active");
+}
+
+function closeLicenseInfo(){
+  const modal = document.getElementById("licenseDetailsModal");
+  if (modal) modal.classList.remove("active");
 }
 
 Promise.resolve()

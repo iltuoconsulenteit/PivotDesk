@@ -75,6 +75,7 @@ Alla prima esecuzione viene creato un utente admin:
 - Se la porta configurata è occupata, il launcher non avvia un secondo server.
 - Gli endpoint `GET /fields` e `GET /filter-values` accettano anche `pivot_id` opzionale: quando presente, applicano i `calculated_fields` del preset prima di restituire colonne/valori filtro.
 - Per utenze admin con licenza attiva è disponibile backup/ripristino di preset+impostazioni (`GET /admin/backup/export`, `POST /admin/backup/restore`).
+- Nel frontend (Impostazioni) è presente il riquadro dedicato “Backup & Restore”; lato UI la funzione risulta attiva per licenze non demo (oltre al flag feature esplicito).
 - Nei campi calcolati è disponibile `token_after(testo, marcatore, case_sensitive?)` per estrarre il primo token dopo stringhe come `#` o `CRO:` (utile su descrizioni bancarie/libere). Il terzo parametro è opzionale (`false` default).
 - Nell’anteprima sorgente del builder, i campi calcolati definiti vengono mostrati come colonne aggiuntive (anteprima aggiornata al salvataggio/eliminazione campo calcolato).
 
