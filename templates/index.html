@@ -664,14 +664,14 @@ window.LICENSE_CONTEXT = {
             <div id="zone-filters" class="drop-list"></div>
           </div>
 
-          <div class="drop-zone" data-zone="rows">
-            <div class="drop-title">Righe</div>
-            <div id="zone-rows" class="drop-list"></div>
-          </div>
-
           <div class="drop-zone" data-zone="cols">
             <div class="drop-title">Colonne</div>
             <div id="zone-cols" class="drop-list"></div>
+          </div>
+
+          <div class="drop-zone" data-zone="rows">
+            <div class="drop-title">Righe</div>
+            <div id="zone-rows" class="drop-list"></div>
           </div>
 
           <div class="drop-zone" data-zone="values">
@@ -681,6 +681,7 @@ window.LICENSE_CONTEXT = {
         </div>
 
         <div class="builder-actions">
+          <button id="btnBuilderSwapRowsCols" type="button">Scambia righe/colonne</button>
           <button id="btnBuilderClear" type="button">Svuota costruttore</button>
           <button id="btnBuilderLoadCurrent" type="button">Carica preset corrente</button>
           <button id="btnBuilderSave" type="button" class="primary">Salva preset</button>
@@ -2654,6 +2655,14 @@ function bindSourceUiButtons(){
 bindInput("fieldsSearch", "input", renderFieldsSidebar);
 
 bindClick("btnCloseBuilder", () => closeBuilderScreen());
+bindClick("btnBuilderSwapRowsCols", () => {
+  const rows = [].concat(BUILDER.rows || []);
+  BUILDER.rows = [].concat(BUILDER.cols || []);
+  BUILDER.cols = rows;
+  renderBuilder();
+  fillSortFieldOptions();
+  setStatus("Righe e colonne invertite nel costruttore.");
+});
 bindClick("btnBuilderClear", () => clearBuilder());
 bindClick("btnBuilderLoadCurrent", () => loadCurrentPresetIntoBuilder());
 bindClick("btnBuilderSave", async () => {

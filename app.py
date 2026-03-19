@@ -20,6 +20,10 @@ from starlette.middleware.sessions import SessionMiddleware
 from services.pivot_engine import apply_filters, normalize_df, run_pivot, table_to_html
 from services.source_manager import load_dataframe_from_source
 from services.plugin_manager import PluginAPI, PluginManager
+from plugins.calculated_fields.backend import (
+    apply_calculated_fields,
+    build_calculated_definitions,
+)
 
 try:
     from licensing.license_manager_multistore import (
@@ -1014,6 +1018,64 @@ def sanitize_values(values: list[dict[str, Any]] | None) -> list[dict[str, Any]]
     return out
 
 
+def sanitize_calculated_fields(items: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
+    out: list[dict[str, Any]] = []
+    seen: set[str] = set()
+
+    for item in items or []:
+        if not isinstance(item, dict):
+            continue
+
+        name = str(item.get("name", "")).strip()
+        formula = str(item.get("formula", "")).strip()
+        field_type = str(item.get("type", "string")).strip().lower() or "string"
+        enabled = bool(item.get("enabled", True))
+
+        if not name or not formula:
+            continue
+        if field_type not in {"string", "number", "date", "boolean"}:
+            field_type = "string"
+        if name in seen:
+            continue
+
+        seen.add(name)
+        out.append(
+            {
+                "name": name,
+                "formula": formula,
+                "type": field_type,
+                "enabled": enabled,
+            }
+        )
+
+    return out
+
+
+def apply_calculated_fields_to_dataframe(
+    df: pd.DataFrame,
+    calculated_fields: list[dict[str, Any]] | None,
+) -> pd.DataFrame:
+    definitions = build_calculated_definitions(calculated_fields)
+    if not definitions:
+        return df
+
+    base_columns = [str(c).strip() for c in df.columns]
+    rows = df.to_dict(orient="records")
+    new_rows = apply_calculated_fields(rows, definitions)
+    if not new_rows:
+        return df
+
+    out = pd.DataFrame(new_rows)
+    calculated_names = [d.name for d in definitions if getattr(d, "name", "").strip()]
+    desired_order = base_columns + [name for name in calculated_names if name not in base_columns]
+    existing_order = [c for c in desired_order if c in out.columns]
+    remaining = [c for c in out.columns if c not in existing_order]
+    if existing_order or remaining:
+        out = out[existing_order + remaining]
+
+    return out
+
+
 def normalize_preset_options(raw_options: dict[str, Any] | None) -> dict[str, Any]:
     raw = raw_options or {}
 
@@ -1051,6 +1113,7 @@ def build_preset_payload(payload: dict[str, Any]) -> dict[str, Any]:
     numeric_fields = [str(x).strip() for x in (payload.get("numeric_fields", []) or []) if str(x).strip()]
     date_fields = [str(x).strip() for x in (payload.get("date_fields", []) or []) if str(x).strip()]
     values = sanitize_values(payload.get("values", []))
+    calculated_fields = sanitize_calculated_fields(payload.get("calculated_fields", []))
     options = normalize_preset_options(payload.get("options", {}))
 
     return {
@@ -1063,6 +1126,7 @@ def build_preset_payload(payload: dict[str, Any]) -> dict[str, Any]:
         "rows": rows,
         "cols": cols,
         "values": values,
+        "calculated_fields": calculated_fields,
         "options": options,
     }
 
@@ -1094,6 +1158,7 @@ def load_pivot_files(source_id: str | None = None) -> list[dict[str, Any]]:
                 data["rows"] = [str(x).strip() for x in (data.get("rows", []) or []) if str(x).strip()]
                 data["cols"] = [str(x).strip() for x in (data.get("cols", []) or []) if str(x).strip()]
                 data["values"] = sanitize_values(data.get("values", []))
+                data["calculated_fields"] = sanitize_calculated_fields(data.get("calculated_fields", []))
                 data["options"] = normalize_preset_options(data.get("options", {}))
                 data["_filename"] = file.name
 
@@ -1914,6 +1979,8 @@ def pivot_run(
 
         sid = sid or preset.get("source_id")
         src, df = load_source_df(sid)
+
+        df = apply_calculated_fields_to_dataframe(df, preset.get("calculated_fields", []))
 
         missing = validate_preset_columns(list(df.columns), preset)
         if missing:
