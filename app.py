@@ -275,6 +275,29 @@ def _read_csv_local(path: str, delimiter: Any = None, encoding: Any = None, skip
         return (cols, min(rows, 100), non_empty_cols)
 
     def _read_csv_tolerant(actual_sep: str, enc_name: str) -> pd.DataFrame:
+        def _clean_csv_token(value: Any) -> str:
+            text = "" if value is None else str(value)
+            if text in {"", "nan", "None"}:
+                return ""
+
+            if len(text) >= 2 and text[0] == text[-1] and text[0] in {'"', "'"}:
+                q = text[0]
+                inner = text[1:-1]
+                if q == '"':
+                    inner = inner.replace('""', '"').replace('\\"', '"')
+                else:
+                    inner = inner.replace("''", "'").replace("\\'", "'")
+                return inner
+
+            return text
+
+        def _cleanup_dataframe(df_in: pd.DataFrame) -> pd.DataFrame:
+            cleaned = df_in.copy()
+            cleaned.columns = [_clean_csv_token(c) for c in cleaned.columns]
+            for col in cleaned.columns:
+                cleaned[col] = cleaned[col].map(_clean_csv_token)
+            return cleaned
+
         base_kwargs = {
             "filepath_or_buffer": path,
             "sep": actual_sep,
@@ -294,7 +317,8 @@ def _read_csv_local(path: str, delimiter: Any = None, encoding: Any = None, skip
         last_exc: Exception | None = None
         for extra in attempts:
             try:
-                return pd.read_csv(**base_kwargs, **extra)
+                parsed = pd.read_csv(**base_kwargs, **extra)
+                return _cleanup_dataframe(parsed)
             except Exception as exc:
                 last_exc = exc
 
