@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import platform
 import socket
@@ -12,7 +13,6 @@ from pathlib import Path
 from typing import Optional
 
 APP_IMPORT = os.environ.get("PIVOTDESK_APP", "app:app")
-HOST = os.environ.get("PIVOTDESK_HOST", "127.0.0.1")
 PORT = int(os.environ.get("PIVOTDESK_PORT", "8091"))
 OPEN_BROWSER = os.environ.get("PIVOTDESK_OPEN_BROWSER", "1") not in {"0", "false", "False"}
 
@@ -20,6 +20,53 @@ BASE_DIR = Path(__file__).resolve().parent
 IS_WINDOWS = platform.system() == "Windows"
 IS_MAC = platform.system() == "Darwin"
 IS_LINUX = platform.system() == "Linux"
+
+
+def _read_json(path: Path) -> dict | None:
+    if not path.exists():
+        return None
+    try:
+        with path.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+            return data if isinstance(data, dict) else None
+    except Exception:
+        return None
+
+
+def detect_license_type() -> str:
+    appdata = os.getenv("APPDATA")
+    candidates = []
+    if appdata:
+        candidates.append(Path(appdata) / "PivotDesk" / "license.json")
+    candidates.extend([
+        BASE_DIR / "licenses" / "dev-license.json",
+        BASE_DIR / "licenses" / "demo-license.json",
+    ])
+
+    for path in candidates:
+        data = _read_json(path)
+        if not data:
+            continue
+        value = str(data.get("license_type") or data.get("edition") or "").strip().lower()
+        if value:
+            return value
+    return "demo"
+
+
+def license_allows_lan_access(license_type: str) -> bool:
+    return str(license_type or "").strip().lower() in {"dev", "developer", "full"}
+
+
+def resolve_host() -> str:
+    configured = os.environ.get("PIVOTDESK_HOST", "127.0.0.1")
+    configured = str(configured or "").strip() or "127.0.0.1"
+    if configured in {"127.0.0.1", "localhost", "::1"} and license_allows_lan_access(detect_license_type()):
+        return "0.0.0.0"
+    return configured
+
+
+HOST = resolve_host()
+PUBLIC_HOST = "127.0.0.1" if HOST == "0.0.0.0" else HOST
 
 
 def is_port_open(host: str, port: int, timeout: float = 0.5) -> bool:
@@ -44,8 +91,9 @@ def open_browser_when_ready(host: str, port: int) -> None:
         return
 
     def _worker() -> None:
-        if wait_for_server(host, port, timeout=20.0):
-            webbrowser.open(f"http://{host}:{port}/")
+        probe_host = "127.0.0.1" if host == "0.0.0.0" else host
+        if wait_for_server(probe_host, port, timeout=20.0):
+            webbrowser.open(f"http://{PUBLIC_HOST}:{port}/")
 
     threading.Thread(target=_worker, daemon=True).start()
 
@@ -56,7 +104,7 @@ def print_banner() -> None:
     print(f"Sistema operativo: {system_name}")
     print(f"Cartella base: {BASE_DIR}")
     print(f"App import: {APP_IMPORT}")
-    print(f"Server: http://{HOST}:{PORT}/")
+    print(f"Server: http://{PUBLIC_HOST}:{PORT}/")
 
 
 def ensure_dependencies() -> None:
@@ -103,9 +151,9 @@ def main() -> int:
 
     if is_port_open(HOST, PORT):
         print(f"Attenzione: la porta {PORT} risulta già in uso.")
-        print(f"Prova ad aprire: http://{HOST}:{PORT}/")
+        print(f"Prova ad aprire: http://{PUBLIC_HOST}:{PORT}/")
         if OPEN_BROWSER:
-            webbrowser.open(f"http://{HOST}:{PORT}/")
+            webbrowser.open(f"http://{PUBLIC_HOST}:{PORT}/")
         return 0
 
     ensure_dependencies()

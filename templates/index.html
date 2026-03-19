@@ -731,6 +731,7 @@ window.LICENSE_CONTEXT = {
         <input id="srcPath" placeholder="es. C:\dati\fogliocassa.csv">
         <div style="margin-top:10px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
           <button id="btnPickSourceFile" type="button">Seleziona file locale</button>
+          <button id="btnPasteSourcePath" type="button">Incolla percorso</button>
           <span id="srcPickedFileLabel" class="small">Nessun file selezionato</span>
         </div>
       </div>
@@ -2594,6 +2595,39 @@ function bindSourceUiButtons(){
         setStatus("ERRORE: " + e.message);
         alert("Impossibile aprire il selettore file locale.\n\n" + e.message + "\n\nInserisci manualmente il percorso nel campo 'Percorso file'.");
       }
+      return false;
+    };
+  }
+
+  const btnPastePath = document.getElementById("btnPasteSourcePath");
+  if (btnPastePath) {
+    btnPastePath.onclick = async function(ev){
+      if (ev) { ev.preventDefault(); ev.stopPropagation(); }
+      const currentPath = (document.getElementById("srcPath").value || "").trim();
+      const pasted = window.prompt("Incolla il percorso completo del file sorgente:", currentPath);
+      if (pasted === null) return false;
+
+      const path = String(pasted || "").trim();
+      if (!path) {
+        setStatus("Percorso file non valido.");
+        return false;
+      }
+
+      const lower = path.toLowerCase();
+      const sourceType = (lower.endsWith(".xlsx") || lower.endsWith(".xls") || lower.endsWith(".xlsm")) ? "xlsx" : "csv";
+      document.getElementById("srcPath").value = path;
+      document.getElementById("srcType").value = sourceType;
+      updateSourceFormVisibility();
+      setPickedFileLabel(path.split(/[\\\\/]/).pop() || "Percorso incollato");
+
+      try {
+        await previewSourceFromForm(true);
+        setStatus("Percorso file incollato e verificato.");
+      } catch (e) {
+        setStatus("ERRORE: " + e.message);
+        alert("Percorso impostato ma anteprima non disponibile.\nVerifica che il file esista e che sia accessibile.\n\nDettaglio: " + e.message);
+      }
+
       return false;
     };
   }

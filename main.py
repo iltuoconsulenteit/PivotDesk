@@ -76,11 +76,51 @@ def load_config() -> dict:
     return {}
 
 
-cfg = load_config()
+def read_json_file(path: Path) -> dict | None:
+    if not path.exists():
+        return None
+    try:
+        with path.open("r", encoding="utf-8") as f:
+            payload = json.load(f)
+            return payload if isinstance(payload, dict) else None
+    except Exception:
+        return None
 
-APP_HOST = cfg.get("host", "127.0.0.1")
+
+def detect_license_type() -> str:
+    candidates = [
+        appdata_dir() / "license.json",
+        BASE_DIR / "licenses" / "dev-license.json",
+        BASE_DIR / "licenses" / "demo-license.json",
+    ]
+    for path in candidates:
+        data = read_json_file(path)
+        if not data:
+            continue
+        license_type = str(data.get("license_type") or data.get("edition") or "").strip().lower()
+        if license_type:
+            return license_type
+    return "demo"
+
+
+def license_allows_lan_access(license_type: str) -> bool:
+    return str(license_type or "").strip().lower() in {"dev", "developer", "full"}
+
+
+def resolve_bind_host(config_host: str, license_type: str) -> str:
+    host = str(config_host or "").strip() or "127.0.0.1"
+    if host in {"127.0.0.1", "localhost", "::1"} and license_allows_lan_access(license_type):
+        return "0.0.0.0"
+    return host
+
+
+cfg = load_config()
+LICENSE_TYPE = detect_license_type()
+
+APP_HOST = resolve_bind_host(cfg.get("host", "127.0.0.1"), LICENSE_TYPE)
 APP_PORT = int(cfg.get("port", 8091))
-APP_URL = f"http://{APP_HOST}:{APP_PORT}"
+APP_PUBLIC_HOST = "127.0.0.1" if APP_HOST == "0.0.0.0" else APP_HOST
+APP_URL = f"http://{APP_PUBLIC_HOST}:{APP_PORT}"
 
 
 def port_is_open(host: str, port: int, timeout: float = 0.5) -> bool:
@@ -126,13 +166,15 @@ def main() -> None:
     write_log(f"Frozen: {is_frozen()}")
     write_log(f"Base dir: {BASE_DIR}")
     write_log(f"AppData dir: {appdata_dir()}")
-    write_log(f"Host: {APP_HOST}")
+    write_log(f"Licenza rilevata: {LICENSE_TYPE}")
+    write_log(f"Host bind: {APP_HOST}")
+    write_log(f"Host browser: {APP_PUBLIC_HOST}")
     write_log(f"Porta: {APP_PORT}")
 
     server_thread = threading.Thread(target=run_server, daemon=True)
     server_thread.start()
 
-    if wait_for_server(APP_HOST, APP_PORT, timeout=30):
+    if wait_for_server(APP_PUBLIC_HOST, APP_PORT, timeout=30):
         write_log(f"Server raggiungibile su {APP_URL}")
         try:
             webbrowser.open(APP_URL)
