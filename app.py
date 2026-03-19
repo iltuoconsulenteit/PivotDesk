@@ -5,7 +5,6 @@ import csv
 import os
 import sys
 import hashlib
-import shutil
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -1814,26 +1813,65 @@ async def sources_upload(request: Request, file: UploadFile = File(...)):
     current_user = require_login(request)
     if not current_user:
         return JSONResponse({"error": "Non autenticato"}, status_code=401)
+    return JSONResponse(
+        {
+            "error": "Upload file disabilitato: usa la selezione percorso locale, senza copia nel folder programma."
+        },
+        status_code=410,
+    )
 
-    uploads_dir = get_user_runtime_root(current_user["username"]) / "uploads"
-    uploads_dir.mkdir(parents=True, exist_ok=True)
 
-    original_name = Path(file.filename or "upload.bin").name
-    safe_name = "".join(c if (c.isalnum() or c in "._-") else "_" for c in original_name).strip("._-") or "upload.bin"
-    target = uploads_dir / safe_name
+@app.post("/sources/pick-local-file")
+async def sources_pick_local_file(request: Request):
+    current_user = require_login(request)
+    if not current_user:
+        return JSONResponse({"error": "Non autenticato"}, status_code=401)
 
-    with target.open("wb") as out:
-        shutil.copyfileobj(file.file, out)
+    try:
+        import tkinter as tk
+        from tkinter import filedialog
+    except Exception:
+        return JSONResponse(
+            {"error": "Selettore file locale non disponibile su questo ambiente."},
+            status_code=400,
+        )
 
-    ext = target.suffix.lower()
+    try:
+        root = tk.Tk()
+        root.withdraw()
+        root.attributes("-topmost", True)
+        selected = filedialog.askopenfilename(
+            title="Seleziona sorgente dati",
+            filetypes=[
+                ("File dati", "*.csv *.xlsx *.xls *.xlsm"),
+                ("CSV", "*.csv"),
+                ("Excel", "*.xlsx *.xls *.xlsm"),
+                ("Tutti i file", "*.*"),
+            ],
+        )
+        try:
+            root.destroy()
+        except Exception:
+            pass
+    except Exception as exc:
+        return JSONResponse({"error": f"Impossibile aprire il selettore file: {exc}"}, status_code=500)
+
+    if not selected:
+        return JSONResponse({"error": "Nessun file selezionato."}, status_code=400)
+
+    path = Path(selected)
+    ext = path.suffix.lower()
     source_type = "xlsx" if ext in {".xlsx", ".xlsm", ".xls"} else "csv"
-
-    resolved_info = f"Excel · foglio: primo foglio" if source_type == "xlsx" else "CSV · delimitatore: auto · encoding: auto"
+    resolved_info = (
+        "Excel · foglio: primo foglio"
+        if source_type == "xlsx"
+        else "CSV · delimitatore: auto · encoding: auto"
+    )
 
     return {
         "ok": True,
-        "filename": safe_name,
-        "path": str(target),
+        "filename": path.name,
+        "path": str(path),
         "source_type": source_type,
         "delimiter": "",
         "encoding": "",

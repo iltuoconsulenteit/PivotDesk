@@ -730,8 +730,7 @@ window.LICENSE_CONTEXT = {
         <label for="srcPath">Percorso file</label>
         <input id="srcPath" placeholder="es. C:\dati\fogliocassa.csv">
         <div style="margin-top:10px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-          <button id="btnPickSourceFile" type="button">Seleziona file</button>
-          <input id="srcFilePicker" type="file" accept=".csv,.xlsx,.xls" style="display:none;">
+          <button id="btnPickSourceFile" type="button">Seleziona file locale</button>
           <span id="srcPickedFileLabel" class="small">Nessun file selezionato</span>
         </div>
       </div>
@@ -1450,14 +1449,11 @@ function formatResolvedSourceInfo(src){
 }
 
 
-async function uploadSelectedSourceFile(file){
-  if (!file) throw new Error("Nessun file selezionato.");
-  const formData = new FormData();
-  formData.append("file", file);
-  const res = await fetch("/sources/upload", { method: "POST", body: formData });
+async function pickSourceFilePath(){
+  const res = await fetch("/sources/pick-local-file", { method: "POST" });
   let data = {};
   try { data = await res.json(); } catch (_) {}
-  if (!res.ok) throw new Error(data.error || "Errore caricamento file.");
+  if (!res.ok) throw new Error(data.error || "Errore selezione file locale.");
   return data;
 }
 
@@ -1648,8 +1644,6 @@ function resetSourceForm(){
   document.getElementById("srcSkipRows").value = "0";
   document.getElementById("srcResolvedInfo").value = "";
   document.getElementById("srcDefault").checked = false;
-  const picker = document.getElementById("srcFilePicker");
-  if (picker) picker.value = "";
   setPickedFileLabel("Nessun file selezionato");
   updateSourceFormVisibility();
   clearSourceFormPreview();
@@ -2583,38 +2577,24 @@ function bindSourceUiButtons(){
 
   const btnPick = document.getElementById("btnPickSourceFile");
   if (btnPick) {
-    btnPick.onclick = function(ev){
+    btnPick.onclick = async function(ev){
       if (ev) { ev.preventDefault(); ev.stopPropagation(); }
-      const picker = document.getElementById("srcFilePicker");
-      if (picker) picker.click();
-      return false;
-    };
-  }
-
-  const picker = document.getElementById("srcFilePicker");
-  if (picker && !picker.dataset.boundFilePicker) {
-    picker.dataset.boundFilePicker = "1";
-    picker.addEventListener("change", async ev => {
-      const file = ev.target.files && ev.target.files[0] ? ev.target.files[0] : null;
-      if (!file) {
-        setPickedFileLabel("Nessun file selezionato");
-        return;
-      }
       try {
-        setPickedFileLabel("Caricamento " + file.name + "...");
-        const info = await uploadSelectedSourceFile(file);
+        setPickedFileLabel("Apertura selettore file...");
+        const info = await pickSourceFilePath();
         document.getElementById("srcPath").value = info.path || "";
         document.getElementById("srcType").value = info.source_type || "csv";
         document.getElementById("srcResolvedInfo").value = info.resolved_info || "";
         updateSourceFormVisibility();
-        setPickedFileLabel(info.filename || file.name);
+        setPickedFileLabel(info.filename || "File selezionato");
         await previewSourceFromForm(true).catch(() => {});
-        setStatus("File caricato correttamente.");
+        setStatus("Percorso file collegato senza copia locale.");
       } catch (e) {
-        setPickedFileLabel(file.name);
+        setPickedFileLabel("Nessun file selezionato");
         setStatus("ERRORE: " + e.message);
       }
-    });
+      return false;
+    };
   }
 
   const sel = document.getElementById("builderSourceSelect");
