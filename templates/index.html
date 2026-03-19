@@ -2592,6 +2592,7 @@ function bindSourceUiButtons(){
       } catch (e) {
         setPickedFileLabel("Nessun file selezionato");
         setStatus("ERRORE: " + e.message);
+        alert("Impossibile aprire il selettore file locale.\n\n" + e.message + "\n\nInserisci manualmente il percorso nel campo 'Percorso file'.");
       }
       return false;
     };

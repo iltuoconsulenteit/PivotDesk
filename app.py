@@ -5,6 +5,7 @@ import csv
 import os
 import sys
 import hashlib
+import subprocess
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -1827,16 +1828,13 @@ async def sources_pick_local_file(request: Request):
     if not current_user:
         return JSONResponse({"error": "Non autenticato"}, status_code=401)
 
+    selected = ""
+    last_error = ""
+
     try:
         import tkinter as tk
         from tkinter import filedialog
-    except Exception:
-        return JSONResponse(
-            {"error": "Selettore file locale non disponibile su questo ambiente."},
-            status_code=400,
-        )
 
-    try:
         root = tk.Tk()
         root.withdraw()
         root.attributes("-topmost", True)
@@ -1854,7 +1852,39 @@ async def sources_pick_local_file(request: Request):
         except Exception:
             pass
     except Exception as exc:
-        return JSONResponse({"error": f"Impossibile aprire il selettore file: {exc}"}, status_code=500)
+        last_error = str(exc)
+
+    if not selected and os.name == "nt":
+        ps_script = (
+            "Add-Type -AssemblyName System.Windows.Forms; "
+            "$dlg = New-Object System.Windows.Forms.OpenFileDialog; "
+            "$dlg.Title = 'Seleziona sorgente dati'; "
+            "$dlg.Filter = 'File dati (*.csv;*.xlsx;*.xls;*.xlsm)|*.csv;*.xlsx;*.xls;*.xlsm|"
+            "CSV (*.csv)|*.csv|Excel (*.xlsx;*.xls;*.xlsm)|*.xlsx;*.xls;*.xlsm|Tutti i file (*.*)|*.*'; "
+            "$dlg.Multiselect = $false; "
+            "if ($dlg.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { "
+            "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; "
+            "Write-Output $dlg.FileName }"
+        )
+        try:
+            proc = subprocess.run(
+                ["powershell", "-NoProfile", "-STA", "-Command", ps_script],
+                capture_output=True,
+                text=True,
+                timeout=120,
+            )
+            if proc.returncode == 0:
+                selected = (proc.stdout or "").strip()
+            elif proc.stderr:
+                last_error = proc.stderr.strip()
+        except Exception as exc:
+            last_error = str(exc)
+
+    if not selected and last_error:
+        return JSONResponse(
+            {"error": f"Impossibile aprire il selettore file: {last_error}"},
+            status_code=500,
+        )
 
     if not selected:
         return JSONResponse({"error": "Nessun file selezionato."}, status_code=400)
