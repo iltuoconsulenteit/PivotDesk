@@ -1902,7 +1902,7 @@ async def sources_pick_local_file(request: Request):
             ofn = OPENFILENAMEW()
             ofn.lStructSize = ctypes.sizeof(OPENFILENAMEW)
             ofn.lpstrFilter = file_filter
-            ofn.lpstrFile = file_buffer
+            ofn.lpstrFile = ctypes.cast(file_buffer, wintypes.LPWSTR)
             ofn.nMaxFile = len(file_buffer)
             ofn.lpstrTitle = "Seleziona sorgente dati"
             ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_HIDEREADONLY
