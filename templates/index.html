@@ -1018,12 +1018,14 @@ window.LICENSE_CONTEXT = {
       </div>
       <div style="display:flex; gap:8px;">
         <button id="btnCheckLanStatus" type="button">Diagnostica LAN</button>
+        <button id="btnRunLanProbe" type="button">Test Firewall/LAN</button>
         <button id="btnCloseLicenseDetails" type="button">Chiudi</button>
       </div>
     </div>
     <div class="license-modal-grid" id="licenseDetailsGrid"></div>
     <ul class="license-feature-list" id="licenseFeaturesList"></ul>
     <div id="lanStatusBox" class="small" style="padding:0 18px 18px; color:#344054;"></div>
+    <div id="lanProbeBox" class="small" style="padding:0 18px 18px; color:#344054;"></div>
   </div>
 </div>
 
@@ -3094,6 +3096,13 @@ bindClick("btnCheckLanStatus", async () => {
     setStatus("ERRORE: " + e.message);
   }
 });
+bindClick("btnRunLanProbe", async () => {
+  try {
+    await runLanProbeFromModal();
+  } catch (e) {
+    setStatus("ERRORE: " + e.message);
+  }
+});
 bindClick("licenseDetailsModal", ev => {
   if (ev && ev.target && ev.target.id === "licenseDetailsModal") closeLicenseInfo();
 });
@@ -3458,6 +3467,7 @@ function showLicenseInfo(){
   const modal = document.getElementById("licenseDetailsModal");
   const grid = document.getElementById("licenseDetailsGrid");
   const featuresList = document.getElementById("licenseFeaturesList");
+  const probeBox = document.getElementById("lanProbeBox");
   if (!modal || !grid || !featuresList) return;
 
   const values = [
@@ -3484,6 +3494,7 @@ function showLicenseInfo(){
   }).join("");
 
   modal.classList.add("active");
+  if (probeBox) probeBox.textContent = "";
   loadLanStatusIntoModal().catch(() => {});
 }
 
@@ -3509,6 +3520,33 @@ async function loadLanStatusIntoModal(){
     box.innerHTML = lines.map(x => "<div>" + escapeHtml(x) + "</div>").join("");
   } catch (e) {
     box.textContent = "Impossibile ottenere stato LAN: " + (e && e.message ? e.message : e);
+  }
+}
+
+async function runLanProbeFromModal(){
+  const box = document.getElementById("lanProbeBox");
+  if (!box) return;
+  box.textContent = "Creo test LAN...";
+  try {
+    const probe = await api("/lan/probe/new", { method: "POST" });
+    const probeId = String(probe.probe_id || "").trim();
+    const probeUrl = String(probe.probe_url || "").trim();
+    if (!probeId || !probeUrl) throw new Error("Probe non disponibile");
+
+    box.innerHTML =
+      "<div><strong>Passo 1:</strong> apri questo URL da un altro dispositivo LAN:</div>" +
+      '<div style="margin:6px 0; word-break:break-all;"><code>' + escapeHtml(probeUrl) + "</code></div>" +
+      "<div><strong>Passo 2:</strong> dopo l'apertura, clicca di nuovo su Test Firewall/LAN per aggiornare.</div>";
+
+    const status = await api("/lan/probe/status?probe_id=" + encodeURIComponent(probeId));
+    if (status && status.reachable) {
+      const remote = status.last_hit && status.last_hit.remote ? status.last_hit.remote : "sconosciuto";
+      box.innerHTML += '<div style="margin-top:8px; color:#027a48; font-weight:700;">✅ Probe raggiunta da ' + escapeHtml(remote) + "</div>";
+    } else {
+      box.innerHTML += '<div style="margin-top:8px; color:#b42318;">❌ Nessun hit remoto rilevato finora.</div>';
+    }
+  } catch (e) {
+    box.textContent = "Errore test LAN: " + (e && e.message ? e.message : e);
   }
 }
 

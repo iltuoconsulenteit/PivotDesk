@@ -7,6 +7,7 @@ import sys
 import hashlib
 import shutil
 import subprocess
+import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -173,6 +174,8 @@ ensure_json_file(
         ]
     },
 )
+
+LAN_PROBES: dict[str, dict[str, Any]] = {}
 
 app = FastAPI(title="PivotDesk")
 app.add_middleware(SessionMiddleware, secret_key="pivotdesk-dev-secret-change-me", same_site="lax", https_only=False)
@@ -779,6 +782,17 @@ def resolve_public_lan_host() -> str:
     except Exception:
         pass
     return "127.0.0.1"
+
+
+def cleanup_lan_probes(max_age_seconds: int = 600) -> None:
+    now = datetime.utcnow().timestamp()
+    expired: list[str] = []
+    for probe_id, data in LAN_PROBES.items():
+        created_ts = float(data.get("created_ts", now))
+        if (now - created_ts) > max_age_seconds:
+            expired.append(probe_id)
+    for probe_id in expired:
+        LAN_PROBES.pop(probe_id, None)
 
 
 def create_dev_license_file() -> dict[str, Any]:
@@ -1620,6 +1634,86 @@ def lan_status(request: Request):
         "loopback_url": f"http://127.0.0.1:{port}/",
         "lan_url": f"http://{lan_host}:{port}/",
         "firewall_hint": "Se lan_enabled=true ma non raggiungibile da altri PC, verificare firewall/antivirus/router (client isolation).",
+    }
+
+
+@app.post("/lan/probe/new")
+def lan_probe_new(request: Request):
+    current_user = require_login(request)
+    if not current_user:
+        return JSONResponse({"error": "Non autenticato"}, status_code=401)
+
+    cleanup_lan_probes()
+
+    ctx = get_license_context(prefer_online=False)
+    cfg = load_config()
+    configured_host = str(cfg.get("host", "127.0.0.1") or "127.0.0.1").strip() or "127.0.0.1"
+    port = int(cfg.get("port", 8091))
+    status = str(ctx.get("license_status", "demo")).strip().lower() or "demo"
+    lan_by_license = license_allows_lan_access(status)
+
+    if configured_host in {"127.0.0.1", "localhost", "::1"} and lan_by_license:
+        effective_bind_host = "0.0.0.0"
+    else:
+        effective_bind_host = configured_host
+
+    lan_host = resolve_public_lan_host() if effective_bind_host == "0.0.0.0" else effective_bind_host
+    probe_id = uuid.uuid4().hex
+    LAN_PROBES[probe_id] = {
+        "created_at": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "created_ts": datetime.utcnow().timestamp(),
+        "created_by": str(current_user.get("username", "unknown")),
+        "hits": [],
+    }
+    return {
+        "ok": True,
+        "probe_id": probe_id,
+        "probe_url": f"http://{lan_host}:{port}/lan/probe/{probe_id}",
+        "lan_url": f"http://{lan_host}:{port}/",
+    }
+
+
+@app.get("/lan/probe/{probe_id}")
+def lan_probe_ping(probe_id: str, request: Request):
+    cleanup_lan_probes()
+    data = LAN_PROBES.get(str(probe_id).strip())
+    if not data:
+        return JSONResponse({"ok": False, "error": "Probe non trovata o scaduta"}, status_code=404)
+
+    hit = {
+        "at": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "remote": request.client.host if request.client else "",
+        "user_agent": str(request.headers.get("user-agent", "")),
+    }
+    hits = data.get("hits", [])
+    if isinstance(hits, list):
+        hits.append(hit)
+        data["hits"] = hits[-10:]
+    else:
+        data["hits"] = [hit]
+    return {"ok": True, "probe_id": probe_id, "message": "LAN probe raggiunta"}
+
+
+@app.get("/lan/probe/status")
+def lan_probe_status(request: Request, probe_id: str = Query(...)):
+    current_user = require_login(request)
+    if not current_user:
+        return JSONResponse({"error": "Non autenticato"}, status_code=401)
+
+    cleanup_lan_probes()
+    data = LAN_PROBES.get(str(probe_id).strip())
+    if not data:
+        return JSONResponse({"ok": False, "error": "Probe non trovata o scaduta"}, status_code=404)
+
+    hits = data.get("hits", [])
+    latest = hits[-1] if isinstance(hits, list) and hits else None
+    return {
+        "ok": True,
+        "probe_id": probe_id,
+        "created_at": data.get("created_at"),
+        "hit_count": len(hits) if isinstance(hits, list) else 0,
+        "last_hit": latest,
+        "reachable": bool(hits),
     }
 
 
