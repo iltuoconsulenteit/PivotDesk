@@ -1016,10 +1016,14 @@ window.LICENSE_CONTEXT = {
         <div class="section-title" style="margin:0;">Dettagli licenza</div>
         <div class="small">Panoramica stato e funzionalità abilitate.</div>
       </div>
-      <button id="btnCloseLicenseDetails" type="button">Chiudi</button>
+      <div style="display:flex; gap:8px;">
+        <button id="btnCheckLanStatus" type="button">Diagnostica LAN</button>
+        <button id="btnCloseLicenseDetails" type="button">Chiudi</button>
+      </div>
     </div>
     <div class="license-modal-grid" id="licenseDetailsGrid"></div>
     <ul class="license-feature-list" id="licenseFeaturesList"></ul>
+    <div id="lanStatusBox" class="small" style="padding:0 18px 18px; color:#344054;"></div>
   </div>
 </div>
 
@@ -3083,6 +3087,13 @@ bindClick("btnSaveCalculatedField", () => {
 });
 bindClick("btnDeleteCalculatedField", () => deleteCalculatedFieldFromModal());
 bindClick("btnCloseLicenseDetails", () => closeLicenseInfo());
+bindClick("btnCheckLanStatus", async () => {
+  try {
+    await loadLanStatusIntoModal();
+  } catch (e) {
+    setStatus("ERRORE: " + e.message);
+  }
+});
 bindClick("licenseDetailsModal", ev => {
   if (ev && ev.target && ev.target.id === "licenseDetailsModal") closeLicenseInfo();
 });
@@ -3473,11 +3484,32 @@ function showLicenseInfo(){
   }).join("");
 
   modal.classList.add("active");
+  loadLanStatusIntoModal().catch(() => {});
 }
 
 function closeLicenseInfo(){
   const modal = document.getElementById("licenseDetailsModal");
   if (modal) modal.classList.remove("active");
+}
+
+async function loadLanStatusIntoModal(){
+  const box = document.getElementById("lanStatusBox");
+  if (!box) return;
+  box.textContent = "Verifica raggiungibilità LAN in corso...";
+  try {
+    const data = await api("/lan/status");
+    const lines = [];
+    lines.push("Licenza: " + String(data.license_label || data.license_status || "N/D"));
+    lines.push("Host configurato: " + String(data.configured_host || "-"));
+    lines.push("Bind effettivo: " + String(data.effective_bind_host || "-"));
+    lines.push("LAN abilitata: " + ((data.lan_enabled === true) ? "Sì" : "No"));
+    lines.push("URL locale: " + String(data.loopback_url || "-"));
+    lines.push("URL LAN: " + String(data.lan_url || "-"));
+    if (data.firewall_hint) lines.push(String(data.firewall_hint));
+    box.innerHTML = lines.map(x => "<div>" + escapeHtml(x) + "</div>").join("");
+  } catch (e) {
+    box.textContent = "Impossibile ottenere stato LAN: " + (e && e.message ? e.message : e);
+  }
 }
 
 function guessPreferredLicenseProvider(available){
