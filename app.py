@@ -5,6 +5,8 @@ import csv
 import os
 import sys
 import hashlib
+import shutil
+import subprocess
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -1827,6 +1829,9 @@ async def sources_pick_local_file(request: Request):
     if not current_user:
         return JSONResponse({"error": "Non autenticato"}, status_code=401)
 
+    selected = ""
+    last_error = ""
+
     try:
         import tkinter as tk
         from tkinter import filedialog
@@ -1848,13 +1853,129 @@ async def sources_pick_local_file(request: Request):
         except Exception:
             pass
     except Exception as exc:
+        last_error = str(exc)
+
+    if not selected and os.name == "nt":
+        try:
+            import ctypes
+            from ctypes import wintypes
+
+            class OPENFILENAMEW(ctypes.Structure):
+                _fields_ = [
+                    ("lStructSize", wintypes.DWORD),
+                    ("hwndOwner", wintypes.HWND),
+                    ("hInstance", wintypes.HINSTANCE),
+                    ("lpstrFilter", wintypes.LPCWSTR),
+                    ("lpstrCustomFilter", wintypes.LPWSTR),
+                    ("nMaxCustFilter", wintypes.DWORD),
+                    ("nFilterIndex", wintypes.DWORD),
+                    ("lpstrFile", wintypes.LPWSTR),
+                    ("nMaxFile", wintypes.DWORD),
+                    ("lpstrFileTitle", wintypes.LPWSTR),
+                    ("nMaxFileTitle", wintypes.DWORD),
+                    ("lpstrInitialDir", wintypes.LPCWSTR),
+                    ("lpstrTitle", wintypes.LPCWSTR),
+                    ("Flags", wintypes.DWORD),
+                    ("nFileOffset", wintypes.WORD),
+                    ("nFileExtension", wintypes.WORD),
+                    ("lpstrDefExt", wintypes.LPCWSTR),
+                    ("lCustData", wintypes.LPARAM),
+                    ("lpfnHook", wintypes.LPVOID),
+                    ("lpTemplateName", wintypes.LPCWSTR),
+                    ("pvReserved", wintypes.LPVOID),
+                    ("dwReserved", wintypes.DWORD),
+                    ("FlagsEx", wintypes.DWORD),
+                ]
+
+            OFN_FILEMUSTEXIST = 0x00001000
+            OFN_PATHMUSTEXIST = 0x00000800
+            OFN_HIDEREADONLY = 0x00000004
+
+            file_buffer = ctypes.create_unicode_buffer(65535)
+            file_filter = (
+                "File dati (*.csv;*.xlsx;*.xls;*.xlsm)\0*.csv;*.xlsx;*.xls;*.xlsm\0"
+                "CSV (*.csv)\0*.csv\0"
+                "Excel (*.xlsx;*.xls;*.xlsm)\0*.xlsx;*.xls;*.xlsm\0"
+                "Tutti i file (*.*)\0*.*\0\0"
+            )
+
+            ofn = OPENFILENAMEW()
+            ofn.lStructSize = ctypes.sizeof(OPENFILENAMEW)
+            ofn.lpstrFilter = file_filter
+            ofn.lpstrFile = file_buffer
+            ofn.nMaxFile = len(file_buffer)
+            ofn.lpstrTitle = "Seleziona sorgente dati"
+            ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_HIDEREADONLY
+
+            result = ctypes.windll.comdlg32.GetOpenFileNameW(ctypes.byref(ofn))
+            if result:
+                selected = file_buffer.value
+        except Exception as exc:
+            last_error = str(exc)
+
+    if not selected and sys.platform == "darwin":
+        try:
+            proc = subprocess.run(
+                [
+                    "osascript",
+                    "-e",
+                    'POSIX path of (choose file with prompt "Seleziona sorgente dati")',
+                ],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            if proc.returncode == 0:
+                selected = (proc.stdout or "").strip()
+        except Exception as exc:
+            last_error = str(exc)
+
+    if not selected and sys.platform.startswith("linux"):
+        try:
+            if shutil.which("zenity"):
+                proc = subprocess.run(
+                    [
+                        "zenity",
+                        "--file-selection",
+                        "--title=Seleziona sorgente dati",
+                        "--file-filter=File dati | *.csv *.xlsx *.xls *.xlsm",
+                    ],
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                )
+                if proc.returncode == 0:
+                    selected = (proc.stdout or "").strip()
+            elif shutil.which("kdialog"):
+                proc = subprocess.run(
+                    [
+                        "kdialog",
+                        "--getopenfilename",
+                        "",
+                        "*.csv *.xlsx *.xls *.xlsm",
+                    ],
+                    capture_output=True,
+                    text=True,
+                    timeout=30,
+                )
+                if proc.returncode == 0:
+                    selected = (proc.stdout or "").strip()
+        except Exception as exc:
+            last_error = str(exc)
+
+    if not selected and last_error:
         return JSONResponse(
-            {"error": f"Impossibile aprire il selettore file locale: {exc}"},
+            {"error": f"Impossibile aprire il selettore file locale: {last_error}"},
             status_code=500,
         )
 
     if not selected:
-        return JSONResponse({"error": "Nessun file selezionato."}, status_code=400)
+        return JSONResponse(
+            {
+                "error": "Nessun file selezionato o selettore non disponibile su questa piattaforma. Usa 'Incolla percorso'."
+            },
+            status_code=400,
+        )
 
     path = Path(selected)
     ext = path.suffix.lower()
