@@ -5,6 +5,11 @@
   "settings_language_label": "Interface language",
   "settings_print_logos": "Show logos in print",
   "settings_save": "Save settings",
+  "brand_subtitle": "CSV viewer and server-side multi-measure pivot",
+  "license_label_prefix": "License:",
+  "license_active": "ACTIVE",
+  "details": "Details",
+  "developed_by": "developed by",
   "user_space_active": "Personal workspace active.",
   "manage_users": "User management",
   "logout": "Logout",
@@ -27,6 +32,9 @@
   "menu_settings": "Settings",
   "menu_global_settings": "Global settings",
   "source_data": "Data source",
+  "csv_columns_available": "CSV available columns",
+  "preset": "Preset",
+  "page_filters": "Page filters",
   "pivot_layout": "Pivot layout",
   "layout_vertical": "Vertical",
   "layout_horizontal": "Horizontal",
@@ -36,4 +44,38 @@
   "col_totals": "Column totals",
   "subtotals": "Subtotals",
   "save_view": "Save view"
+  ,"users_management": "User management"
+  ,"users_management_subtitle": "Manage access and multi-user profiles in PivotDesk LAN environments."
+  ,"open_pivotdesk": "Open PivotDesk"
+  ,"create_user": "Create user"
+  ,"create_user_subtitle": "Create a new local account. Each user has separate data sources, presets, settings and uploaded files."
+  ,"display_name": "Display name"
+  ,"role": "Role"
+  ,"initial_password": "Initial password"
+  ,"create": "Create"
+  ,"registered_users": "Registered users"
+  ,"registered_users_subtitle": "From here you can inspect role/status, reset password, or temporarily disable a user."
+  ,"name": "Name"
+  ,"enabled": "Enabled"
+  ,"actions": "Actions"
+  ,"admin_cannot_disable_self": "The current administrator cannot disable their own account."
+  ,"request_error": "Request error"
+  ,"yes": "Yes"
+  ,"no": "No"
+  ,"reset_password": "Reset password"
+  ,"disable": "Disable"
+  ,"enable": "Enable"
+  ,"new_password_for": "New password for"
+  ,"password_reset_ok": "Password reset completed."
+  ,"user_status_updated": "User status updated."
+  ,"user_created_ok": "User created successfully."
+  ,"login_multiuser_title": "Multi-user access"
+  ,"login_multiuser_subtitle": "Sign in to your PivotDesk workspace. Each user has separate sources, presets, and uploads, also when the app runs on LAN."
+  ,"login_welcome": "Welcome to PivotDesk"
+  ,"login_enter_credentials": "Enter your credentials to continue."
+  ,"logout_success": "Logout completed successfully."
+  ,"username": "Username"
+  ,"password": "Password"
+  ,"login": "Login"
+  ,"first_access_note": "First access: user <strong>admin</strong>, password <strong>admin</strong>."
 }

@@ -352,14 +352,14 @@ window.LICENSE_CONTEXT = {
           <img src="/static/img/pivotdesk-logo.png" alt="PivotDesk" class="logo-main">
         </div>
         <div class="brand-copy">
-          <div class="brand-subtitle">Viewer CSV e pivot server-side multi-misura</div>
+          <div class="brand-subtitle" data-i18n="brand_subtitle">Viewer CSV e pivot server-side multi-misura</div>
         </div>
       </div>
 
       <div class="brand-license">
         <div class="license-pill" title="Licenza {{ license_label or 'N/D' }}">
           <div class="license-pill-main">
-            <span>Licenza:</span>
+            <span data-i18n="license_label_prefix">Licenza:</span>
             <span class="license-pill-title">{{ license_label or "N/D" }}</span>
             {% if license and license.customer_name %}
             <span class="license-pill-meta">{{ license.customer_name }}</span>
@@ -373,15 +373,15 @@ window.LICENSE_CONTEXT = {
             {% elif license_is_dev %}
               <span class="user-role" style="background:#e0ecff; color:#175cd3;">DEVELOPER</span>
             {% else %}
-              <span class="user-role" style="background:#ecfdf3; color:#027a48;">ATTIVA</span>
+              <span class="user-role" style="background:#ecfdf3; color:#027a48;" data-i18n="license_active">ATTIVA</span>
             {% endif %}
-            <button type="button" class="license-mini-btn" onclick="showLicenseInfo()">Dettagli</button>
+            <button type="button" class="license-mini-btn" onclick="showLicenseInfo()" data-i18n="details">Dettagli</button>
           </div>
         </div>
       </div>
 
       <div class="brand-right">
-        <div class="dev-title">sviluppato da</div>
+        <div class="dev-title" data-i18n="developed_by">sviluppato da</div>
         <img src="/static/img/IltuoConsulenteIT.png" alt="IlTuoConsulenteIT" class="dev-logo">
       </div>
     </div>
@@ -465,18 +465,18 @@ window.LICENSE_CONTEXT = {
   </div>
 
   <div id="columnsPanel" class="card hidden">
-    <div class="section-title">Colonne disponibili nel CSV</div>
+    <div class="section-title" data-i18n="csv_columns_available">Colonne disponibili nel CSV</div>
     <div id="columnsCount" class="small"></div>
     <div id="columnsRaw" class="columns-raw"></div>
   </div>
 
   <div class="card">
-    <div class="section-title">Preset</div>
+    <div class="section-title" data-i18n="preset">Preset</div>
     <div class="tabbar" id="tabbar"></div>
   </div>
 
   <div class="card">
-    <div class="section-title">Filtri pagina</div>
+    <div class="section-title" data-i18n="page_filters">Filtri pagina</div>
     <div class="filters" id="filters"></div>
   </div>
 
@@ -918,7 +918,7 @@ let BUILDER_MODE = "new";
 let BUILDER_EDITING_ID = null;
 let SETTINGS = {
   print_show_logos: true,
-  language: "it"
+  language: "en"
 };
 let CURRENT_VIEW_OPTIONS = null;
 let CURRENT_HEADER_FILTERS = {};
@@ -944,9 +944,9 @@ async function loadI18nCatalogs(){
 }
 
 function translateText(key){
-  const lang = String(SETTINGS.language || "it").toLowerCase();
-  const bundle = I18N[lang] || I18N.it;
-  return bundle[key] || (I18N.it[key] || key);
+  const lang = String(SETTINGS.language || "en").toLowerCase();
+  const bundle = I18N[lang] || I18N.en;
+  return bundle[key] || (I18N.en[key] || key);
 }
 
 function applyI18n(){
@@ -1160,23 +1160,23 @@ function closeSettingsScreen(){
 function renderSettingsForm(){
   document.getElementById("settingPrintShowLogos").checked = !!SETTINGS.print_show_logos;
   const langSelect = document.getElementById("settingLanguage");
-  if (langSelect) langSelect.value = (SETTINGS.language || "it");
+  if (langSelect) langSelect.value = (SETTINGS.language || "en");
   const topLang = document.getElementById("appLanguageSelect");
-  if (topLang) topLang.value = (SETTINGS.language || "it");
+  if (topLang) topLang.value = (SETTINGS.language || "en");
   applyI18n();
 }
 
 async function loadSettings(){
   const j = await api("/settings");
-  SETTINGS = j.settings || { print_show_logos: true, language: "it" };
-  if (!SETTINGS.language) SETTINGS.language = "it";
+  SETTINGS = j.settings || { print_show_logos: true, language: "en" };
+  if (!SETTINGS.language) SETTINGS.language = "en";
   renderSettingsForm();
 }
 
 async function saveSettingsFromForm(){
   const payload = {
     print_show_logos: document.getElementById("settingPrintShowLogos").checked,
-    language: (document.getElementById("settingLanguage").value || "it").toLowerCase()
+    language: (document.getElementById("settingLanguage").value || "en").toLowerCase()
   };
   const j = await api("/settings/save", {
     method: "POST",
@@ -2778,13 +2778,13 @@ function bindSourceUiButtons(){
 
 bindInput("fieldsSearch", "input", renderFieldsSidebar);
 bindInput("settingLanguage", "change", () => {
-  SETTINGS.language = (document.getElementById("settingLanguage").value || "it").toLowerCase();
+  SETTINGS.language = (document.getElementById("settingLanguage").value || "en").toLowerCase();
   const topLang = document.getElementById("appLanguageSelect");
   if (topLang) topLang.value = SETTINGS.language;
   applyI18n();
 });
 bindInput("appLanguageSelect", "change", () => {
-  SETTINGS.language = (document.getElementById("appLanguageSelect").value || "it").toLowerCase();
+  SETTINGS.language = (document.getElementById("appLanguageSelect").value || "en").toLowerCase();
   const langSelect = document.getElementById("settingLanguage");
   if (langSelect) langSelect.value = SETTINGS.language;
   applyI18n();

@@ -5,6 +5,11 @@
   "settings_language_label": "Lingua interfaccia",
   "settings_print_logos": "Mostra i loghi nella stampa",
   "settings_save": "Salva impostazioni",
+  "brand_subtitle": "Viewer CSV e pivot server-side multi-misura",
+  "license_label_prefix": "Licenza:",
+  "license_active": "ATTIVA",
+  "details": "Dettagli",
+  "developed_by": "sviluppato da",
   "user_space_active": "Spazio personale attivo.",
   "manage_users": "Gestione utenti",
   "logout": "Logout",
@@ -27,6 +32,9 @@
   "menu_settings": "Impostazioni",
   "menu_global_settings": "Impostazioni globali",
   "source_data": "Sorgente dati",
+  "csv_columns_available": "Colonne disponibili nel CSV",
+  "preset": "Preset",
+  "page_filters": "Filtri pagina",
   "pivot_layout": "Layout pivot",
   "layout_vertical": "Verticale",
   "layout_horizontal": "Orizzontale",
@@ -36,4 +44,38 @@
   "col_totals": "Totali colonne",
   "subtotals": "Subtotali",
   "save_view": "Salva vista"
+  ,"users_management": "Gestione utenti"
+  ,"users_management_subtitle": "Amministrazione accessi e profili multiutente di PivotDesk in ambiente LAN."
+  ,"open_pivotdesk": "Apri PivotDesk"
+  ,"create_user": "Crea utente"
+  ,"create_user_subtitle": "Crea un nuovo account locale. Ogni utente avrà sorgenti dati, preset, impostazioni e file caricati separati."
+  ,"display_name": "Nome visualizzato"
+  ,"role": "Ruolo"
+  ,"initial_password": "Password iniziale"
+  ,"create": "Crea"
+  ,"registered_users": "Utenti registrati"
+  ,"registered_users_subtitle": "Da qui puoi verificare ruolo e stato di ogni account, reimpostare la password o disabilitare temporaneamente un utente."
+  ,"name": "Nome"
+  ,"enabled": "Abilitato"
+  ,"actions": "Azioni"
+  ,"admin_cannot_disable_self": "L'utente amministratore corrente non può essere disabilitato dalla propria sessione."
+  ,"request_error": "Errore richiesta"
+  ,"yes": "Sì"
+  ,"no": "No"
+  ,"reset_password": "Reset password"
+  ,"disable": "Disabilita"
+  ,"enable": "Abilita"
+  ,"new_password_for": "Nuova password per"
+  ,"password_reset_ok": "Password reimpostata correttamente."
+  ,"user_status_updated": "Stato utente aggiornato."
+  ,"user_created_ok": "Utente creato correttamente."
+  ,"login_multiuser_title": "Accesso multiutente"
+  ,"login_multiuser_subtitle": "Accedi al tuo spazio personale PivotDesk. Ogni utente ha sorgenti dati, preset e upload separati, anche quando l'applicazione viene usata in LAN."
+  ,"login_welcome": "Benvenuto in PivotDesk"
+  ,"login_enter_credentials": "Inserisci le tue credenziali per continuare."
+  ,"logout_success": "Logout eseguito correttamente."
+  ,"username": "Username"
+  ,"password": "Password"
+  ,"login": "Accedi"
+  ,"first_access_note": "Primo accesso: utente <strong>admin</strong>, password <strong>admin</strong>."
 }
