@@ -274,20 +274,39 @@ def _read_csv_local(path: str, delimiter: Any = None, encoding: Any = None, skip
         non_empty_cols = sum(1 for c in df.columns if str(c).strip())
         return (cols, min(rows, 100), non_empty_cols)
 
+    def _read_csv_tolerant(actual_sep: str, enc_name: str) -> pd.DataFrame:
+        base_kwargs = {
+            "filepath_or_buffer": path,
+            "sep": actual_sep,
+            "encoding": enc_name,
+            "skiprows": skip_rows,
+            "dtype": str,
+            "keep_default_na": False,
+            "engine": "python",
+        }
+        attempts = [
+            {"quotechar": '"', "doublequote": True},
+            {"quotechar": '"', "doublequote": False, "escapechar": "\\"},
+            {"quoting": csv.QUOTE_NONE, "escapechar": "\\"},
+            {"quoting": csv.QUOTE_NONE, "on_bad_lines": "skip"},
+        ]
+
+        last_exc: Exception | None = None
+        for extra in attempts:
+            try:
+                return pd.read_csv(**base_kwargs, **extra)
+            except Exception as exc:
+                last_exc = exc
+
+        if last_exc is not None:
+            raise last_exc
+        raise RuntimeError("Impossibile leggere il CSV con i parser disponibili")
+
     # Se l'utente ha scelto manualmente un delimitatore, quello deve vincere sempre.
     if sep:
         for enc_name in encodings:
             try:
-                df = pd.read_csv(
-                    path,
-                    sep=sep,
-                    encoding=enc_name,
-                    skiprows=skip_rows,
-                    dtype=str,
-                    keep_default_na=False,
-                    engine="python",
-                    quotechar='"',
-                )
+                df = _read_csv_tolerant(sep, enc_name)
                 return df, sep, enc_name
             except Exception as exc:
                 last_error = exc
@@ -315,16 +334,7 @@ def _read_csv_local(path: str, delimiter: Any = None, encoding: Any = None, skip
 
         for actual_sep in candidates:
             try:
-                df = pd.read_csv(
-                    path,
-                    sep=actual_sep,
-                    encoding=enc_name,
-                    skiprows=skip_rows,
-                    dtype=str,
-                    keep_default_na=False,
-                    engine="python",
-                    quotechar='"',
-                )
+                df = _read_csv_tolerant(actual_sep, enc_name)
             except Exception as exc:
                 last_error = exc
                 continue
