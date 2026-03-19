@@ -394,7 +394,7 @@ window.LICENSE_CONTEXT = {
           <strong>{{ (current_user.display_name or current_user.username) if current_user else "Utente" }}</strong>
           <span class="user-role">{{ (current_user.role or "user") if current_user else "user" }}</span>
         </div>
-        <span>Spazio personale attivo.</span>
+        <span data-i18n="user_space_active">Spazio personale attivo.</span>
       </div>
       <div class="userbar-right">
         <label for="appLanguageSelect" class="small" data-i18n="settings_language_label" style="margin-right:4px;">Lingua interfaccia</label>
@@ -403,10 +403,10 @@ window.LICENSE_CONTEXT = {
           <option value="en">English</option>
         </select>
         {% if current_user and (current_user.role or "user") == "admin" %}
-        <a href="/admin" class="ghost-btn primary-link">Gestione utenti</a>
+        <a href="/admin" class="ghost-btn primary-link" data-i18n="manage_users">Gestione utenti</a>
         {% endif %}
         <form method="post" action="/logout" style="margin:0;">
-          <button type="submit" class="ghost-btn">Logout</button>
+          <button type="submit" class="ghost-btn" data-i18n="logout">Logout</button>
         </form>
       </div>
     </div>
@@ -414,52 +414,52 @@ window.LICENSE_CONTEXT = {
 
   <div class="card menu-bar">
     <div class="menu-group">
-      <button type="button" class="menu-btn" data-menu-target="menu-data">Dati</button>
+      <button type="button" class="menu-btn" data-menu-target="menu-data" data-i18n="menu_data">Dati</button>
       <div class="menu-dropdown hidden" id="menu-data">
-        <button type="button" id="menuReload">Ricarica</button>
-        <button type="button" id="menuOpenSources">Gestisci sorgenti dati</button>
-        <button type="button" id="menuToggleColumns">Mostra/Nascondi colonne CSV</button>
+        <button type="button" id="menuReload" data-i18n="menu_reload">Ricarica</button>
+        <button type="button" id="menuOpenSources" data-i18n="menu_manage_sources">Gestisci sorgenti dati</button>
+        <button type="button" id="menuToggleColumns" data-i18n="menu_toggle_columns">Mostra/Nascondi colonne CSV</button>
       </div>
     </div>
 
     <div class="menu-group">
-      <button type="button" class="menu-btn" data-menu-target="menu-pivot">Pivot</button>
+      <button type="button" class="menu-btn" data-menu-target="menu-pivot" data-i18n="menu_pivot">Pivot</button>
       <div class="menu-dropdown hidden" id="menu-pivot">
-        <button type="button" id="menuOpenBuilder">Apri costruttore pivot</button>
-        <button type="button" id="menuEditCurrentPreset">Modifica preset attivo</button>
-        <button type="button" id="menuDeleteCurrentPreset">Elimina preset attivo</button>
+        <button type="button" id="menuOpenBuilder" data-i18n="menu_open_builder">Apri costruttore pivot</button>
+        <button type="button" id="menuEditCurrentPreset" data-i18n="menu_edit_preset">Modifica preset attivo</button>
+        <button type="button" id="menuDeleteCurrentPreset" data-i18n="menu_delete_preset">Elimina preset attivo</button>
       </div>
     </div>
 
     <div class="menu-group">
-      <button type="button" class="menu-btn" data-menu-target="menu-view">Visualizza</button>
+      <button type="button" class="menu-btn" data-menu-target="menu-view" data-i18n="menu_view">Visualizza</button>
       <div class="menu-dropdown hidden" id="menu-view">
-        <button type="button" id="menuSetVerticalLayout">Layout misure verticale</button>
-        <button type="button" id="menuSetHorizontalLayout">Layout misure orizzontale</button>
-        <button type="button" id="menuToggleRowTotals">Totali righe on/off</button>
-        <button type="button" id="menuToggleColTotals">Totali colonne on/off</button>
-        <button type="button" id="menuToggleSubtotals" data-feature="subtotals">Subtotali on/off</button>
+        <button type="button" id="menuSetVerticalLayout" data-i18n="menu_layout_vertical">Layout misure verticale</button>
+        <button type="button" id="menuSetHorizontalLayout" data-i18n="menu_layout_horizontal">Layout misure orizzontale</button>
+        <button type="button" id="menuToggleRowTotals" data-i18n="menu_row_totals_toggle">Totali righe on/off</button>
+        <button type="button" id="menuToggleColTotals" data-i18n="menu_col_totals_toggle">Totali colonne on/off</button>
+        <button type="button" id="menuToggleSubtotals" data-feature="subtotals" data-i18n="menu_subtotals_toggle">Subtotali on/off</button>
       </div>
     </div>
 
     <div class="menu-group">
-      <button type="button" class="menu-btn" data-menu-target="menu-print">Stampa</button>
+      <button type="button" class="menu-btn" data-menu-target="menu-print" data-i18n="menu_print">Stampa</button>
       <div class="menu-dropdown hidden" id="menu-print">
-        <button type="button" id="menuPrint" data-feature="print">Stampa pivot</button>
+        <button type="button" id="menuPrint" data-feature="print" data-i18n="menu_print_pivot">Stampa pivot</button>
       </div>
     </div>
 
     <div class="menu-group">
-      <button type="button" class="menu-btn" data-menu-target="menu-settings">Impostazioni</button>
+      <button type="button" class="menu-btn" data-menu-target="menu-settings" data-i18n="menu_settings">Impostazioni</button>
       <div class="menu-dropdown hidden" id="menu-settings">
-        <button type="button" id="menuOpenSettings">Impostazioni globali</button>
+        <button type="button" id="menuOpenSettings" data-i18n="menu_global_settings">Impostazioni globali</button>
       </div>
     </div>
   </div>
 
   <div class="card">
     <div class="field source-field">
-      <label for="sourceSelect"><strong>Sorgente dati</strong></label>
+      <label for="sourceSelect"><strong data-i18n="source_data">Sorgente dati</strong></label>
       <select id="sourceSelect"></select>
     </div>
   </div>
@@ -482,13 +482,13 @@ window.LICENSE_CONTEXT = {
 
   <div class="card pivot-quickbar" id="pivotQuickbar">
     <div class="pivot-quickbar-left">
-      <span class="pivot-quickbar-label">Layout pivot</span>
+      <span class="pivot-quickbar-label" data-i18n="pivot_layout">Layout pivot</span>
 
-      <button type="button" id="btnLayoutVertical" class="quick-toggle active" title="Layout verticale">
+      <button type="button" id="btnLayoutVertical" class="quick-toggle active" title="Layout verticale" data-i18n-title="layout_vertical_title">
         ↕ Verticale
       </button>
 
-      <button type="button" id="btnLayoutHorizontal" class="quick-toggle" title="Layout orizzontale">
+      <button type="button" id="btnLayoutHorizontal" class="quick-toggle" title="Layout orizzontale" data-i18n-title="layout_horizontal_title">
         ↔ Orizzontale
       </button>
     </div>
@@ -496,20 +496,20 @@ window.LICENSE_CONTEXT = {
     <div class="pivot-quickbar-right">
       <label class="inline-check compact-check">
         <input type="checkbox" id="chkRowTotals">
-        Totali righe
+        <span data-i18n="row_totals">Totali righe</span>
       </label>
 
       <label class="inline-check compact-check">
         <input type="checkbox" id="chkColTotals">
-        Totali colonne
+        <span data-i18n="col_totals">Totali colonne</span>
       </label>
 
       <label class="inline-check compact-check">
         <input type="checkbox" id="chkSubtotals" data-feature="subtotals">
-        Subtotali
+        <span data-i18n="subtotals">Subtotali</span>
       </label>
 
-      <button type="button" id="btnApplyPivotView" class="primary">Salva vista</button>
+      <button type="button" id="btnApplyPivotView" class="primary" data-i18n="save_view">Salva vista</button>
     </div>
   </div>
 
@@ -932,7 +932,7 @@ let I18N = {
 async function loadI18nCatalogs(){
   async function loadLang(lang){
     try {
-      const res = await fetch("/static/i18n/" + lang + ".json");
+      const res = await fetch("/static/languages/" + lang + ".json");
       if (!res.ok) throw new Error("catalog not found");
       return await res.json();
     } catch (_) {
@@ -955,6 +955,15 @@ function applyI18n(){
     if (!key) return;
     el.textContent = translateText(key);
   });
+  document.querySelectorAll("[data-i18n-title]").forEach(el => {
+    const key = el.getAttribute("data-i18n-title");
+    if (!key) return;
+    el.setAttribute("title", translateText(key));
+  });
+  const btnV = document.getElementById("btnLayoutVertical");
+  if (btnV) btnV.textContent = "↕ " + translateText("layout_vertical");
+  const btnH = document.getElementById("btnLayoutHorizontal");
+  if (btnH) btnH.textContent = "↔ " + translateText("layout_horizontal");
 }
 
 const BUILDER = {
