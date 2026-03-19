@@ -1779,26 +1779,39 @@ async def lan_firewall_open(request: Request):
                     "command": " ".join(cmd),
                     "message": (proc.stdout or "Regola firewall applicata.").strip(),
                 }
-            last_error = (proc.stderr or proc.stdout or "").strip()
+            raw_error = (proc.stderr or proc.stdout or "").strip()
+            low_error = raw_error.lower()
+            if "already exists" in low_error or "esiste già" in low_error:
+                return {
+                    "ok": True,
+                    "platform": system_name,
+                    "port": port,
+                    "command": " ".join(cmd),
+                    "message": "Regola firewall già presente.",
+                }
+            last_error = raw_error
         except Exception as exc:
             last_error = str(exc)
 
     if system_name == "windows" and auto_elevate:
         try:
+            import ctypes
+
             arg_line = (
                 f"advfirewall firewall add rule name=\"PivotDesk {port}\" "
                 f"dir=in action=allow protocol=TCP localport={port}"
             )
-            ps_cmd = (
-                "Start-Process -FilePath 'netsh' "
-                f"-ArgumentList '{arg_line}' "
-                "-Verb RunAs"
+            # ShellExecuteW con verbo runas mostra il prompt UAC nativo.
+            result = ctypes.windll.shell32.ShellExecuteW(
+                None,
+                "runas",
+                "netsh",
+                arg_line,
+                None,
+                1,
             )
-            subprocess.Popen(
-                ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps_cmd],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
+            if int(result) <= 32:
+                raise RuntimeError(f"ShellExecuteW errore: {result}")
             return {
                 "ok": True,
                 "platform": system_name,
