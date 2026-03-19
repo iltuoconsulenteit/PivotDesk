@@ -459,6 +459,7 @@ window.LICENSE_CONTEXT = {
               <span class="user-role" style="background:#ecfdf3; color:#027a48;" data-i18n="license_active">ATTIVA</span>
             {% endif %}
             <button type="button" class="license-mini-btn" onclick="showLicenseInfo()" data-i18n="details">Dettagli</button>
+            <button type="button" class="license-mini-btn" id="btnOpenLicenseActivation">Attiva licenza</button>
           </div>
         </div>
       </div>
@@ -1019,6 +1020,38 @@ window.LICENSE_CONTEXT = {
     </div>
     <div class="license-modal-grid" id="licenseDetailsGrid"></div>
     <ul class="license-feature-list" id="licenseFeaturesList"></ul>
+  </div>
+</div>
+
+<div id="licenseActivationModal" class="license-modal-overlay">
+  <div class="license-modal">
+    <div class="license-modal-head">
+      <div>
+        <div class="section-title" style="margin:0;">Attiva licenza</div>
+        <div class="small">Seleziona provider e inserisci il codice ricevuto (Gumroad, LemonSqueezy, sito, ecc.).</div>
+      </div>
+      <button id="btnCloseLicenseActivation" type="button">Chiudi</button>
+    </div>
+    <div class="license-modal-grid">
+      <div class="field">
+        <label for="licenseProviderSelect">Provider</label>
+        <select id="licenseProviderSelect"></select>
+      </div>
+      <div class="field">
+        <label for="licenseActivationEmail">Email acquisto (opzionale)</label>
+        <input id="licenseActivationEmail" placeholder="nome@email.com">
+      </div>
+      <div class="field" style="grid-column:1 / -1;">
+        <label for="licenseActivationKey">Chiave licenza</label>
+        <input id="licenseActivationKey" placeholder="Inserisci chiave/licence key">
+      </div>
+      <div class="small" style="grid-column:1 / -1;" id="licenseActivationHint">
+        Suggerimento: puoi pre-selezionare il provider da URL con <code>?provider=gumroad</code> oppure <code>?provider=lemonsqueezy</code>.
+      </div>
+    </div>
+    <div style="padding: 0 18px 18px; display:flex; justify-content:flex-end; gap:10px;">
+      <button id="btnLicenseActivateNow" type="button" class="primary">Attiva ora</button>
+    </div>
   </div>
 </div>
 
@@ -3053,6 +3086,24 @@ bindClick("btnCloseLicenseDetails", () => closeLicenseInfo());
 bindClick("licenseDetailsModal", ev => {
   if (ev && ev.target && ev.target.id === "licenseDetailsModal") closeLicenseInfo();
 });
+bindClick("btnOpenLicenseActivation", async () => {
+  try {
+    await openLicenseActivationModal();
+  } catch (e) {
+    setStatus("ERRORE: " + e.message);
+  }
+});
+bindClick("btnCloseLicenseActivation", () => closeLicenseActivationModal());
+bindClick("licenseActivationModal", ev => {
+  if (ev && ev.target && ev.target.id === "licenseActivationModal") closeLicenseActivationModal();
+});
+bindClick("btnLicenseActivateNow", async () => {
+  try {
+    await activateLicenseFromModal();
+  } catch (e) {
+    setStatus("ERRORE: " + e.message);
+  }
+});
 
 bindClick("btnCloseSources", () => closeSourcesScreen());
 bindClick("btnSourceNew", () => resetSourceForm());
@@ -3427,6 +3478,83 @@ function showLicenseInfo(){
 function closeLicenseInfo(){
   const modal = document.getElementById("licenseDetailsModal");
   if (modal) modal.classList.remove("active");
+}
+
+function guessPreferredLicenseProvider(available){
+  const list = Array.isArray(available) ? available.map(x => String(x || "").toLowerCase()) : [];
+  if (!list.length) return "developer";
+
+  const params = new URLSearchParams(window.location.search || "");
+  const byQuery = String(params.get("provider") || params.get("source") || "").toLowerCase().trim();
+  if (byQuery && list.includes(byQuery)) return byQuery;
+
+  const byStorage = String(localStorage.getItem("pivotdesk_preferred_license_provider") || "").toLowerCase().trim();
+  if (byStorage && list.includes(byStorage)) return byStorage;
+
+  const host = String(window.location.hostname || "").toLowerCase();
+  if (host.includes("gumroad") && list.includes("gumroad")) return "gumroad";
+  if (host.includes("lemonsqueezy") && list.includes("lemonsqueezy")) return "lemonsqueezy";
+  if (list.includes("custom")) return "custom";
+  if (list.includes("gumroad")) return "gumroad";
+  if (list.includes("lemonsqueezy")) return "lemonsqueezy";
+  if (list.includes("developer")) return "developer";
+  return list[0];
+}
+
+async function openLicenseActivationModal(){
+  const modal = document.getElementById("licenseActivationModal");
+  const sel = document.getElementById("licenseProviderSelect");
+  const hint = document.getElementById("licenseActivationHint");
+  if (!modal || !sel) return;
+
+  sel.innerHTML = "";
+  try {
+    const data = await api("/license/providers");
+    const providers = (data && Array.isArray(data.providers) ? data.providers : []).map(x => String(x || "").toLowerCase());
+    const preferred = guessPreferredLicenseProvider(providers);
+    providers.forEach(p => {
+      const o = document.createElement("option");
+      o.value = p;
+      o.textContent = p;
+      if (p === preferred) o.selected = true;
+      sel.appendChild(o);
+    });
+    if (preferred) localStorage.setItem("pivotdesk_preferred_license_provider", preferred);
+    if (hint) hint.textContent = providers.length
+      ? ("Provider disponibili: " + providers.join(", ") + ".")
+      : "Nessun provider disponibile.";
+  } catch (e) {
+    if (hint) hint.textContent = "Impossibile leggere i provider: " + (e && e.message ? e.message : e);
+  }
+
+  modal.classList.add("active");
+}
+
+function closeLicenseActivationModal(){
+  const modal = document.getElementById("licenseActivationModal");
+  if (modal) modal.classList.remove("active");
+}
+
+async function activateLicenseFromModal(){
+  const provider = String(document.getElementById("licenseProviderSelect")?.value || "").trim().toLowerCase();
+  const email = String(document.getElementById("licenseActivationEmail")?.value || "").trim();
+  const key = String(document.getElementById("licenseActivationKey")?.value || "").trim();
+  if (!provider) throw new Error("Seleziona un provider.");
+  if (!key) throw new Error("Inserisci la chiave licenza.");
+
+  localStorage.setItem("pivotdesk_preferred_license_provider", provider);
+  const res = await api("/license/activate", {
+    method: "POST",
+    body: JSON.stringify({
+      provider,
+      email,
+      license_key: key
+    })
+  });
+
+  closeLicenseActivationModal();
+  setStatus("Licenza attivata: " + String(res.message || "OK"));
+  window.setTimeout(() => window.location.reload(), 350);
 }
 
 Promise.resolve()

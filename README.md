@@ -76,6 +76,7 @@ Alla prima esecuzione viene creato un utente admin:
 - Gli endpoint `GET /fields` e `GET /filter-values` accettano anche `pivot_id` opzionale: quando presente, applicano i `calculated_fields` del preset prima di restituire colonne/valori filtro.
 - Per utenze admin con licenza attiva è disponibile backup/ripristino di preset+impostazioni (`GET /admin/backup/export`, `POST /admin/backup/restore`).
 - Nel frontend il backup/restore è disponibile sia dal menu principale “Backup” sia dal riquadro “Backup & Restore” in Impostazioni; lato UI la funzione risulta attiva per licenze non demo (oltre al flag feature esplicito).
+- Nella barra licenza è disponibile il pulsante “Attiva licenza” con scelta provider (`developer`, `gumroad`, `lemonsqueezy`, `custom` secondo configurazione). La selezione può essere preimpostata anche da URL (`?provider=gumroad`).
 - Nei campi calcolati è disponibile `token_after(testo, marcatore, case_sensitive?)` per estrarre il primo token dopo stringhe come `#` o `CRO:` (utile su descrizioni bancarie/libere). Il terzo parametro è opzionale (`false` default).
 - Nel modal dei campi calcolati puoi trascinare i campi dalla sidebar direttamente dentro la formula (`[Nome Campo]`).
 - Nell’anteprima sorgente del builder, i campi calcolati definiti vengono mostrati come colonne aggiuntive (anteprima aggiornata al salvataggio/eliminazione campo calcolato).
