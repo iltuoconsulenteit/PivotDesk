@@ -847,6 +847,9 @@ window.LICENSE_CONTEXT = {
 
     <div class="builder-actions">
       <button id="btnSaveSettings" type="button" class="primary" data-i18n="settings_save">Salva impostazioni</button>
+      <button id="btnExportBackup" type="button">Backup preset+impostazioni</button>
+      <button id="btnRestoreBackup" type="button">Ripristina backup</button>
+      <input id="backupRestoreFile" type="file" accept=".json,application/json" style="display:none;">
     </div>
   </div>
 </div>
@@ -1185,6 +1188,58 @@ async function saveSettingsFromForm(){
   SETTINGS = j.settings || payload;
   renderSettingsForm();
   setStatus("Impostazioni salvate correttamente.");
+}
+
+async function exportBackupPackage(){
+  const res = await api("/admin/backup/export");
+  const backup = res.backup || {};
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const filename = "pivotdesk-backup-" + stamp + ".json";
+  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  setStatus("Backup esportato: " + filename);
+}
+
+async function restoreBackupPackageFromFile(file){
+  if (!file) return;
+  const text = await file.text();
+  let payload = null;
+  try {
+    payload = JSON.parse(text);
+  } catch (_e) {
+    throw new Error("File backup non valido (JSON non leggibile).");
+  }
+
+  const confirmRestore = window.confirm(
+    "Confermi il ripristino del backup?\n\nL'operazione sovrascrive preset e impostazioni correnti."
+  );
+  if (!confirmRestore) {
+    setStatus("Ripristino annullato.");
+    return;
+  }
+
+  const res = await api("/admin/backup/restore", {
+    method: "POST",
+    body: JSON.stringify({
+      backup: payload,
+      replace_existing: true
+    })
+  });
+
+  SETTINGS = res.settings || SETTINGS;
+  renderSettingsForm();
+  await loadPresets();
+  setStatus(
+    "Ripristino completato. Preset ripristinati: " + String(res.restored_presets || 0) +
+    " (saltati: " + String(res.skipped_presets || 0) + ")."
+  );
 }
 
 function fillSortFieldOptions(){
@@ -2870,6 +2925,30 @@ bindClick("btnSaveSettings", async () => {
     setStatus("ERRORE: " + e.message);
   }
 });
+bindClick("btnExportBackup", async () => {
+  try {
+    await exportBackupPackage();
+  } catch (e) {
+    setStatus("ERRORE: " + e.message);
+  }
+});
+bindClick("btnRestoreBackup", () => {
+  const input = document.getElementById("backupRestoreFile");
+  if (!input) return;
+  input.value = "";
+  input.click();
+});
+bindInput("backupRestoreFile", "change", async ev => {
+  const file = ev && ev.target && ev.target.files ? ev.target.files[0] : null;
+  if (!file) return;
+  try {
+    await restoreBackupPackageFromFile(file);
+  } catch (e) {
+    setStatus("ERRORE: " + e.message);
+  } finally {
+    ev.target.value = "";
+  }
+});
 
 setBuilderMode("new");
 initDropZones();
@@ -3122,7 +3201,9 @@ function applyLicenseUiGuards(){
     { id: "menuPrint", feature: "print", label: "Stampa pivot" },
     { id: "menuToggleSubtotals", feature: "subtotals", label: "Subtotali" },
     { id: "chkSubtotals", feature: "subtotals", label: "Subtotali" },
-    { id: "optShowSubtotals", feature: "subtotals", label: "Subtotali nel preset" }
+    { id: "optShowSubtotals", feature: "subtotals", label: "Subtotali nel preset" },
+    { id: "btnExportBackup", feature: "backup_restore", label: "Backup preset+impostazioni" },
+    { id: "btnRestoreBackup", feature: "backup_restore", label: "Ripristino backup" }
   ];
   bindings.forEach(item => lockControl(document.getElementById(item.id), item.label, item.feature));
   updatePreviewLockState();

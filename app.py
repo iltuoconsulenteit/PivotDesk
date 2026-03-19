@@ -126,12 +126,14 @@ DEFAULT_LICENSE_FEATURES = {
     "subtotals": False,
     "preview": False,
     "print": False,
+    "backup_restore": False,
 }
 
 DEFAULT_DEV_FEATURES = {
     "subtotals": True,
     "preview": True,
     "print": True,
+    "backup_restore": True,
 }
 
 
@@ -743,6 +745,23 @@ def get_license_context(prefer_online: bool = False) -> dict[str, Any]:
     }
 
 
+def has_license_feature(feature_name: str) -> bool:
+    ctx = get_license_context(prefer_online=False)
+    features = ctx.get("license_features", {}) if isinstance(ctx.get("license_features"), dict) else {}
+    if features.get("*") is True:
+        return True
+
+    if bool(features.get(feature_name)):
+        return True
+
+    # fallback: qualsiasi licenza non demo abilita backup/restore anche se il flag non è esplicito
+    if feature_name == "backup_restore":
+        status = str(ctx.get("license_status", "")).strip().lower()
+        return status not in {"", "demo"}
+
+    return False
+
+
 def create_dev_license_file() -> dict[str, Any]:
     data = build_dev_license()
     write_json(DEV_LICENSE_PATH, data)
@@ -1352,6 +1371,76 @@ def apply_preset_calculated_fields(
     return apply_calculated_fields_to_dataframe(df, preset.get("calculated_fields", []))
 
 
+def build_backup_payload() -> dict[str, Any]:
+    presets = load_pivot_files()
+    exported_presets: list[dict[str, Any]] = []
+
+    for item in presets:
+        source_id = normalize_source_id(item.get("source_id"))
+        filename = sanitize_filename(item.get("_filename") or f"{item.get('id', 'preset')}.json")
+        preset_payload = dict(item)
+        preset_payload.pop("_filename", None)
+        exported_presets.append(
+            {
+                "source_id": source_id,
+                "filename": filename,
+                "preset": preset_payload,
+            }
+        )
+
+    return {
+        "app": "PivotDesk",
+        "version": 1,
+        "exported_at": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "settings": load_settings_data(),
+        "presets": exported_presets,
+    }
+
+
+def restore_backup_payload(payload: dict[str, Any], replace_existing: bool = True) -> dict[str, Any]:
+    settings = payload.get("settings", {}) if isinstance(payload.get("settings"), dict) else {}
+    presets_raw = payload.get("presets", [])
+    if not isinstance(presets_raw, list):
+        raise ValueError("Formato backup non valido: presets deve essere una lista.")
+
+    saved_settings = save_settings_data(settings)
+
+    if replace_existing and PIVOTS_DIR.exists():
+        for folder in PIVOTS_DIR.iterdir():
+            if not folder.is_dir():
+                continue
+            for file in folder.glob("*.json"):
+                try:
+                    file.unlink()
+                except Exception:
+                    pass
+
+    restored_count = 0
+    skipped_count = 0
+
+    for row in presets_raw:
+        if not isinstance(row, dict):
+            skipped_count += 1
+            continue
+        source_id = normalize_source_id(row.get("source_id"))
+        filename = sanitize_filename(row.get("filename") or "")
+        preset = row.get("preset", {})
+        if not source_id or not filename or not isinstance(preset, dict):
+            skipped_count += 1
+            continue
+        try:
+            save_preset_file(source_id, filename, {**preset, "source_id": source_id})
+            restored_count += 1
+        except Exception:
+            skipped_count += 1
+
+    return {
+        "settings": saved_settings,
+        "restored_presets": restored_count,
+        "skipped_presets": skipped_count,
+    }
+
+
 def get_user_runtime_root(username: str | None) -> Path:
     uname = normalize_source_id(username or "guest") or "guest"
     root = DATA_DIR / "userspace" / uname
@@ -1747,6 +1836,40 @@ async def settings_save(request: Request):
         payload = await request.json()
         data = save_settings_data(payload or {})
         return {"ok": True, "settings": data}
+    except Exception as exc:
+        return JSONResponse({"error": str(exc)}, status_code=500)
+
+
+@app.get("/admin/backup/export")
+def admin_backup_export(request: Request):
+    current_user = require_admin(request)
+    if not current_user:
+        return JSONResponse({"error": "Non autorizzato"}, status_code=403)
+    if not has_license_feature("backup_restore"):
+        return JSONResponse({"error": "Funzione disponibile solo con licenza attiva."}, status_code=403)
+
+    return {"ok": True, "backup": build_backup_payload()}
+
+
+@app.post("/admin/backup/restore")
+async def admin_backup_restore(request: Request):
+    current_user = require_admin(request)
+    if not current_user:
+        return JSONResponse({"error": "Non autorizzato"}, status_code=403)
+    if not has_license_feature("backup_restore"):
+        return JSONResponse({"error": "Funzione disponibile solo con licenza attiva."}, status_code=403)
+
+    try:
+        payload = await request.json()
+        backup = payload.get("backup", payload) if isinstance(payload, dict) else {}
+        if not isinstance(backup, dict):
+            return JSONResponse({"error": "Payload backup non valido."}, status_code=400)
+
+        replace_existing = bool(payload.get("replace_existing", True)) if isinstance(payload, dict) else True
+        result = restore_backup_payload(backup, replace_existing=replace_existing)
+        return {"ok": True, **result}
+    except ValueError as exc:
+        return JSONResponse({"error": str(exc)}, status_code=400)
     except Exception as exc:
         return JSONResponse({"error": str(exc)}, status_code=500)
 
