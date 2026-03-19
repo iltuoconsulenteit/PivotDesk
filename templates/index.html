@@ -818,23 +818,30 @@ window.LICENSE_CONTEXT = {
   <div class="card">
     <div class="builder-head">
       <div class="builder-head-left">
-        <div class="section-title">Impostazioni</div>
-        <div class="small">Configurazioni generali dell'applicazione e della stampa.</div>
+        <div class="section-title" data-i18n="settings_title">Impostazioni</div>
+        <div class="small" data-i18n="settings_subtitle">Configurazioni generali dell'applicazione e della stampa.</div>
       </div>
       <div>
-        <button id="btnCloseSettings" type="button">Chiudi impostazioni</button>
+        <button id="btnCloseSettings" type="button" data-i18n="settings_close">Chiudi impostazioni</button>
       </div>
     </div>
 
     <div class="card">
+      <div class="field" style="margin-bottom:10px;">
+        <label for="settingLanguage" data-i18n="settings_language_label">Lingua interfaccia</label>
+        <select id="settingLanguage">
+          <option value="it">Italiano</option>
+          <option value="en">English</option>
+        </select>
+      </div>
       <div class="settings-line">
         <input id="settingPrintShowLogos" type="checkbox">
-        <label for="settingPrintShowLogos" style="margin:0;">Mostra i loghi nella stampa</label>
+        <label for="settingPrintShowLogos" style="margin:0;" data-i18n="settings_print_logos">Mostra i loghi nella stampa</label>
       </div>
     </div>
 
     <div class="builder-actions">
-      <button id="btnSaveSettings" type="button" class="primary">Salva impostazioni</button>
+      <button id="btnSaveSettings" type="button" class="primary" data-i18n="settings_save">Salva impostazioni</button>
     </div>
   </div>
 </div>
@@ -905,11 +912,45 @@ let CURRENT_SOURCE_EDIT = null;
 let BUILDER_MODE = "new";
 let BUILDER_EDITING_ID = null;
 let SETTINGS = {
-  print_show_logos: true
+  print_show_logos: true,
+  language: "it"
 };
 let CURRENT_VIEW_OPTIONS = null;
 let CURRENT_HEADER_FILTERS = {};
 let BUILDER_SOURCE = null;
+
+const I18N = {
+  it: {
+    settings_title: "Impostazioni",
+    settings_subtitle: "Configurazioni generali dell'applicazione e della stampa.",
+    settings_close: "Chiudi impostazioni",
+    settings_language_label: "Lingua interfaccia",
+    settings_print_logos: "Mostra i loghi nella stampa",
+    settings_save: "Salva impostazioni"
+  },
+  en: {
+    settings_title: "Settings",
+    settings_subtitle: "General application and print configuration.",
+    settings_close: "Close settings",
+    settings_language_label: "Interface language",
+    settings_print_logos: "Show logos in print",
+    settings_save: "Save settings"
+  }
+};
+
+function translateText(key){
+  const lang = String(SETTINGS.language || "it").toLowerCase();
+  const bundle = I18N[lang] || I18N.it;
+  return bundle[key] || (I18N.it[key] || key);
+}
+
+function applyI18n(){
+  document.querySelectorAll("[data-i18n]").forEach(el => {
+    const key = el.getAttribute("data-i18n");
+    if (!key) return;
+    el.textContent = translateText(key);
+  });
+}
 
 const BUILDER = {
   filters: [],
@@ -1104,16 +1145,23 @@ function closeSettingsScreen(){
 
 function renderSettingsForm(){
   document.getElementById("settingPrintShowLogos").checked = !!SETTINGS.print_show_logos;
+  const langSelect = document.getElementById("settingLanguage");
+  if (langSelect) langSelect.value = (SETTINGS.language || "it");
+  applyI18n();
 }
 
 async function loadSettings(){
   const j = await api("/settings");
-  SETTINGS = j.settings || { print_show_logos: true };
+  SETTINGS = j.settings || { print_show_logos: true, language: "it" };
+  if (!SETTINGS.language) SETTINGS.language = "it";
   renderSettingsForm();
 }
 
 async function saveSettingsFromForm(){
-  const payload = { print_show_logos: document.getElementById("settingPrintShowLogos").checked };
+  const payload = {
+    print_show_logos: document.getElementById("settingPrintShowLogos").checked,
+    language: (document.getElementById("settingLanguage").value || "it").toLowerCase()
+  };
   const j = await api("/settings/save", {
     method: "POST",
     body: JSON.stringify(payload)
@@ -2713,6 +2761,10 @@ function bindSourceUiButtons(){
 }
 
 bindInput("fieldsSearch", "input", renderFieldsSidebar);
+bindInput("settingLanguage", "change", () => {
+  SETTINGS.language = (document.getElementById("settingLanguage").value || "it").toLowerCase();
+  applyI18n();
+});
 
 bindClick("btnCloseBuilder", () => closeBuilderScreen());
 bindClick("btnBuilderSwapRowsCols", () => {

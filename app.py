@@ -79,6 +79,7 @@ DEFAULT_CONFIG = {
 
 DEFAULT_SETTINGS = {
     "print_show_logos": True,
+    "language": "it",
 }
 
 DEFAULT_SOURCES = {
@@ -432,12 +433,19 @@ def load_settings_data() -> dict[str, Any]:
     data = read_json(SETTINGS_PATH, DEFAULT_SETTINGS.copy()) or {}
     out = DEFAULT_SETTINGS.copy()
     out.update(data)
+    out["language"] = str(out.get("language", "it")).strip().lower()
+    if out["language"] not in {"it", "en"}:
+        out["language"] = "it"
     return out
 
 
 def save_settings_data(payload: dict[str, Any]) -> dict[str, Any]:
     data = DEFAULT_SETTINGS.copy()
     data.update(payload or {})
+    lang = str(data.get("language", "it")).strip().lower()
+    if lang not in {"it", "en"}:
+        lang = "it"
+    data["language"] = lang
     write_json(SETTINGS_PATH, data)
     return data
 
