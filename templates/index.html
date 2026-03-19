@@ -3570,9 +3570,16 @@ async function openLanFirewallFromModal(){
       method: "POST",
       body: JSON.stringify({})
     });
-    box.innerHTML =
-      '<div style="color:#027a48; font-weight:700;">✅ Firewall aggiornato</div>' +
-      '<div>' + escapeHtml(String(data.message || "Regola applicata.")) + "</div>";
+    if (data && data.pending_elevation) {
+      box.innerHTML =
+        '<div style="color:#175cd3; font-weight:700;">🛡️ Richiesta privilegi amministratore inviata</div>' +
+        '<div>' + escapeHtml(String(data.message || "")) + "</div>" +
+        '<div style="margin-top:6px;">Conferma il prompt di Windows (UAC), poi esegui di nuovo "Test Firewall/LAN".</div>';
+    } else {
+      box.innerHTML =
+        '<div style="color:#027a48; font-weight:700;">✅ Firewall aggiornato</div>' +
+        '<div>' + escapeHtml(String(data.message || "Regola applicata.")) + "</div>";
+    }
     await loadLanStatusIntoModal();
   } catch (e) {
     const msg = e && e.message ? e.message : String(e);

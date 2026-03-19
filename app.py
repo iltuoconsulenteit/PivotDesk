@@ -1731,6 +1731,7 @@ async def lan_firewall_open(request: Request):
 
     cfg = load_config()
     port = int(payload.get("port", cfg.get("port", 8091)))
+    auto_elevate = bool(payload.get("auto_elevate", True))
     system_name = platform.system().lower()
 
     commands: list[list[str]] = []
@@ -1781,6 +1782,34 @@ async def lan_firewall_open(request: Request):
             last_error = (proc.stderr or proc.stdout or "").strip()
         except Exception as exc:
             last_error = str(exc)
+
+    if system_name == "windows" and auto_elevate:
+        try:
+            arg_line = (
+                f"advfirewall firewall add rule name=\"PivotDesk {port}\" "
+                f"dir=in action=allow protocol=TCP localport={port}"
+            )
+            ps_cmd = (
+                "Start-Process -FilePath 'netsh' "
+                f"-ArgumentList '{arg_line}' "
+                "-Verb RunAs"
+            )
+            subprocess.Popen(
+                ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps_cmd],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            return {
+                "ok": True,
+                "platform": system_name,
+                "port": port,
+                "pending_elevation": True,
+                "message": "Richiesta di elevazione inviata. Conferma il prompt UAC per completare l'apertura firewall.",
+                "manual_hint": f"Dopo il consenso UAC, ripeti il test LAN sulla porta {port}.",
+            }
+        except Exception as exc:
+            if not last_error:
+                last_error = str(exc)
 
     return JSONResponse(
         {
