@@ -9,6 +9,7 @@ import hashlib
 import shutil
 import subprocess
 import uuid
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -1718,6 +1719,11 @@ def lan_probe_status(request: Request, probe_id: str = Query(...)):
     }
 
 
+@app.get("/lan/probe/result")
+def lan_probe_result(request: Request, probe_id: str = Query(...)):
+    return lan_probe_status(request=request, probe_id=probe_id)
+
+
 @app.post("/lan/firewall/open")
 async def lan_firewall_open(request: Request):
     current_user = require_admin(request)
@@ -1778,6 +1784,8 @@ async def lan_firewall_open(request: Request):
                     "port": port,
                     "command": " ".join(cmd),
                     "message": (proc.stdout or "Regola firewall applicata.").strip(),
+                    "stdout": (proc.stdout or "").strip(),
+                    "stderr": (proc.stderr or "").strip(),
                 }
             raw_error = (proc.stderr or proc.stdout or "").strip()
             low_error = raw_error.lower()
@@ -1812,11 +1820,13 @@ async def lan_firewall_open(request: Request):
             )
             if int(result) <= 32:
                 raise RuntimeError(f"ShellExecuteW errore: {result}")
+            time.sleep(1.0)
             return {
                 "ok": True,
                 "platform": system_name,
                 "port": port,
                 "pending_elevation": True,
+                "command": arg_line,
                 "message": "Richiesta di elevazione inviata. Conferma il prompt UAC per completare l'apertura firewall.",
                 "manual_hint": f"Dopo il consenso UAC, ripeti il test LAN sulla porta {port}.",
             }

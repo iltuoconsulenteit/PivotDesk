@@ -3546,7 +3546,7 @@ async function runLanProbeFromModal(){
       '<div style="margin:6px 0; word-break:break-all;"><code>' + escapeHtml(probeUrl) + "</code></div>" +
       "<div><strong>Passo 2:</strong> dopo l'apertura, clicca di nuovo su Test Firewall/LAN per aggiornare.</div>";
 
-    const status = await api("/lan/probe/status?probe_id=" + encodeURIComponent(probeId));
+    const status = await api("/lan/probe/result?probe_id=" + encodeURIComponent(probeId));
     if (status && status.reachable) {
       const remote = status.last_hit && status.last_hit.remote ? status.last_hit.remote : "sconosciuto";
       box.innerHTML += '<div style="margin-top:8px; color:#027a48; font-weight:700;">✅ Probe raggiunta da ' + escapeHtml(remote) + "</div>";
@@ -3574,11 +3574,13 @@ async function openLanFirewallFromModal(){
       box.innerHTML =
         '<div style="color:#175cd3; font-weight:700;">🛡️ Richiesta privilegi amministratore inviata</div>' +
         '<div>' + escapeHtml(String(data.message || "")) + "</div>" +
+        '<div style="margin-top:6px;">Comando: <code>' + escapeHtml(String(data.command || "")) + '</code></div>' +
         '<div style="margin-top:6px;">Conferma il prompt di Windows (UAC), poi esegui di nuovo "Test Firewall/LAN".</div>';
     } else {
       box.innerHTML =
         '<div style="color:#027a48; font-weight:700;">✅ Firewall aggiornato</div>' +
-        '<div>' + escapeHtml(String(data.message || "Regola applicata.")) + "</div>";
+        '<div>' + escapeHtml(String(data.message || "Regola applicata.")) + "</div>" +
+        (data && data.stdout ? ('<div style="margin-top:6px;"><code>' + escapeHtml(String(data.stdout)) + '</code></div>') : "");
     }
     await loadLanStatusIntoModal();
   } catch (e) {
