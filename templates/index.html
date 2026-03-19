@@ -397,6 +397,11 @@ window.LICENSE_CONTEXT = {
         <span>Spazio personale attivo.</span>
       </div>
       <div class="userbar-right">
+        <label for="appLanguageSelect" class="small" data-i18n="settings_language_label" style="margin-right:4px;">Lingua interfaccia</label>
+        <select id="appLanguageSelect" style="padding:8px 10px; border:1px solid #d0d5dd; border-radius:10px; background:#fff;">
+          <option value="it">Italiano</option>
+          <option value="en">English</option>
+        </select>
         {% if current_user and (current_user.role or "user") == "admin" %}
         <a href="/admin" class="ghost-btn primary-link">Gestione utenti</a>
         {% endif %}
@@ -919,24 +924,24 @@ let CURRENT_VIEW_OPTIONS = null;
 let CURRENT_HEADER_FILTERS = {};
 let BUILDER_SOURCE = null;
 
-const I18N = {
-  it: {
-    settings_title: "Impostazioni",
-    settings_subtitle: "Configurazioni generali dell'applicazione e della stampa.",
-    settings_close: "Chiudi impostazioni",
-    settings_language_label: "Lingua interfaccia",
-    settings_print_logos: "Mostra i loghi nella stampa",
-    settings_save: "Salva impostazioni"
-  },
-  en: {
-    settings_title: "Settings",
-    settings_subtitle: "General application and print configuration.",
-    settings_close: "Close settings",
-    settings_language_label: "Interface language",
-    settings_print_logos: "Show logos in print",
-    settings_save: "Save settings"
-  }
+let I18N = {
+  it: {},
+  en: {}
 };
+
+async function loadI18nCatalogs(){
+  async function loadLang(lang){
+    try {
+      const res = await fetch("/static/i18n/" + lang + ".json");
+      if (!res.ok) throw new Error("catalog not found");
+      return await res.json();
+    } catch (_) {
+      return {};
+    }
+  }
+  const [it, en] = await Promise.all([loadLang("it"), loadLang("en")]);
+  I18N = { it: it || {}, en: en || {} };
+}
 
 function translateText(key){
   const lang = String(SETTINGS.language || "it").toLowerCase();
@@ -1147,6 +1152,8 @@ function renderSettingsForm(){
   document.getElementById("settingPrintShowLogos").checked = !!SETTINGS.print_show_logos;
   const langSelect = document.getElementById("settingLanguage");
   if (langSelect) langSelect.value = (SETTINGS.language || "it");
+  const topLang = document.getElementById("appLanguageSelect");
+  if (topLang) topLang.value = (SETTINGS.language || "it");
   applyI18n();
 }
 
@@ -2763,6 +2770,14 @@ function bindSourceUiButtons(){
 bindInput("fieldsSearch", "input", renderFieldsSidebar);
 bindInput("settingLanguage", "change", () => {
   SETTINGS.language = (document.getElementById("settingLanguage").value || "it").toLowerCase();
+  const topLang = document.getElementById("appLanguageSelect");
+  if (topLang) topLang.value = SETTINGS.language;
+  applyI18n();
+});
+bindInput("appLanguageSelect", "change", () => {
+  SETTINGS.language = (document.getElementById("appLanguageSelect").value || "it").toLowerCase();
+  const langSelect = document.getElementById("settingLanguage");
+  if (langSelect) langSelect.value = SETTINGS.language;
   applyI18n();
 });
 
@@ -3122,6 +3137,7 @@ function showLicenseInfo(){
 Promise.resolve()
   .then(async () => {
     resetSourceForm();
+    await loadI18nCatalogs();
     await loadSources();
 
     try {
