@@ -1738,7 +1738,14 @@ async function loadSourcePreview(sourceId){
     return;
   }
   try {
-    const data = await api("/source-preview?source_id=" + encodeURIComponent(sourceId) + "&limit=20");
+    let url = "/source-preview?source_id=" + encodeURIComponent(sourceId) + "&limit=20";
+    const calc = (BUILDER_SOURCE && BUILDER_SOURCE === sourceId)
+      ? normalizeCalculatedFields(BUILDER.calculated_fields)
+      : [];
+    if (calc.length) {
+      url += "&calculated_fields=" + encodeURIComponent(JSON.stringify(calc));
+    }
+    const data = await api(url);
     renderSourcePreview(data);
   } catch (err) {
     clearSourcePreview("Impossibile caricare l'anteprima dati.");
@@ -2345,6 +2352,7 @@ function saveCalculatedFieldFromModal(){
   BUILDER.calculated_fields = items;
   renderFieldsSidebar();
   renderBuilder();
+  if (BUILDER_SOURCE) loadSourcePreview(BUILDER_SOURCE).catch(() => {});
   closeCalculatedFieldModal();
   setStatus("Campo calcolato salvato: " + name);
 }
@@ -2362,6 +2370,7 @@ function deleteCalculatedFieldFromModal(){
   BUILDER.calculated_fields = items;
   renderFieldsSidebar();
   renderBuilder();
+  if (BUILDER_SOURCE) loadSourcePreview(BUILDER_SOURCE).catch(() => {});
   closeCalculatedFieldModal();
   setStatus("Campo calcolato eliminato: " + removed.name);
 }

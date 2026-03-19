@@ -2212,12 +2212,27 @@ async def sources_pick_local_file(request: Request):
 
 
 @app.get("/source-preview")
-def source_preview(request: Request, source_id: str = Query(...), limit: int = Query(20)):
+def source_preview(
+    request: Request,
+    source_id: str = Query(...),
+    limit: int = Query(20),
+    pivot_id: str | None = Query(None),
+    calculated_fields: str | None = Query(None),
+):
     current_user = require_login(request)
     if not current_user:
         return JSONResponse({"error": "Non autenticato"}, status_code=401)
     try:
-        return dataframe_preview_payload(source_id, limit=limit)
+        src, df = load_source_df(source_id)
+        if calculated_fields:
+            try:
+                raw = json.loads(calculated_fields)
+            except Exception:
+                raw = []
+            df = apply_calculated_fields_to_dataframe(df, sanitize_calculated_fields(raw if isinstance(raw, list) else []))
+        elif pivot_id:
+            df = apply_preset_calculated_fields(df, pivot_id=pivot_id, source_id=source_id)
+        return build_dataframe_preview_payload(src, df, limit=limit)
     except Exception as exc:
         return JSONResponse({"error": str(exc)}, status_code=500)
 
@@ -2239,6 +2254,10 @@ async def source_preview_from_form(request: Request, limit: int = Query(20)):
         if not path:
             return JSONResponse({"error": "Percorso file obbligatorio per l'anteprima."}, status_code=400)
         df = load_dataframe_from_source_with_fallback(source)
+        calculated_fields = sanitize_calculated_fields(
+            payload.get("calculated_fields", []) if isinstance(payload, dict) else []
+        )
+        df = apply_calculated_fields_to_dataframe(df, calculated_fields)
         return build_dataframe_preview_payload(source, df, limit=limit)
     except Exception as exc:
         return JSONResponse({"error": str(exc)}, status_code=500)
