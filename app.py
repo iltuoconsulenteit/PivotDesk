@@ -1319,7 +1319,37 @@ def validate_preset_columns(columns: list[str], preset: dict[str, Any]) -> list[
     return sorted(col for col in required if col not in available)
 
 
+def find_preset_by_id(pivot_id: str, source_id: str | None = None) -> dict[str, Any] | None:
+    pid = str(pivot_id or "").strip()
+    sid = normalize_source_id(source_id) if source_id else ""
+    if not pid:
+        return None
 
+    all_pivots = load_pivot_files()
+    return next(
+        (
+            item
+            for item in all_pivots
+            if item.get("id") == pid and ((not sid) or item.get("source_id") == sid)
+        ),
+        None,
+    )
+
+
+def apply_preset_calculated_fields(
+    df: pd.DataFrame,
+    pivot_id: str | None = None,
+    source_id: str | None = None,
+) -> pd.DataFrame:
+    pid = str(pivot_id or "").strip()
+    if not pid:
+        return df
+
+    preset = find_preset_by_id(pid, source_id=source_id)
+    if not preset:
+        return df
+
+    return apply_calculated_fields_to_dataframe(df, preset.get("calculated_fields", []))
 
 
 def get_user_runtime_root(username: str | None) -> Path:
@@ -2091,11 +2121,12 @@ async def source_preview_from_form(request: Request, limit: int = Query(20)):
         return JSONResponse({"error": str(exc)}, status_code=500)
 
 @app.get("/fields")
-def fields(request: Request, source_id: str = Query(...)):
+def fields(request: Request, source_id: str = Query(...), pivot_id: str | None = Query(None)):
     if not require_login(request):
         return JSONResponse({"error": "Non autenticato"}, status_code=401)
     try:
         _, df = load_source_df(source_id)
+        df = apply_preset_calculated_fields(df, pivot_id=pivot_id, source_id=source_id)
         return {"fields": [str(c).strip() for c in df.columns]}
     except Exception as exc:
         return JSONResponse({"error": str(exc)}, status_code=500)
@@ -2111,9 +2142,14 @@ def pivots(source_id: str = Query(...)):
 
 
 @app.get("/filter-values")
-def filter_values(source_id: str = Query(...), field: str = Query(...)):
+def filter_values(
+    source_id: str = Query(...),
+    field: str = Query(...),
+    pivot_id: str | None = Query(None),
+):
     try:
         _, df = load_source_df(source_id)
+        df = apply_preset_calculated_fields(df, pivot_id=pivot_id, source_id=source_id)
 
         if field not in df.columns:
             return {"values": [], "field_type": "unknown"}
@@ -2178,17 +2214,8 @@ def pivot_run(
     view_options: str | None = None,
 ):
     try:
-        all_pivots = load_pivot_files()
         sid = normalize_source_id(source_id)
-
-        preset = next(
-            (
-                item
-                for item in all_pivots
-                if item.get("id") == pivot_id and ((not sid) or item.get("source_id") == sid)
-            ),
-            None,
-        )
+        preset = find_preset_by_id(pivot_id, source_id=sid)
 
         if not preset:
             return JSONResponse({"error": f"Preset non trovato: {pivot_id}"}, status_code=404)
