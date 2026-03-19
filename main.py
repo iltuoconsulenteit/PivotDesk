@@ -88,12 +88,26 @@ def read_json_file(path: Path) -> dict | None:
 
 
 def detect_license_type() -> str:
-    candidates = [
+    candidates = []
+
+    settings_candidates = [
+        BASE_DIR / "data" / "license_settings.json",
+        appdata_dir() / "license_settings.json",
+    ]
+    for settings_path in settings_candidates:
+        settings_data = read_json_file(settings_path) or {}
+        configured_license_file = str(settings_data.get("license_file") or "").strip()
+        if configured_license_file:
+            candidates.append(Path(configured_license_file))
+
+    candidates.extend([
         appdata_dir() / "license.json",
         BASE_DIR / "PivotDesk" / "license.json",
+        BASE_DIR / "data" / "license.json",
+        BASE_DIR / "user_data" / "license.json",
         BASE_DIR / "licenses" / "dev-license.json",
         BASE_DIR / "licenses" / "demo-license.json",
-    ]
+    ])
     for path in candidates:
         data = read_json_file(path)
         if not data:

@@ -35,10 +35,24 @@ def _read_json(path: Path) -> dict | None:
 
 def detect_license_type() -> str:
     appdata = os.getenv("APPDATA")
-    candidates = []
+    candidates: list[Path] = []
+
+    # Percorso configurato in data/license_settings.json (se presente)
+    settings_candidates = [
+        BASE_DIR / "data" / "license_settings.json",
+        BASE_DIR / "user_data" / "license_settings.json",
+    ]
+    for settings_path in settings_candidates:
+        settings_data = _read_json(settings_path) or {}
+        configured_license_file = str(settings_data.get("license_file") or "").strip()
+        if configured_license_file:
+            candidates.append(Path(configured_license_file))
+
     if appdata:
         candidates.append(Path(appdata) / "PivotDesk" / "license.json")
     candidates.append(BASE_DIR / "PivotDesk" / "license.json")
+    candidates.append(BASE_DIR / "data" / "license.json")
+    candidates.append(BASE_DIR / "user_data" / "license.json")
     candidates.extend([
         BASE_DIR / "licenses" / "dev-license.json",
         BASE_DIR / "licenses" / "demo-license.json",
@@ -119,10 +133,12 @@ def open_browser_when_ready(host: str, port: int) -> None:
 
 def print_banner() -> None:
     system_name = platform.system()
+    license_type = detect_license_type()
     print(f"PivotDesk launcher")
     print(f"Sistema operativo: {system_name}")
     print(f"Cartella base: {BASE_DIR}")
     print(f"App import: {APP_IMPORT}")
+    print(f"Licenza rilevata: {license_type}")
     print(f"Server: http://{PUBLIC_HOST}:{PORT}/")
     if HOST == "0.0.0.0":
         lan_host = resolve_public_lan_host()
