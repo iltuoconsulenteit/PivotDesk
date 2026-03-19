@@ -1,0 +1,403 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gestione utenti - PivotDesk</title>
+<link rel="icon" type="image/png" href="/static/img/pivotdesk-icon.png">
+<style>
+:root{
+  --bg:#f5f7fb;
+  --card:#ffffff;
+  --text:#101828;
+  --muted:#667085;
+  --border:#d0d5dd;
+  --border-soft:#eaecf0;
+  --primary:#1d4ed8;
+  --primary-soft:#eff8ff;
+  --danger:#b42318;
+  --shadow:0 12px 32px rgba(16,24,40,.08);
+  --radius:18px;
+}
+*{box-sizing:border-box}
+body{
+  font-family:Arial,sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  margin:0;
+  padding:24px;
+}
+.wrap{
+  max-width:1180px;
+  margin:0 auto;
+}
+.card{
+  background:var(--card);
+  border:1px solid var(--border-soft);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
+  padding:22px;
+  margin-bottom:18px;
+}
+.branding{
+  display:flex;
+  justify-content:space-between;
+  gap:18px;
+  align-items:center;
+  flex-wrap:wrap;
+}
+.brand-left{
+  display:flex;
+  align-items:center;
+  gap:18px;
+  flex-wrap:wrap;
+}
+.logo-main{
+  max-height:72px;
+  width:auto;
+  display:block;
+}
+.brand-copy h1{
+  margin:0 0 6px 0;
+  font-size:34px;
+}
+.brand-copy .subtitle{
+  color:var(--muted);
+  font-size:15px;
+}
+.brand-right{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  color:var(--muted);
+}
+.dev-logo{
+  max-height:42px;
+  width:auto;
+  display:block;
+}
+.topbar{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:16px;
+  flex-wrap:wrap;
+}
+.user-badge{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:8px 12px;
+  border:1px solid var(--border);
+  border-radius:999px;
+  background:#fff;
+}
+.user-role{
+  font-size:12px;
+  color:#475467;
+  background:#f2f4f7;
+  padding:3px 8px;
+  border-radius:999px;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+}
+.actions{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  align-items:center;
+}
+a.ghost-btn, button.ghost-btn, button.primary, button.danger{
+  border-radius:10px;
+  padding:10px 14px;
+  cursor:pointer;
+  text-decoration:none;
+  font-weight:600;
+  font-size:14px;
+}
+a.ghost-btn, button.ghost-btn{
+  border:1px solid var(--border);
+  background:#fff;
+  color:#344054;
+}
+a.primary-link{
+  border:1px solid #b2ddff;
+  background:var(--primary-soft);
+  color:#175cd3;
+}
+button.primary{
+  border:0;
+  background:var(--primary);
+  color:#fff;
+}
+button.danger{
+  border:1px solid #fecdca;
+  background:#fef3f2;
+  color:var(--danger);
+}
+.section-title{
+  margin:0 0 6px 0;
+  font-size:18px;
+}
+.section-subtitle{
+  color:var(--muted);
+  margin:0 0 16px 0;
+  font-size:14px;
+}
+.form-grid{
+  display:grid;
+  grid-template-columns:1.2fr 1.2fr .6fr 1.2fr auto;
+  gap:12px;
+  align-items:end;
+}
+label{
+  display:block;
+  margin:0 0 6px 0;
+  font-weight:600;
+}
+input, select{
+  width:100%;
+  padding:11px 12px;
+  border:1px solid var(--border);
+  border-radius:12px;
+  font-size:14px;
+  background:#fff;
+}
+.table-wrap{
+  overflow:auto;
+  border:1px solid var(--border-soft);
+  border-radius:14px;
+}
+table{
+  width:100%;
+  border-collapse:collapse;
+  min-width:760px;
+  background:#fff;
+}
+th,td{
+  padding:14px 12px;
+  border-bottom:1px solid var(--border-soft);
+  text-align:left;
+  vertical-align:middle;
+}
+th{
+  background:#f8fafc;
+  font-size:13px;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+  color:#475467;
+}
+td.actions-cell{
+  white-space:nowrap;
+}
+.msg{
+  margin-top:14px;
+  color:#344054;
+  min-height:20px;
+}
+.status-on{
+  color:#027a48;
+  font-weight:600;
+}
+.status-off{
+  color:#b42318;
+  font-weight:600;
+}
+.small-note{
+  color:var(--muted);
+  font-size:13px;
+}
+@media (max-width: 920px){
+  .form-grid{
+    grid-template-columns:1fr 1fr;
+  }
+}
+@media (max-width: 640px){
+  body{padding:14px}
+  .brand-copy h1{font-size:28px}
+  .form-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <div class="branding">
+      <div class="brand-left">
+        <img src="/static/img/pivotdesk-logo.png" alt="PivotDesk" class="logo-main">
+        <div class="brand-copy">
+          <h1>Gestione utenti</h1>
+          <div class="subtitle">Amministrazione accessi e profili multiutente di PivotDesk in ambiente LAN.</div>
+        </div>
+      </div>
+      <div class="brand-right">
+        <span>Sviluppato da</span>
+        <img src="/static/img/IltuoConsulenteIT.png" alt="IlTuoConsulenteIT" class="dev-logo">
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="topbar">
+      <div>
+        <div class="user-badge">
+          <strong>{{ current_user.display_name or current_user.username }}</strong>
+          <span class="user-role">{{ current_user.role or "admin" }}</span>
+        </div>
+      </div>
+      <div class="actions">
+        <a href="/" class="ghost-btn primary-link">Apri PivotDesk</a>
+        <a href="/logout" class="ghost-btn">Logout</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 class="section-title">Crea utente</h2>
+    <p class="section-subtitle">Crea un nuovo account locale. Ogni utente avrà sorgenti dati, preset, impostazioni e file caricati separati.</p>
+    <div class="form-grid">
+      <div>
+        <label for="username">Username</label>
+        <input id="username" placeholder="es. mario">
+      </div>
+      <div>
+        <label for="display_name">Nome visualizzato</label>
+        <input id="display_name" placeholder="es. Mario Rossi">
+      </div>
+      <div>
+        <label for="role">Ruolo</label>
+        <select id="role">
+          <option value="user">User</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+      <div>
+        <label for="password">Password iniziale</label>
+        <input id="password" type="password" placeholder="Inserisci password">
+      </div>
+      <div>
+        <button id="btnCreate" type="button" class="primary">Crea</button>
+      </div>
+    </div>
+    <div class="msg" id="msg"></div>
+  </div>
+
+  <div class="card">
+    <h2 class="section-title">Utenti registrati</h2>
+    <p class="section-subtitle">Da qui puoi verificare ruolo e stato di ogni account, reimpostare la password o disabilitare temporaneamente un utente.</p>
+    <div class="table-wrap">
+      <table id="usersTable">
+        <thead>
+          <tr>
+            <th>Username</th>
+            <th>Nome</th>
+            <th>Ruolo</th>
+            <th>Abilitato</th>
+            <th>Azioni</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="small-note" style="margin-top:12px;">L'utente amministratore corrente non può essere disabilitato dalla propria sessione.</div>
+  </div>
+</div>
+
+<script>
+async function api(url, options = {}) {
+  const headers = options.body instanceof FormData ? {} : {"Content-Type": "application/json"};
+  const res = await fetch(url, {headers, ...options});
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "Errore richiesta");
+  return data;
+}
+
+function setMsg(text, isError = false){
+  const el = document.getElementById("msg");
+  el.textContent = text || "";
+  el.style.color = isError ? "#b42318" : "#344054";
+}
+
+async function loadUsers(){
+  const data = await api("/admin/users");
+  const tbody = document.querySelector("#usersTable tbody");
+  tbody.innerHTML = "";
+
+  (data.items || []).forEach(u => {
+    const tr = document.createElement("tr");
+    const enabledClass = u.enabled ? "status-on" : "status-off";
+    const enabledText = u.enabled ? "Sì" : "No";
+
+    tr.innerHTML = `
+      <td><strong>${u.username}</strong></td>
+      <td>${u.display_name || ""}</td>
+      <td>${u.role}</td>
+      <td class="${enabledClass}">${enabledText}</td>
+      <td class="actions-cell">
+        <button data-u="${u.username}" class="ghost-btn reset">Reset password</button>
+        <button data-u="${u.username}" data-e="${u.enabled ? "0" : "1"}" class="${u.enabled ? "danger" : "primary"} toggle">
+          ${u.enabled ? "Disabilita" : "Abilita"}
+        </button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  document.querySelectorAll(".reset").forEach(btn => {
+    btn.onclick = async () => {
+      const pwd = prompt("Nuova password per " + btn.dataset.u);
+      if (!pwd) return;
+      try {
+        await api("/admin/users/reset-password", {
+          method: "POST",
+          body: JSON.stringify({username: btn.dataset.u, password: pwd})
+        });
+        setMsg("Password reimpostata correttamente.");
+      } catch (e) {
+        setMsg("ERRORE: " + e.message, true);
+      }
+    };
+  });
+
+  document.querySelectorAll(".toggle").forEach(btn => {
+    btn.onclick = async () => {
+      try {
+        await api("/admin/users/toggle", {
+          method: "POST",
+          body: JSON.stringify({username: btn.dataset.u, enabled: btn.dataset.e === "1"})
+        });
+        setMsg("Stato utente aggiornato.");
+        await loadUsers();
+      } catch (e) {
+        setMsg("ERRORE: " + e.message, true);
+      }
+    };
+  });
+}
+
+document.getElementById("btnCreate").onclick = async () => {
+  try {
+    await api("/admin/users/create", {
+      method: "POST",
+      body: JSON.stringify({
+        username: document.getElementById("username").value,
+        display_name: document.getElementById("display_name").value,
+        role: document.getElementById("role").value,
+        password: document.getElementById("password").value
+      })
+    });
+    setMsg("Utente creato correttamente.");
+    document.getElementById("username").value = "";
+    document.getElementById("display_name").value = "";
+    document.getElementById("password").value = "";
+    document.getElementById("role").value = "user";
+    await loadUsers();
+  } catch (e) {
+    setMsg("ERRORE: " + e.message, true);
+  }
+};
+
+loadUsers().catch(e => setMsg("ERRORE: " + e.message, true));
+</script>
+</body>
+</html>

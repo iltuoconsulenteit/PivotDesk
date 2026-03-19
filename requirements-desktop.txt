@@ -1,0 +1,10 @@
+# PivotDesk Desktop / Advanced Features
+# Install ONLY if you need tray, ODS, MySQL or desktop packaging
+
+pystray
+pillow
+odfpy
+pymysql
+
+# future-proof (optional but safe for desktop builds)
+platformdirs

@@ -1,0 +1,7 @@
+{
+  "app_name": "PivotDesk",
+  "port": 8091,
+  "settings": {
+    "print_show_logos": true
+  }
+}

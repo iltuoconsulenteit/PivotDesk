@@ -1,0 +1,173 @@
+import json
+import os
+import signal
+import socket
+import sys
+import threading
+import time
+import webbrowser
+from pathlib import Path
+
+import uvicorn
+
+
+def is_frozen() -> bool:
+    return getattr(sys, "frozen", False)
+
+
+def base_dir() -> Path:
+    if is_frozen():
+        return Path(sys.executable).resolve().parent
+    return Path(__file__).resolve().parent
+
+
+BASE_DIR = base_dir()
+
+# Fix fondamentale per Python embedded:
+# assicura che la root del progetto sia importabile
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
+
+
+def appdata_dir() -> Path:
+    roaming = os.getenv("APPDATA")
+    if roaming:
+        path = Path(roaming) / "PivotDesk"
+    else:
+        path = BASE_DIR / "user_data"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def local_log_dir() -> Path:
+    local = os.getenv("LOCALAPPDATA")
+    if local:
+        path = Path(local) / "PivotDesk" / "logs"
+    else:
+        path = BASE_DIR / "logs"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def write_log(message: str) -> None:
+    try:
+        logfile = local_log_dir() / "launcher.log"
+        timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+        with logfile.open("a", encoding="utf-8") as f:
+            f.write(f"[{timestamp}] {message}\n")
+    except Exception:
+        pass
+
+
+def load_config() -> dict:
+    cfg_paths = [
+        BASE_DIR / "config.json",
+        appdata_dir() / "config.json",
+    ]
+
+    for cfg_file in cfg_paths:
+        if cfg_file.exists():
+            try:
+                with cfg_file.open("r", encoding="utf-8") as f:
+                    return json.load(f)
+            except Exception as exc:
+                write_log(f"Errore lettura config {cfg_file}: {exc!r}")
+
+    return {}
+
+
+cfg = load_config()
+
+APP_HOST = cfg.get("host", "127.0.0.1")
+APP_PORT = int(cfg.get("port", 8091))
+APP_URL = f"http://{APP_HOST}:{APP_PORT}"
+
+
+def port_is_open(host: str, port: int, timeout: float = 0.5) -> bool:
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            return True
+    except OSError:
+        return False
+
+
+def wait_for_server(host: str, port: int, timeout: int = 30) -> bool:
+    start = time.time()
+    while time.time() - start < timeout:
+        if port_is_open(host, port):
+            return True
+        time.sleep(0.5)
+    return False
+
+
+def run_server() -> None:
+    write_log("Avvio server uvicorn")
+    write_log(f"BASE_DIR={BASE_DIR}")
+    write_log(f"sys.path={sys.path!r}")
+
+    try:
+        from app import app as fastapi_app
+
+        uvicorn.run(
+            fastapi_app,
+            host=APP_HOST,
+            port=APP_PORT,
+            reload=False,
+            workers=1,
+            log_level="info",
+        )
+    except Exception as exc:
+        write_log(f"Errore server: {exc!r}")
+        raise
+
+
+def main() -> None:
+    write_log("=== PivotDesk START ===")
+    write_log(f"Frozen: {is_frozen()}")
+    write_log(f"Base dir: {BASE_DIR}")
+    write_log(f"AppData dir: {appdata_dir()}")
+    write_log(f"Host: {APP_HOST}")
+    write_log(f"Porta: {APP_PORT}")
+
+    server_thread = threading.Thread(target=run_server, daemon=True)
+    server_thread.start()
+
+    if wait_for_server(APP_HOST, APP_PORT, timeout=30):
+        write_log(f"Server raggiungibile su {APP_URL}")
+        try:
+            webbrowser.open(APP_URL)
+            write_log("Browser aperto")
+        except Exception as exc:
+            write_log(f"Errore apertura browser: {exc!r}")
+    else:
+        write_log("Server non raggiungibile entro il timeout")
+        return
+
+    stop_event = threading.Event()
+
+    def handle_signal(sig, frame):
+        write_log(f"Segnale ricevuto: {sig}")
+        stop_event.set()
+
+    try:
+        signal.signal(signal.SIGINT, handle_signal)
+        signal.signal(signal.SIGTERM, handle_signal)
+    except Exception:
+        pass
+
+    write_log("Launcher in attesa")
+
+    try:
+        while not stop_event.is_set():
+            if not server_thread.is_alive():
+                write_log("Thread server terminato")
+                break
+            time.sleep(1)
+    except KeyboardInterrupt:
+        write_log("KeyboardInterrupt ricevuto")
+    finally:
+        write_log("=== PivotDesk STOP ===")
+
+
+if __name__ == "__main__":
+    main()

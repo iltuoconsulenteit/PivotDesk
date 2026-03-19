@@ -1,0 +1,3037 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>PivotDesk</title>
+<link rel="icon" type="image/png" href="/static/img/pivotdesk-icon.png">
+<link rel="stylesheet" href="/static/css/app.css">
+  <style>
+    .userbar{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:16px;
+      flex-wrap:wrap;
+      margin-bottom:14px;
+    }
+    .userbar-left{
+      display:flex;
+      align-items:center;
+      gap:12px;
+      color:#344054;
+      font-size:14px;
+      flex-wrap:wrap;
+    }
+    .user-badge{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:8px 12px;
+      border:1px solid #d0d5dd;
+      border-radius:999px;
+      background:#fff;
+    }
+    .user-role{
+      font-size:12px;
+      color:#475467;
+      background:#f2f4f7;
+      padding:3px 8px;
+      border-radius:999px;
+      text-transform:uppercase;
+      letter-spacing:.04em;
+    }
+    .userbar-right{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+    .ghost-btn{
+      background:#fff;
+      border:1px solid #d0d5dd;
+      color:#344054;
+      border-radius:10px;
+      padding:8px 12px;
+      cursor:pointer;
+      text-decoration:none;
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+    }
+    .ghost-btn.primary-link{
+      border-color:#b2ddff;
+      color:#175cd3;
+      background:#eff8ff;
+    }
+    .preview-card-meta {
+      display:flex;
+      flex-wrap:wrap;
+      gap:12px;
+      margin-bottom:10px;
+      color:#667085;
+      font-size:13px;
+    }
+    .preview-table-wrap {
+      max-height:340px;
+      overflow:auto;
+      border:1px solid #d0d5dd;
+      border-radius:10px;
+      background:#fff;
+    }
+    .preview-table {
+      width:100%;
+      border-collapse:collapse;
+      font-size:13px;
+    }
+    .preview-table th, .preview-table td {
+      border:1px solid #e4e7ec;
+      padding:6px 8px;
+      vertical-align:top;
+      white-space:nowrap;
+    }
+    .preview-table th {
+      position:sticky;
+      top:0;
+      background:#f8fafc;
+      z-index:1;
+      text-align:left;
+    }
+    .pd-table th.sortable {
+      cursor: pointer;
+      user-select: none;
+      position: relative;
+      padding-right: 24px;
+    }
+
+    .pd-table th.sortable::after {
+      content: "↕";
+      position: absolute;
+      right: 8px;
+      opacity: 0.45;
+      font-size: 0.9em;
+    }
+
+    .pd-table th.sort-asc::after {
+      content: "↑";
+      opacity: 1;
+    }
+
+    .pd-table th.sort-desc::after {
+      content: "↓";
+      opacity: 1;
+    }
+
+    .pd-table thead tr.filter-row th {
+      padding: 4px;
+      background: #f8fafc;
+    }
+
+    .pd-table .pivot-col-filter {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 4px 6px;
+      font-size: 12px;
+    }
+
+    /* Allineamento stabile dei valori pivot:
+       tutte le celle del body a destra, prima colonna etichetta a sinistra */
+    .pd-table tbody td {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .pd-table tbody td:first-child,
+    .pd-table tbody td.row-label,
+    .pd-table tbody tr.subtotal-row td:first-child,
+    .pd-table tbody tr.total-row td:first-child {
+      text-align: left;
+    }
+
+    .branding {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 28px;
+    }
+
+    .brand-left {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      min-width: 0;
+      flex: 1 1 auto;
+    }
+
+    .logo-main-wrap {
+      display: flex;
+      align-items: center;
+      flex: 0 0 auto;
+    }
+
+    .logo-main {
+      width: min(360px, 42vw);
+      height: auto;
+      display: block;
+      object-fit: contain;
+    }
+
+    .brand-copy {
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      gap: 6px;
+      min-width: 0;
+      padding-top: 8px;
+    }
+
+    .brand-title {
+      display: none;
+    }
+
+    .brand-subtitle {
+      font-size: 16px;
+      line-height: 1.25;
+      color: #667085;
+      margin: 0;
+    }
+
+    .brand-right {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 14px;
+      flex: 0 0 auto;
+      white-space: nowrap;
+    }
+
+    .dev-title {
+      font-size: 14px;
+      color: #667085;
+    }
+
+    .dev-logo {
+      height: 62px;
+      width: auto;
+      display: block;
+      object-fit: contain;
+      opacity: 0.96;
+    }
+
+    .brand-license {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 1 auto;
+      min-width: 260px;
+      max-width: 520px;
+    }
+
+    .license-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border: 1px solid #d0d5dd;
+      border-radius: 999px;
+      background: #fff;
+      box-shadow: 0 1px 2px rgba(16,24,40,.04);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+    }
+
+    .license-pill-main {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      color: #344054;
+      font-size: 14px;
+    }
+
+    .license-pill-title {
+      font-weight: 700;
+      color: #101828;
+    }
+
+    .license-pill-meta {
+      color: #667085;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .license-pill-actions {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      flex: 0 0 auto;
+    }
+
+    .license-mini-btn {
+      background: #fff;
+      border: 1px solid #d0d5dd;
+      color: #344054;
+      border-radius: 999px;
+      padding: 6px 10px;
+      cursor: pointer;
+      font-size: 12px;
+      line-height: 1;
+    }
+
+    @media (max-width: 900px) {
+      .branding {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .brand-left {
+        width: 100%;
+      }
+
+      .brand-right {
+        align-self: flex-end;
+      }
+
+      .logo-main {
+        height: 82px;
+      }
+
+      .brand-title {
+        font-size: 1.7rem;
+      }
+
+      .brand-subtitle {
+        font-size: 1.05rem;
+      }
+    }
+  
+    .feature-locked,
+    .feature-locked[disabled] {
+      opacity: .62;
+      cursor: not-allowed !important;
+    }
+    .feature-locked-hint {
+      font-size: 12px;
+      color: #b54708;
+      margin-left: 6px;
+      white-space: nowrap;
+    }
+    .preview-locked-message {
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      min-height:140px;
+      padding:20px;
+      border:1px dashed #d0d5dd;
+      border-radius:12px;
+      background:#f8fafc;
+      color:#667085;
+      text-align:center;
+      font-weight:600;
+    }
+
+</style>
+<script>
+window.LICENSE_CONTEXT = {
+  status: {{ (license_status or "demo")|tojson }},
+  label: {{ (license_label or "Demo")|tojson }},
+  features: {{ (license_features or {})|tojson }}
+};
+</script>
+
+</head>
+<body>
+
+<div id="mainView">
+  <div class="card">
+    <div class="branding">
+      <div class="brand-left">
+        <div class="logo-main-wrap">
+          <img src="/static/img/pivotdesk-logo.png" alt="PivotDesk" class="logo-main">
+        </div>
+        <div class="brand-copy">
+          <div class="brand-subtitle">Viewer CSV e pivot server-side multi-misura</div>
+        </div>
+      </div>
+
+      <div class="brand-license">
+        <div class="license-pill" title="Licenza {{ license_label or 'N/D' }}">
+          <div class="license-pill-main">
+            <span>Licenza:</span>
+            <span class="license-pill-title">{{ license_label or "N/D" }}</span>
+            {% if license and license.customer_name %}
+            <span class="license-pill-meta">{{ license.customer_name }}</span>
+            {% elif license and license.customer_email %}
+            <span class="license-pill-meta">{{ license.customer_email }}</span>
+            {% endif %}
+          </div>
+          <div class="license-pill-actions">
+            {% if license_is_demo %}
+              <span class="user-role" style="background:#fff4cc; color:#8a6d00;">DEMO</span>
+            {% elif license_is_dev %}
+              <span class="user-role" style="background:#e0ecff; color:#175cd3;">DEVELOPER</span>
+            {% else %}
+              <span class="user-role" style="background:#ecfdf3; color:#027a48;">ATTIVA</span>
+            {% endif %}
+            <button type="button" class="license-mini-btn" onclick="showLicenseInfo()">Dettagli</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="brand-right">
+        <div class="dev-title">sviluppato da</div>
+        <img src="/static/img/IltuoConsulenteIT.png" alt="IlTuoConsulenteIT" class="dev-logo">
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="userbar">
+      <div class="userbar-left">
+        <div class="user-badge">
+          <strong>{{ (current_user.display_name or current_user.username) if current_user else "Utente" }}</strong>
+          <span class="user-role">{{ (current_user.role or "user") if current_user else "user" }}</span>
+        </div>
+        <span>Spazio personale attivo.</span>
+      </div>
+      <div class="userbar-right">
+        {% if current_user and (current_user.role or "user") == "admin" %}
+        <a href="/admin" class="ghost-btn primary-link">Gestione utenti</a>
+        {% endif %}
+        <form method="post" action="/logout" style="margin:0;">
+          <button type="submit" class="ghost-btn">Logout</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="card menu-bar">
+    <div class="menu-group">
+      <button type="button" class="menu-btn" data-menu-target="menu-data">Dati</button>
+      <div class="menu-dropdown hidden" id="menu-data">
+        <button type="button" id="menuReload">Ricarica</button>
+        <button type="button" id="menuOpenSources">Gestisci sorgenti dati</button>
+        <button type="button" id="menuToggleColumns">Mostra/Nascondi colonne CSV</button>
+      </div>
+    </div>
+
+    <div class="menu-group">
+      <button type="button" class="menu-btn" data-menu-target="menu-pivot">Pivot</button>
+      <div class="menu-dropdown hidden" id="menu-pivot">
+        <button type="button" id="menuOpenBuilder">Apri costruttore pivot</button>
+        <button type="button" id="menuEditCurrentPreset">Modifica preset attivo</button>
+        <button type="button" id="menuDeleteCurrentPreset">Elimina preset attivo</button>
+      </div>
+    </div>
+
+    <div class="menu-group">
+      <button type="button" class="menu-btn" data-menu-target="menu-view">Visualizza</button>
+      <div class="menu-dropdown hidden" id="menu-view">
+        <button type="button" id="menuSetVerticalLayout">Layout misure verticale</button>
+        <button type="button" id="menuSetHorizontalLayout">Layout misure orizzontale</button>
+        <button type="button" id="menuToggleRowTotals">Totali righe on/off</button>
+        <button type="button" id="menuToggleColTotals">Totali colonne on/off</button>
+        <button type="button" id="menuToggleSubtotals" data-feature="subtotals">Subtotali on/off</button>
+      </div>
+    </div>
+
+    <div class="menu-group">
+      <button type="button" class="menu-btn" data-menu-target="menu-print">Stampa</button>
+      <div class="menu-dropdown hidden" id="menu-print">
+        <button type="button" id="menuPrint" data-feature="print">Stampa pivot</button>
+      </div>
+    </div>
+
+    <div class="menu-group">
+      <button type="button" class="menu-btn" data-menu-target="menu-settings">Impostazioni</button>
+      <div class="menu-dropdown hidden" id="menu-settings">
+        <button type="button" id="menuOpenSettings">Impostazioni globali</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="field source-field">
+      <label for="sourceSelect"><strong>Sorgente dati</strong></label>
+      <select id="sourceSelect"></select>
+    </div>
+  </div>
+
+  <div id="columnsPanel" class="card hidden">
+    <div class="section-title">Colonne disponibili nel CSV</div>
+    <div id="columnsCount" class="small"></div>
+    <div id="columnsRaw" class="columns-raw"></div>
+  </div>
+
+  <div class="card">
+    <div class="section-title">Preset</div>
+    <div class="tabbar" id="tabbar"></div>
+  </div>
+
+  <div class="card">
+    <div class="section-title">Filtri pagina</div>
+    <div class="filters" id="filters"></div>
+  </div>
+
+  <div class="card pivot-quickbar" id="pivotQuickbar">
+    <div class="pivot-quickbar-left">
+      <span class="pivot-quickbar-label">Layout pivot</span>
+
+      <button type="button" id="btnLayoutVertical" class="quick-toggle active" title="Layout verticale">
+        ↕ Verticale
+      </button>
+
+      <button type="button" id="btnLayoutHorizontal" class="quick-toggle" title="Layout orizzontale">
+        ↔ Orizzontale
+      </button>
+    </div>
+
+    <div class="pivot-quickbar-right">
+      <label class="inline-check compact-check">
+        <input type="checkbox" id="chkRowTotals">
+        Totali righe
+      </label>
+
+      <label class="inline-check compact-check">
+        <input type="checkbox" id="chkColTotals">
+        Totali colonne
+      </label>
+
+      <label class="inline-check compact-check">
+        <input type="checkbox" id="chkSubtotals" data-feature="subtotals">
+        Subtotali
+      </label>
+
+      <button type="button" id="btnApplyPivotView" class="primary">Salva vista</button>
+    </div>
+  </div>
+
+  <div id="status" class="card"></div>
+  <div id="report" class="card report-card"></div>
+
+  <div class="footer">PivotDesk v0.2.1 · powered by IlTuoConsulenteIT</div>
+</div>
+
+<div id="builderScreen" class="builder-screen">
+  <div class="card">
+    <div class="builder-head">
+      <div class="builder-head-left">
+        <div class="section-title">Costruttore pivot stile Excel</div>
+        <div class="small">Modalità dedicata: il resto della dashboard è nascosto per evitare confusione visiva.</div>
+        <div id="builderModeInfo" class="small"></div>
+      </div>
+      <div>
+        <button id="btnCloseBuilder" type="button">Chiudi costruttore</button>
+      </div>
+    </div>
+
+    <div class="builder-top">
+      <div class="field">
+        <label for="presetFilename">Nome file preset JSON</label>
+        <input id="presetFilename" placeholder="nuova_pivot.json">
+      </div>
+      <div class="field">
+        <label for="presetTitle">Titolo preset</label>
+        <input id="presetTitle" placeholder="Nuova Pivot">
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:14px;">
+      <div class="small">Sorgente dati del preset</div>
+      <div class="builder-top" style="align-items:end;">
+        <div class="field">
+          <label for="builderSourceSelect">Sorgente dati</label>
+          <select id="builderSourceSelect"></select>
+        </div>
+        <div class="field" style="flex:0 0 auto;">
+          <button id="btnBuilderRefreshSourceFields" type="button">Ricarica campi</button>
+        </div>
+        <div class="field" style="flex:0 0 auto;">
+          <button id="btnBuilderOpenSources" type="button">Gestisci sorgenti</button>
+        </div>
+      </div>
+      <div id="builderSourceInfo" style="font-weight:bold;"></div>
+    </div>
+
+    <div class="card" style="margin-bottom:14px;">
+      <div class="builder-head" style="margin-bottom:10px;">
+        <div class="builder-head-left">
+          <div class="section-title">Anteprima dati sorgente</div>
+          <div class="small">Prime righe del dataset per verificare contenuto e intestazioni.</div>
+        </div>
+        <div>
+          <button id="btnBuilderRefreshPreview" type="button">Aggiorna anteprima</button>
+        </div>
+      </div>
+      <div id="sourcePreviewMeta" class="preview-card-meta">Nessuna sorgente selezionata.</div>
+      <div id="sourcePreviewLockedMessage" class="preview-locked-message hidden">Anteprima dati disponibile con licenza completa.</div>
+            <div class="preview-table-wrap" id="sourcePreviewTableWrap">
+        <table class="preview-table" id="sourcePreviewTable">
+          <thead></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:14px;">
+      <div class="section-title">Opzioni pivot</div>
+
+      <div class="builder-top">
+        <div class="field">
+          <label for="optMeasuresLayout">Layout misure</label>
+          <select id="optMeasuresLayout">
+            <option value="vertical">Verticale</option>
+            <option value="horizontal">Orizzontale stile Excel</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="optSortField">Campo ordinamento</label>
+          <select id="optSortField">
+            <option value="">Nessuno</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="builder-top">
+        <div class="field">
+          <label for="optSortDirection">Direzione ordinamento</label>
+          <select id="optSortDirection">
+            <option value="asc">Crescente</option>
+            <option value="desc">Decrescente</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="optSortBy">Ordina per</label>
+          <select id="optSortBy">
+            <option value="label">Etichetta</option>
+            <option value="value">Valore</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="builder-actions">
+        <label class="inline-check">
+          <input id="optShowRowTotals" type="checkbox" checked>
+          Mostra totali righe
+        </label>
+
+        <label class="inline-check">
+          <input id="optShowColTotals" type="checkbox" checked>
+          Mostra totali colonne
+        </label>
+
+        <label class="inline-check">
+          <input id="optShowSubtotals" type="checkbox">
+          Mostra subtotali
+        </label>
+
+        <label class="inline-check">
+          <input id="optSortEnabled" type="checkbox">
+          Abilita ordinamento
+        </label>
+      </div>
+    </div>
+
+    
+    <div class="card" style="margin-bottom:14px;">
+      <div class="builder-head" style="margin-bottom:10px;">
+        <div class="builder-head-left">
+          <div class="section-title">Campi calcolati</div>
+          <div class="small">Campi virtuali row-level da usare in Filtri, Righe, Colonne e Valori.</div>
+        </div>
+        <div>
+          <button id="btnOpenCalculatedFieldModal" type="button">Nuovo campo calcolato</button>
+        </div>
+      </div>
+      <div id="calculatedFieldsMiniList" class="small">Nessun campo calcolato definito.</div>
+    </div>
+
+<div class="builder-layout">
+      <div class="fields-pane">
+        <div class="section-title">Campi disponibili</div>
+        <input id="fieldsSearch" class="fields-search" placeholder="Filtra campi...">
+        <div id="fieldsList" class="fields-list"></div>
+      </div>
+
+      <div>
+        <div class="drop-grid">
+          <div class="drop-zone" data-zone="filters">
+            <div class="drop-title">Filtri</div>
+            <div id="zone-filters" class="drop-list"></div>
+          </div>
+
+          <div class="drop-zone" data-zone="rows">
+            <div class="drop-title">Righe</div>
+            <div id="zone-rows" class="drop-list"></div>
+          </div>
+
+          <div class="drop-zone" data-zone="cols">
+            <div class="drop-title">Colonne</div>
+            <div id="zone-cols" class="drop-list"></div>
+          </div>
+
+          <div class="drop-zone" data-zone="values">
+            <div class="drop-title">Valori</div>
+            <div id="zone-values" class="drop-list"></div>
+          </div>
+        </div>
+
+        <div class="builder-actions">
+          <button id="btnBuilderClear" type="button">Svuota costruttore</button>
+          <button id="btnBuilderLoadCurrent" type="button">Carica preset corrente</button>
+          <button id="btnBuilderSave" type="button" class="primary">Salva preset</button>
+        </div>
+
+        <div class="small" style="margin-top:10px;">
+          Trascina i campi nelle aree. In “Valori” ogni misura deve avere una label unica.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="sourcesScreen" class="builder-screen">
+  <div class="card">
+    <div class="builder-head">
+      <div class="builder-head-left">
+        <div class="section-title">Gestione sorgenti dati</div>
+        <div class="small">Sono supportate sorgenti CSV e Excel XLSX. Per i CSV puoi impostare delimitatore ed encoding; per Excel puoi indicare il nome del foglio.</div>
+      </div>
+      <div>
+        <button id="btnCloseSources" type="button">Chiudi gestione sorgenti</button>
+      </div>
+    </div>
+
+    <div class="builder-top">
+      <div class="field">
+        <label for="srcId">ID sorgente</label>
+        <input id="srcId" placeholder="es. fogliocassa">
+      </div>
+      <div class="field">
+        <label for="srcTitle">Titolo</label>
+        <input id="srcTitle" placeholder="es. Foglio Cassa">
+      </div>
+    </div>
+
+    <div class="builder-top">
+      <div class="field">
+        <label for="srcType">Tipo sorgente</label>
+        <select id="srcType">
+          <option value="csv">CSV</option>
+          <option value="xlsx">Excel XLSX</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="srcPath">Percorso file</label>
+        <input id="srcPath" placeholder="es. C:\dati\fogliocassa.csv">
+        <div style="margin-top:10px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+          <button id="btnPickSourceFile" type="button">Seleziona file</button>
+          <input id="srcFilePicker" type="file" accept=".csv,.xlsx,.xls" style="display:none;">
+          <span id="srcPickedFileLabel" class="small">Nessun file selezionato</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="builder-top">
+      <div class="field">
+        <label for="srcDelimiter">Delimitatore CSV</label>
+        <select id="srcDelimiter">
+          <option value="">Auto</option>
+          <option value=";">Punto e virgola (;)</option>
+          <option value=",">Virgola (,)</option>
+          <option value="\t">Tab</option>
+          <option value="|">Pipe (|)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="srcEncoding">Encoding CSV</label>
+        <select id="srcEncoding">
+          <option value="">Auto</option>
+          <option value="utf-8-sig">UTF-8 con BOM</option>
+          <option value="utf-8">UTF-8</option>
+          <option value="cp1252">Windows-1252</option>
+          <option value="latin1">Latin-1</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="builder-top">
+      <div class="field">
+        <label for="srcSheetName">Foglio Excel</label>
+        <input id="srcSheetName" placeholder="Vuoto = primo foglio">
+      </div>
+      <div class="field">
+        <label for="srcSkipRows">Righe iniziali da saltare</label>
+        <input id="srcSkipRows" type="number" min="0" step="1" value="0" placeholder="0">
+      </div>
+      <div class="field" id="srcResolvedInfoWrap">
+        <label for="srcResolvedInfo">Formato rilevato</label>
+        <input id="srcResolvedInfo" placeholder="Delimitatore/encoding o foglio rilevato" readonly>
+      </div>
+    </div>
+
+    <div class="field" style="margin-bottom:14px;">
+      <label class="inline-check">
+        <input id="srcDefault" type="checkbox">
+        Imposta come sorgente predefinita
+      </label>
+    </div>
+
+    <div class="builder-actions">
+      <button id="btnSourceNew" type="button">Nuova sorgente</button>
+      <button id="btnSourceSave" type="button" class="primary">Salva sorgente</button>
+      <button id="btnSourceDelete" type="button" class="danger">Elimina sorgente</button>
+    </div>
+
+    <div class="card" style="margin-top:16px; margin-bottom:16px;">
+      <div class="builder-head" style="margin-bottom:10px;">
+        <div class="builder-head-left">
+          <div class="section-title">Anteprima sorgente in modifica</div>
+          <div class="small">L'anteprima si aggiorna automaticamente quando cambi file, delimitatore, encoding, foglio o righe da saltare.</div>
+        </div>
+        <div>
+          <button id="btnSourceRefreshPreview" type="button">Aggiorna anteprima</button>
+        </div>
+      </div>
+      <div id="sourceFormPreviewMeta" class="preview-card-meta">Compila il percorso file per visualizzare l'anteprima.</div>
+      <div class="preview-table-wrap" id="sourceFormPreviewTableWrap">
+        <table class="preview-table" id="sourceFormPreviewTable">
+          <thead></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+      <div class="section-title">Sorgenti disponibili</div>
+      <div id="sourcesList"></div>
+    </div>
+  </div>
+</div>
+
+<div id="settingsScreen" class="builder-screen">
+  <div class="card">
+    <div class="builder-head">
+      <div class="builder-head-left">
+        <div class="section-title">Impostazioni</div>
+        <div class="small">Configurazioni generali dell'applicazione e della stampa.</div>
+      </div>
+      <div>
+        <button id="btnCloseSettings" type="button">Chiudi impostazioni</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="settings-line">
+        <input id="settingPrintShowLogos" type="checkbox">
+        <label for="settingPrintShowLogos" style="margin:0;">Mostra i loghi nella stampa</label>
+      </div>
+    </div>
+
+    <div class="builder-actions">
+      <button id="btnSaveSettings" type="button" class="primary">Salva impostazioni</button>
+    </div>
+  </div>
+</div>
+
+
+<div id="calcFieldModal" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,.45); z-index:3000; align-items:center; justify-content:center; padding:24px;">
+  <div style="width:min(760px, 96vw); max-height:90vh; overflow:auto; background:#fff; border-radius:18px; border:1px solid #d0d5dd; box-shadow:0 24px 60px rgba(15,23,42,.18);">
+    <div style="padding:18px 20px; border-bottom:1px solid #eaecf0; display:flex; justify-content:space-between; align-items:center; gap:12px;">
+      <div>
+        <div class="section-title" style="margin:0;">Campo calcolato</div>
+        <div class="small">Crea un campo virtuale da usare in Filtri, Righe, Colonne o Valori.</div>
+      </div>
+      <button id="btnCloseCalculatedFieldModal" type="button">Chiudi</button>
+    </div>
+    <div style="padding:18px 20px;">
+      <div class="builder-top">
+        <div class="field">
+          <label for="calcFieldName">Nome campo</label>
+          <input id="calcFieldName" placeholder="es. Anno o Hashtag">
+        </div>
+        <div class="field">
+          <label for="calcFieldType">Tipo</label>
+          <select id="calcFieldType">
+            <option value="string">Testo</option>
+            <option value="number">Numero</option>
+            <option value="date">Data</option>
+            <option value="boolean">Booleano</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field" style="margin-top:12px;">
+        <label for="calcFieldFormula">Formula</label>
+        <textarea id="calcFieldFormula" rows="4" style="width:100%; resize:vertical;" placeholder='Esempio: year([Data valuta])'></textarea>
+      </div>
+
+      <div class="card" style="margin-top:14px;">
+        <div class="section-title" style="font-size:16px;">Esempi rapidi</div>
+        <div class="small">I riferimenti ai campi usano la sintassi <code>[Nome Campo]</code>.</div>
+        <div style="display:grid; gap:8px; margin-top:10px;">
+          <button type="button" class="ghost-btn calc-example-btn" data-formula='after([Descrizione], "#")'>after([Descrizione], "#")</button>
+          <button type="button" class="ghost-btn calc-example-btn" data-formula='after_last([Descrizione], "#")'>after_last([Descrizione], "#")</button>
+          <button type="button" class="ghost-btn calc-example-btn" data-formula='before([Descrizione], "#")'>before([Descrizione], "#")</button>
+          <button type="button" class="ghost-btn calc-example-btn" data-formula='before_last([Descrizione], "#")'>before_last([Descrizione], "#")</button>
+          <button type="button" class="ghost-btn calc-example-btn" data-formula='between([Descrizione], "#", " ")'>between([Descrizione], "#", " ")</button>
+          <button type="button" class="ghost-btn calc-example-btn" data-formula='concat([Descrizione], " ", [Importo (EUR)])'>concat([Descrizione], " ", [Importo (EUR)])</button>
+          <button type="button" class="ghost-btn calc-example-btn" data-formula='year([Data valuta])'>year([Data valuta])</button>
+          <button type="button" class="ghost-btn calc-example-btn" data-formula='month([Data valuta])'>month([Data valuta])</button>
+          <button type="button" class="ghost-btn calc-example-btn" data-formula='day([Data valuta])'>day([Data valuta])</button>
+          <button type="button" class="ghost-btn calc-example-btn" data-formula='trim([Descrizione])'>trim([Descrizione])</button>
+          <button type="button" class="ghost-btn calc-example-btn" data-formula='replace([Descrizione], "#", "")'>replace([Descrizione], "#", "")</button>
+          <button type="button" class="ghost-btn calc-example-btn" data-formula='to_number([Importo (EUR)])'>to_number([Importo (EUR)])</button>
+        </div>
+      </div>
+
+      <div id="calcFieldStatus" class="small" style="margin-top:12px; color:#475467;"></div>
+    </div>
+    <div style="padding:16px 20px; border-top:1px solid #eaecf0; display:flex; justify-content:flex-end; gap:10px;">
+      <button id="btnDeleteCalculatedField" type="button" class="danger" style="display:none;">Elimina campo</button>
+      <button id="btnSaveCalculatedField" type="button" class="primary">Salva campo</button>
+    </div>
+  </div>
+</div>
+
+<script src="/static/js/menu.js"></script>
+
+<script>
+let SOURCES = [];
+let PRESETS = [];
+let CURRENT = null;
+let CURRENT_SOURCE = null;
+let CURRENT_FIELDS = [];
+let CURRENT_SOURCE_EDIT = null;
+let BUILDER_MODE = "new";
+let BUILDER_EDITING_ID = null;
+let SETTINGS = {
+  print_show_logos: true
+};
+let CURRENT_VIEW_OPTIONS = null;
+let CURRENT_HEADER_FILTERS = {};
+let BUILDER_SOURCE = null;
+
+const BUILDER = {
+  filters: [],
+  rows: [],
+  cols: [],
+  values: [],
+  calculated_fields: []
+};
+
+let CALC_EDIT_INDEX = null;
+
+function setStatus(t){
+  document.getElementById("status").innerText = t || "";
+}
+window.setStatus = setStatus;
+
+function sanitizeFilename(value){
+  let name = String(value || "").trim();
+  name = name.replace(/\\/g, "/");
+  name = name.split("/").pop() || "";
+  name = name.replace(/\s+/g, "_");
+  name = name.replace(/[^A-Za-z0-9._-]/g, "_");
+  name = name.replace(/_+/g, "_").replace(/^[_\-.]+|[_\-.]+$/g, "");
+  if (!name) name = "nuova_pivot";
+  if (!name.toLowerCase().endsWith(".json")) name += ".json";
+  return name;
+}
+
+function presetFilenameFromPreset(p){
+  if (!p) return "nuova_pivot.json";
+  const base = String(p.id || "nuova_pivot").trim() || "nuova_pivot";
+  return sanitizeFilename(base + ".json");
+}
+
+function normalizeValueLabels(values){
+  return (values || []).map(v => {
+    const field = String(v.field || "").trim();
+    const agg = String(v.agg || "sum").trim().toLowerCase();
+    const rawLabel = String(v.label || "").trim();
+    return {
+      field,
+      agg,
+      label: rawLabel || field
+    };
+  });
+}
+
+function validateUniqueValueLabels(values){
+  const seen = new Set();
+  for (const v of values) {
+    const key = String(v.label || "").trim().toLowerCase();
+    if (!key) throw new Error('La misura "' + v.field + '" non ha una label valida.');
+    if (seen.has(key)) throw new Error('La label misura "' + v.label + '" è duplicata. Ogni misura deve avere una label unica.');
+    seen.add(key);
+  }
+}
+
+function getDefaultPresetOptions(){
+  return {
+    measures_layout: "vertical",
+    show_row_totals: true,
+    show_col_totals: true,
+    show_subtotals: false,
+    sort_enabled: false,
+    sort_field: "",
+    sort_direction: "asc",
+    sort_by: "label"
+  };
+}
+
+function getCurrentPreset(){
+  return PRESETS.find(x => x.id === CURRENT) || null;
+}
+
+function getEffectiveViewOptions(){
+  const p = getCurrentPreset();
+  return Object.assign(
+    {},
+    getDefaultPresetOptions(),
+    (p && p.options) || {},
+    CURRENT_VIEW_OPTIONS || {}
+  );
+}
+
+function setCurrentViewOptions(patch){
+  CURRENT_VIEW_OPTIONS = Object.assign({}, getEffectiveViewOptions(), patch || {});
+}
+
+function resetCurrentViewOptionsFromPreset(){
+  const p = getCurrentPreset();
+  CURRENT_VIEW_OPTIONS = Object.assign({}, getDefaultPresetOptions(), (p && p.options) || {});
+}
+
+function currentSourceTitle(){
+  const src = (SOURCES || []).find(x => x.id === CURRENT_SOURCE);
+  return src ? (src.title || src.id) : (CURRENT_SOURCE || "");
+}
+
+function currentSourceFilename(){
+  const src = (SOURCES || []).find(x => x.id === CURRENT_SOURCE);
+  if (!src) return "";
+  const path = src.path || src.config?.path || "";
+  return String(path).replace(/\\/g, "/").split("/").pop() || "";
+}
+
+function getActiveFiltersText(){
+  const out = [];
+  const seen = new Set();
+
+  document.querySelectorAll("#filters select").forEach(sel => {
+    if (sel.value) {
+      const field = sel.dataset.field;
+      out.push({ field, value: sel.value });
+      seen.add(field);
+    }
+  });
+
+  Object.keys(CURRENT_HEADER_FILTERS || {}).forEach(field => {
+    const value = CURRENT_HEADER_FILTERS[field];
+    if (value !== undefined && value !== null && String(value) !== "" && !seen.has(field)) {
+      out.push({ field, value: value });
+    }
+  });
+
+  return out;
+}
+
+function escapeHtml(value){
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function buildPrintHtml(){
+  const p = PRESETS.find(x => x.id === CURRENT);
+  CURRENT_HEADER_FILTERS = CURRENT_HEADER_FILTERS || {};
+  const title = p ? (p.title || p.id) : "Pivot";
+  const sourceTitle = currentSourceTitle() || "";
+  const sourceFilename = currentSourceFilename() || "";
+  const filters = getActiveFiltersText();
+  const tableHtml = document.querySelector("#report .table-responsive")?.innerHTML || "";
+  const showLogos = !!SETTINGS.print_show_logos;
+
+  const filtersHtml = filters.length
+    ? '<div class="print-filters-inline">' + filters.map(f => '<span><strong>' + escapeHtml(f.field) + '</strong>: ' + escapeHtml(f.value) + '</span>').join("") + '</div>'
+    : '<div class="muted">Nessun filtro applicato</div>';
+
+  const footerHtml = showLogos
+    ? '<div class="print-endbar"><div class="print-endbar-left"><img src="/static/img/pivotdesk-icon.png" alt="PivotDesk"></div><div class="print-endbar-right"><img src="/static/img/IltuoConsulenteIT.png" alt="IlTuoConsulenteIT"></div></div>'
+    : "";
+
+  return '<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1" /><title>' + escapeHtml(title) + '</title><link rel="icon" type="image/png" href="/static/img/pivotdesk-icon.png"><style>' +
+  '@page{size:auto;margin:10mm;}*{box-sizing:border-box;}html,body{margin:0;padding:0;background:#fff;color:#111827;font-family:Arial,sans-serif;font-size:10pt;}body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}.print-wrap{width:100%;}.print-header{margin-bottom:6px;border-bottom:1px solid #cfd5df;padding-bottom:4px;page-break-inside:avoid;break-inside:avoid;}.print-title{font-size:14pt;font-weight:bold;margin:0 0 4px 0;line-height:1.2;}.print-meta{font-size:8.5pt;color:#4b5563;margin:1px 0;line-height:1.2;word-break:break-word;}.print-section{margin-top:6px;margin-bottom:6px;}.print-section-title{font-weight:bold;margin-bottom:4px;font-size:9pt;line-height:1.2;}.muted{color:#6b7280;}.print-filters-inline{display:flex;flex-wrap:wrap;gap:6px 12px;font-size:8.5pt;line-height:1.2;}.print-filters-inline span{white-space:nowrap;}.table-print{width:100%;overflow:visible;}table{border-collapse:collapse;width:100%;table-layout:fixed;font-size:8.7pt;}thead{display:table-header-group;}tbody{display:table-row-group;}tr{page-break-inside:avoid !important;break-inside:avoid !important;}th,td{border:1px solid #cfd5df;padding:3px 4px;vertical-align:top;word-break:break-word;overflow-wrap:anywhere;line-height:1.15;}th{background:#eef2f7 !important;text-align:left;}.pd-table tr,.pd-table td,.pd-table th{page-break-inside:avoid !important;break-inside:avoid !important;}.pd-table tr.subtotal-row td{font-weight:700 !important;background:#f2f5ff !important;border-top:2px solid #9fb3ff !important;}.pd-table tr.total-row td{font-weight:800 !important;background:#dfe7ff !important;border-top:3px solid #5b74ff !important;}.print-endbar{margin-top:8mm;padding:3mm 4mm 0 2mm;border-top:1px solid #cfd5df;display:flex;justify-content:space-between;align-items:center;gap:12mm;page-break-inside:avoid;break-inside:avoid;overflow:visible;}.print-endbar-left,.print-endbar-right{display:flex;align-items:center;overflow:visible;}.print-endbar-left img,.print-endbar-right img{display:block;height:4.1mm;max-width:18mm;width:auto;object-fit:contain;opacity:.72;}' +
+  '</style></head><body><div class="print-wrap"><div class="print-header"><h1 class="print-title">' + escapeHtml(title) + '</h1><div class="print-meta"><strong>Sorgente dati:</strong> ' + escapeHtml(sourceTitle) + '</div><div class="print-meta"><strong>File sorgente:</strong> ' + escapeHtml(sourceFilename) + '</div><div class="print-meta"><strong>Data stampa:</strong> ' + escapeHtml(new Date().toLocaleString("it-IT")) + '</div></div><div class="print-section"><div class="print-section-title">Filtri applicati</div>' + filtersHtml + '</div><div class="print-section"><div class="table-print">' + tableHtml + '</div></div>' + footerHtml + '</div></body></html>';
+}
+
+function printPivotOnly(){
+  if (!hasFeature("print")) {
+    showLockedFeature("Stampa pivot", "print");
+    return;
+  }
+  const printHtml = buildPrintHtml();
+  const w = window.open("", "_blank", "width=1200,height=900");
+  if (!w) {
+    setStatus("ERRORE: impossibile aprire la finestra di stampa.");
+    return;
+  }
+  w.document.open();
+  w.document.write(printHtml);
+  w.document.close();
+  w.focus();
+  setTimeout(() => { w.print(); }, 400);
+}
+
+function openSettingsScreen(){
+  document.getElementById("mainView").classList.add("hidden");
+  document.getElementById("builderScreen").classList.remove("active");
+  document.getElementById("sourcesScreen").classList.remove("active");
+  document.getElementById("settingsScreen").classList.add("active");
+  renderSettingsForm();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function closeSettingsScreen(){
+  document.getElementById("settingsScreen").classList.remove("active");
+  document.getElementById("mainView").classList.remove("hidden");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function renderSettingsForm(){
+  document.getElementById("settingPrintShowLogos").checked = !!SETTINGS.print_show_logos;
+}
+
+async function loadSettings(){
+  const j = await api("/settings");
+  SETTINGS = j.settings || { print_show_logos: true };
+  renderSettingsForm();
+}
+
+async function saveSettingsFromForm(){
+  const payload = { print_show_logos: document.getElementById("settingPrintShowLogos").checked };
+  const j = await api("/settings/save", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+  SETTINGS = j.settings || payload;
+  renderSettingsForm();
+  setStatus("Impostazioni salvate correttamente.");
+}
+
+function fillSortFieldOptions(){
+  const sel = document.getElementById("optSortField");
+  if (!sel) return;
+  const current = sel.value;
+  sel.innerHTML = '<option value="">Nessuno</option>';
+  getBuilderAvailableFields().forEach(field => {
+    const o = document.createElement("option");
+    o.value = field;
+    o.textContent = field;
+    if (field === current) o.selected = true;
+    sel.appendChild(o);
+  });
+}
+
+function resetBuilderOptions(){
+  const opt = getDefaultPresetOptions();
+  document.getElementById("optMeasuresLayout").value = opt.measures_layout;
+  document.getElementById("optShowRowTotals").checked = opt.show_row_totals;
+  document.getElementById("optShowColTotals").checked = opt.show_col_totals;
+  document.getElementById("optShowSubtotals").checked = opt.show_subtotals;
+  document.getElementById("optSortEnabled").checked = opt.sort_enabled;
+  document.getElementById("optSortField").value = opt.sort_field;
+  document.getElementById("optSortDirection").value = opt.sort_direction;
+  document.getElementById("optSortBy").value = opt.sort_by;
+}
+
+function loadBuilderOptions(options){
+  const opt = Object.assign({}, getDefaultPresetOptions(), options || {});
+  document.getElementById("optMeasuresLayout").value = opt.measures_layout || "vertical";
+  document.getElementById("optShowRowTotals").checked = !!opt.show_row_totals;
+  document.getElementById("optShowColTotals").checked = !!opt.show_col_totals;
+  document.getElementById("optShowSubtotals").checked = !!opt.show_subtotals;
+  document.getElementById("optSortEnabled").checked = !!opt.sort_enabled;
+  document.getElementById("optSortField").value = opt.sort_field || "";
+  document.getElementById("optSortDirection").value = opt.sort_direction || "asc";
+  document.getElementById("optSortBy").value = opt.sort_by || "label";
+}
+
+function collectBuilderOptions(){
+  return {
+    measures_layout: document.getElementById("optMeasuresLayout").value,
+    show_row_totals: document.getElementById("optShowRowTotals").checked,
+    show_col_totals: document.getElementById("optShowColTotals").checked,
+    show_subtotals: hasFeature("subtotals") ? document.getElementById("optShowSubtotals").checked : false,
+    sort_enabled: document.getElementById("optSortEnabled").checked,
+    sort_field: document.getElementById("optSortField").value,
+    sort_direction: document.getElementById("optSortDirection").value,
+    sort_by: document.getElementById("optSortBy").value
+  };
+}
+
+function refreshQuickbarFromPreset(){
+  const opts = getEffectiveViewOptions();
+  if (!hasFeature("subtotals")) {
+    opts.show_subtotals = false;
+  }
+  const btnV = document.getElementById("btnLayoutVertical");
+  const btnH = document.getElementById("btnLayoutHorizontal");
+  const chkR = document.getElementById("chkRowTotals");
+  const chkC = document.getElementById("chkColTotals");
+  const chkS = document.getElementById("chkSubtotals");
+
+  if (!btnV || !btnH || !chkR || !chkC) return;
+
+  btnV.classList.toggle("active", opts.measures_layout === "vertical");
+  btnH.classList.toggle("active", opts.measures_layout === "horizontal");
+  chkR.checked = !!opts.show_row_totals;
+  chkC.checked = !!opts.show_col_totals;
+  if (chkS) chkS.checked = !!opts.show_subtotals;
+}
+
+async function applyCurrentViewOptions(){
+  refreshQuickbarFromPreset();
+  await runCurrent();
+}
+
+function initQuickbar(){
+  const btnV = document.getElementById("btnLayoutVertical");
+  const btnH = document.getElementById("btnLayoutHorizontal");
+  const chkR = document.getElementById("chkRowTotals");
+  const chkC = document.getElementById("chkColTotals");
+  const chkS = document.getElementById("chkSubtotals");
+  const btnApply = document.getElementById("btnApplyPivotView");
+  if (!btnV || !btnH || !chkR || !chkC || !btnApply) return;
+
+  btnApply.textContent = "Salva vista";
+
+  btnV.onclick = async () => {
+    setCurrentViewOptions({ measures_layout: "vertical" });
+    await applyCurrentViewOptions();
+  };
+
+  btnH.onclick = async () => {
+    setCurrentViewOptions({ measures_layout: "horizontal" });
+    await applyCurrentViewOptions();
+  };
+
+  chkR.onchange = async () => {
+    setCurrentViewOptions({ show_row_totals: chkR.checked });
+    await applyCurrentViewOptions();
+  };
+
+  chkC.onchange = async () => {
+    setCurrentViewOptions({ show_col_totals: chkC.checked });
+    await applyCurrentViewOptions();
+  };
+
+  if (chkS) {
+    chkS.onchange = async () => {
+      setCurrentViewOptions({ show_subtotals: chkS.checked });
+      await applyCurrentViewOptions();
+    };
+  }
+
+  btnApply.onclick = async () => {
+    const p = getCurrentPreset();
+    if (!p) {
+      setStatus("ERRORE: nessun preset attivo.");
+      return;
+    }
+    const opts = getEffectiveViewOptions();
+    await quickUpdateCurrentPresetOptions({
+      measures_layout: opts.measures_layout,
+      show_row_totals: !!opts.show_row_totals,
+      show_col_totals: !!opts.show_col_totals,
+      show_subtotals: !!opts.show_subtotals
+    });
+    resetCurrentViewOptionsFromPreset();
+    refreshQuickbarFromPreset();
+    setStatus("Vista salvata nel preset.");
+  };
+}
+
+
+function getBuilderSourceTitle(){
+  const src = (SOURCES || []).find(x => x.id === BUILDER_SOURCE);
+  return src ? (src.title || src.id) : (BUILDER_SOURCE || "");
+}
+
+function refreshBuilderSourceInfo(){
+  const srcInfo = document.getElementById("builderSourceInfo");
+  const sel = document.getElementById("builderSourceSelect");
+  if (sel) {
+    sel.value = BUILDER_SOURCE || "";
+  }
+  if (srcInfo) {
+    srcInfo.innerText = getBuilderSourceTitle() || "Nessuna sorgente selezionata";
+  }
+}
+
+function populateBuilderSourceSelect(){
+  const sel = document.getElementById("builderSourceSelect");
+  if (!sel) return;
+  sel.innerHTML = "";
+  const first = document.createElement("option");
+  first.value = "";
+  first.textContent = SOURCES.length ? "-- Seleziona sorgente dati --" : "Nessuna sorgente configurata";
+  sel.appendChild(first);
+
+  (SOURCES || []).forEach(src => {
+    const o = document.createElement("option");
+    o.value = src.id;
+    o.textContent = src.title || src.id;
+    sel.appendChild(o);
+  });
+
+  sel.value = BUILDER_SOURCE || "";
+  refreshBuilderSourceInfo();
+}
+
+async function loadFieldsForSource(sourceId){
+  if (!sourceId) return { fields: [] };
+  return await api("/fields?source_id=" + encodeURIComponent(sourceId));
+}
+
+async function setBuilderSource(sourceId, options = {}){
+  const nextSource = String(sourceId || "").trim();
+  const keepBuilder = !!options.keepBuilder;
+  BUILDER_SOURCE = nextSource;
+  refreshBuilderSourceInfo();
+
+  if (!nextSource) {
+    CURRENT_FIELDS = [];
+    renderFieldsSidebar();
+    renderColumnsPanel();
+    fillSortFieldOptions();
+    clearSourcePreview();
+    return;
+  }
+
+  const fieldData = await loadFieldsForSource(nextSource);
+  CURRENT_FIELDS = fieldData.fields || [];
+
+  if (!keepBuilder) {
+    BUILDER.filters = [];
+    BUILDER.rows = [];
+    BUILDER.cols = [];
+    BUILDER.values = [];
+    BUILDER.calculated_fields = [];
+    renderBuilder();
+  }
+
+  renderFieldsSidebar();
+  renderColumnsPanel();
+  fillSortFieldOptions();
+  await loadSourcePreview(nextSource);
+}
+function setBuilderMode(mode, preset = null){
+  BUILDER_MODE = mode;
+  BUILDER_EDITING_ID = preset ? preset.id : null;
+  const info = document.getElementById("builderModeInfo");
+  const saveBtn = document.getElementById("btnBuilderSave");
+  refreshBuilderSourceInfo();
+  if (mode === "edit" && preset) {
+    info.innerText = "Stai modificando il preset: " + (preset.title || preset.id);
+    saveBtn.innerText = "Aggiorna preset";
+  } else {
+    info.innerText = "Stai creando un nuovo preset.";
+    saveBtn.innerText = "Salva preset";
+  }
+}
+
+function openBuilderScreen(){
+  document.getElementById("mainView").classList.add("hidden");
+  document.getElementById("sourcesScreen").classList.remove("active");
+  document.getElementById("settingsScreen").classList.remove("active");
+  document.getElementById("builderScreen").classList.add("active");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function closeBuilderScreen(){
+  document.getElementById("builderScreen").classList.remove("active");
+  document.getElementById("mainView").classList.remove("hidden");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function openBuilderForNew(){
+  BUILDER.filters = [];
+  BUILDER.rows = [];
+  BUILDER.cols = [];
+  BUILDER.values = [];
+  BUILDER.calculated_fields = [];
+  BUILDER_SOURCE = CURRENT_SOURCE || (SOURCES[0] ? SOURCES[0].id : null);
+  renderBuilder();
+  populateBuilderSourceSelect();
+  setBuilderSource(BUILDER_SOURCE, { keepBuilder: true }).catch(e => {
+    setStatus("ERRORE: " + e.message);
+  });
+  document.getElementById("presetFilename").value = "nuova_pivot.json";
+  document.getElementById("presetTitle").value = "Nuova Pivot";
+  resetBuilderOptions();
+  setBuilderMode("new");
+  openBuilderScreen();
+  bindSourceUiButtons();
+}
+
+function openBuilderForCurrentPreset(){
+  const p = PRESETS.find(x => x.id === CURRENT);
+  CURRENT_HEADER_FILTERS = CURRENT_HEADER_FILTERS || {};
+  if (!p) {
+    setStatus("ERRORE: nessun preset attivo da modificare.");
+    return;
+  }
+  loadCurrentPresetIntoBuilder();
+}
+
+function openSourcesScreen(){
+  document.getElementById("mainView").classList.add("hidden");
+  document.getElementById("builderScreen").classList.remove("active");
+  document.getElementById("settingsScreen").classList.remove("active");
+  document.getElementById("sourcesScreen").classList.add("active");
+  renderSourcesManager();
+  bindSourceUiButtons();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function closeSourcesScreen(){
+  document.getElementById("sourcesScreen").classList.remove("active");
+  document.getElementById("mainView").classList.remove("hidden");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function updateSourceFormVisibility(){
+  const srcType = String(document.getElementById("srcType").value || "csv").trim().toLowerCase();
+  const isCsv = srcType === "csv";
+  const isXlsx = srcType === "xlsx";
+
+  document.getElementById("srcDelimiter").disabled = !isCsv;
+  document.getElementById("srcEncoding").disabled = !isCsv;
+  document.getElementById("srcSheetName").disabled = !isXlsx;
+
+  if (!isCsv) {
+    document.getElementById("srcDelimiter").value = "";
+    document.getElementById("srcEncoding").value = "";
+  }
+  if (!isXlsx) {
+    document.getElementById("srcSheetName").value = "";
+  }
+}
+
+function formatResolvedSourceInfo(src){
+  const cfg = src?.config || {};
+  const srcType = String(src?.type || "csv").trim().toLowerCase();
+
+  if (srcType === "csv") {
+    const delimiter = src?.delimiter || cfg.delimiter || "";
+    const encoding = src?.encoding || cfg.encoding || "";
+    const humanDelimiter = delimiter === "\t" ? "TAB" : (delimiter || "auto");
+    const humanEncoding = encoding || "auto";
+    return "CSV · delimitatore: " + humanDelimiter + " · encoding: " + humanEncoding;
+  }
+
+  if (srcType === "xlsx") {
+    const sheetName = src?.sheet_name ?? cfg.sheet_name ?? cfg.sheet ?? "";
+    return "Excel · foglio: " + (sheetName === "" ? "primo foglio" : String(sheetName));
+  }
+
+  return "";
+}
+
+
+async function uploadSelectedSourceFile(file){
+  if (!file) throw new Error("Nessun file selezionato.");
+  const formData = new FormData();
+  formData.append("file", file);
+  const res = await fetch("/sources/upload", { method: "POST", body: formData });
+  let data = {};
+  try { data = await res.json(); } catch (_) {}
+  if (!res.ok) throw new Error(data.error || "Errore caricamento file.");
+  return data;
+}
+
+function setPickedFileLabel(text){
+  const el = document.getElementById("srcPickedFileLabel");
+  if (el) el.textContent = text || "Nessun file selezionato";
+}
+
+function clearSourcePreview(message = "Nessuna sorgente selezionata."){
+  const meta = document.getElementById("sourcePreviewMeta");
+  const thead = document.querySelector("#sourcePreviewTable thead");
+  const tbody = document.querySelector("#sourcePreviewTable tbody");
+  if (meta) meta.textContent = message;
+  if (thead) thead.innerHTML = "";
+  if (tbody) tbody.innerHTML = "";
+}
+
+function renderSourcePreview(data){
+  const meta = document.getElementById("sourcePreviewMeta");
+  const thead = document.querySelector("#sourcePreviewTable thead");
+  const tbody = document.querySelector("#sourcePreviewTable tbody");
+  if (!meta || !thead || !tbody) return;
+  const columns = Array.isArray(data.columns) ? data.columns : [];
+  const rows = Array.isArray(data.rows) ? data.rows : [];
+  if (!columns.length) {
+    clearSourcePreview("Nessuna colonna disponibile per l'anteprima.");
+    return;
+  }
+  const bits = [];
+  bits.push("Sorgente: " + (data.source_title || data.source_id || ""));
+  bits.push("Tipo: " + (data.source_type || ""));
+  bits.push("Colonne: " + String(data.total_columns || columns.length));
+  bits.push("Righe mostrate: " + String(data.shown_rows || rows.length));
+  if (data.total_rows !== undefined && data.total_rows !== null) bits.push("Righe totali: " + String(data.total_rows));
+  if (data.delimiter) bits.push("Delimitatore: " + String(data.delimiter).replace("\t", "TAB"));
+  if (data.encoding) bits.push("Encoding: " + data.encoding);
+  if (data.sheet_name !== undefined && data.sheet_name !== null && String(data.sheet_name) !== "") bits.push("Foglio: " + data.sheet_name);
+  if (data.skip_rows) bits.push("Righe saltate: " + data.skip_rows);
+  meta.innerHTML = bits.map(x => "<span>" + escapeHtml(x) + "</span>").join("");
+  thead.innerHTML = "";
+  tbody.innerHTML = "";
+  const trHead = document.createElement("tr");
+  columns.forEach(col => {
+    const th = document.createElement("th");
+    th.textContent = col;
+    trHead.appendChild(th);
+  });
+  thead.appendChild(trHead);
+  rows.forEach(row => {
+    const tr = document.createElement("tr");
+    columns.forEach(col => {
+      const td = document.createElement("td");
+      td.textContent = row && row[col] != null ? String(row[col]) : "";
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+}
+
+function renderPreviewTableInto(data, metaId, tableId, emptyMessage){
+  const meta = document.getElementById(metaId);
+  const thead = document.querySelector(`#${tableId} thead`);
+  const tbody = document.querySelector(`#${tableId} tbody`);
+  if (!meta || !thead || !tbody) return;
+  const columns = Array.isArray(data.columns) ? data.columns : [];
+  const rows = Array.isArray(data.rows) ? data.rows : [];
+  if (!columns.length) {
+    meta.textContent = emptyMessage || "Nessuna colonna disponibile per l'anteprima.";
+    thead.innerHTML = "";
+    tbody.innerHTML = "";
+    return;
+  }
+  const bits = [];
+  bits.push("Sorgente: " + (data.source_title || data.source_id || ""));
+  bits.push("Tipo: " + (data.source_type || ""));
+  bits.push("Colonne: " + String(data.total_columns || columns.length));
+  bits.push("Righe mostrate: " + String(data.shown_rows || rows.length));
+  if (data.total_rows !== undefined && data.total_rows !== null) bits.push("Righe totali: " + String(data.total_rows));
+  if (data.delimiter) bits.push("Delimitatore: " + String(data.delimiter).replace("	", "TAB"));
+  if (data.encoding) bits.push("Encoding: " + data.encoding);
+  if (data.sheet_name !== undefined && data.sheet_name !== null && String(data.sheet_name) !== "") bits.push("Foglio: " + data.sheet_name);
+  if (data.skip_rows !== undefined && data.skip_rows !== null) bits.push("Righe saltate: " + data.skip_rows);
+  meta.innerHTML = bits.map(x => "<span>" + escapeHtml(x) + "</span>").join("");
+  thead.innerHTML = "";
+  tbody.innerHTML = "";
+  const trHead = document.createElement("tr");
+  columns.forEach(col => {
+    const th = document.createElement("th");
+    th.textContent = col;
+    trHead.appendChild(th);
+  });
+  thead.appendChild(trHead);
+  rows.forEach(row => {
+    const tr = document.createElement("tr");
+    columns.forEach(col => {
+      const td = document.createElement("td");
+      td.textContent = row && row[col] != null ? String(row[col]) : "";
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+}
+
+function clearSourceFormPreview(message = "Compila il percorso file per visualizzare l'anteprima."){
+  const meta = document.getElementById("sourceFormPreviewMeta");
+  const thead = document.querySelector("#sourceFormPreviewTable thead");
+  const tbody = document.querySelector("#sourceFormPreviewTable tbody");
+  if (meta) meta.textContent = message;
+  if (thead) thead.innerHTML = "";
+  if (tbody) tbody.innerHTML = "";
+}
+
+function renderSourceFormPreview(data){
+  renderPreviewTableInto(data, "sourceFormPreviewMeta", "sourceFormPreviewTable", "Nessuna colonna disponibile per l'anteprima.");
+  const resolved = document.getElementById("srcResolvedInfo");
+  if (resolved && data && data.resolved_info) resolved.value = data.resolved_info;
+}
+
+function collectSourceFormPayload(){
+  return {
+    id: document.getElementById("srcId").value.trim() || "preview",
+    title: document.getElementById("srcTitle").value.trim() || document.getElementById("srcId").value.trim() || "Anteprima sorgente",
+    type: document.getElementById("srcType").value.trim(),
+    path: document.getElementById("srcPath").value.trim(),
+    delimiter: document.getElementById("srcDelimiter").value,
+    encoding: document.getElementById("srcEncoding").value,
+    sheet_name: document.getElementById("srcSheetName").value.trim(),
+    skip_rows: parseInt(document.getElementById("srcSkipRows").value || "0", 10) || 0
+  };
+}
+
+let sourceFormPreviewTimer = null;
+
+async function previewSourceFromForm(force = false){
+  const payload = collectSourceFormPayload();
+  if (!payload.path) {
+    const typeLabel = payload.type === "xlsx" ? "Excel · foglio: primo foglio" : "CSV · delimitatore: auto · encoding: auto";
+    const resolved = document.getElementById("srcResolvedInfo");
+    if (resolved) resolved.value = typeLabel;
+    clearSourceFormPreview("Compila il percorso file per visualizzare l'anteprima.");
+    return;
+  }
+
+  if (!force) {
+    if (sourceFormPreviewTimer) window.clearTimeout(sourceFormPreviewTimer);
+    sourceFormPreviewTimer = window.setTimeout(() => previewSourceFromForm(true).catch(() => {}), 250);
+    return;
+  }
+
+  try {
+    const data = await api("/source-preview/form?limit=20", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
+    renderSourceFormPreview(data);
+  } catch (err) {
+    clearSourceFormPreview(err && err.message ? err.message : "Impossibile leggere la sorgente con i parametri indicati.");
+    const resolved = document.getElementById("srcResolvedInfo");
+    if (resolved) resolved.value = "Errore lettura sorgente";
+    throw err;
+  }
+}
+
+
+async function loadSourcePreview(sourceId){
+  if (!sourceId) {
+    clearSourcePreview();
+    return;
+  }
+  try {
+    const data = await api("/source-preview?source_id=" + encodeURIComponent(sourceId) + "&limit=20");
+    renderSourcePreview(data);
+  } catch (err) {
+    clearSourcePreview("Impossibile caricare l'anteprima dati.");
+    throw err;
+  }
+}
+
+function resetSourceForm(){
+  CURRENT_SOURCE_EDIT = null;
+  document.getElementById("srcId").value = "";
+  document.getElementById("srcTitle").value = "";
+  document.getElementById("srcType").value = "csv";
+  document.getElementById("srcPath").value = "";
+  document.getElementById("srcDelimiter").value = "";
+  document.getElementById("srcEncoding").value = "";
+  document.getElementById("srcSheetName").value = "";
+  document.getElementById("srcSkipRows").value = "0";
+  document.getElementById("srcResolvedInfo").value = "";
+  document.getElementById("srcDefault").checked = false;
+  const picker = document.getElementById("srcFilePicker");
+  if (picker) picker.value = "";
+  setPickedFileLabel("Nessun file selezionato");
+  updateSourceFormVisibility();
+  clearSourceFormPreview();
+}
+
+function loadSourceIntoForm(src){
+  CURRENT_SOURCE_EDIT = src.id;
+  document.getElementById("srcId").value = src.id || "";
+  document.getElementById("srcTitle").value = src.title || "";
+  document.getElementById("srcType").value = src.type || "csv";
+  document.getElementById("srcPath").value = src.path || src.config?.path || "";
+  document.getElementById("srcDelimiter").value = src.delimiter || src.config?.delimiter || "";
+  document.getElementById("srcEncoding").value = src.encoding || src.config?.encoding || "";
+  document.getElementById("srcSheetName").value = src.sheet_name ?? src.config?.sheet_name ?? src.config?.sheet ?? "";
+  document.getElementById("srcSkipRows").value = String(src.skip_rows ?? src.config?.skip_rows ?? 0);
+  document.getElementById("srcResolvedInfo").value = formatResolvedSourceInfo(src);
+  document.getElementById("srcDefault").checked = (src.id === (CURRENT_SOURCE || ""));
+  setPickedFileLabel(src.path || src.config?.path || "File già salvato");
+  updateSourceFormVisibility();
+  previewSourceFromForm(true).catch(() => {});
+}
+
+function renderSourcesManager(){
+  const box = document.getElementById("sourcesList");
+  box.innerHTML = "";
+  (SOURCES || []).forEach(src => {
+    const row = document.createElement("div");
+    row.className = "source-row";
+
+    const left = document.createElement("div");
+    left.className = "source-row-main";
+    left.innerHTML =
+      '<div class="source-row-title">' + escapeHtml(src.title || src.id) + '</div>' +
+      '<div class="source-row-meta">ID: ' + escapeHtml(src.id) + ' · Tipo: ' + escapeHtml(src.type || "csv") + '</div>' +
+      '<div class="source-row-meta">' + escapeHtml(src.path || "") + '</div>' +
+      '<div class="source-row-meta">' + escapeHtml(formatResolvedSourceInfo(src)) + '</div>';
+
+    const right = document.createElement("div");
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.textContent = "Modifica";
+    btn.onclick = () => loadSourceIntoForm(src);
+
+    right.appendChild(btn);
+    row.appendChild(left);
+    row.appendChild(right);
+    box.appendChild(row);
+  });
+}
+
+async function saveSourceFromForm(){
+  const payload = {
+    id: document.getElementById("srcId").value.trim(),
+    title: document.getElementById("srcTitle").value.trim(),
+    type: document.getElementById("srcType").value.trim(),
+    path: document.getElementById("srcPath").value.trim(),
+    delimiter: document.getElementById("srcDelimiter").value,
+    encoding: document.getElementById("srcEncoding").value,
+    sheet_name: document.getElementById("srcSheetName").value.trim(),
+    skip_rows: parseInt(document.getElementById("srcSkipRows").value || "0", 10) || 0,
+    make_default: document.getElementById("srcDefault").checked
+  };
+  if (!payload.id) throw new Error("ID sorgente obbligatorio");
+  if (!payload.path) throw new Error("Percorso file obbligatorio");
+
+  const res = await api("/sources/save", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+
+  SOURCES = res.items || [];
+  CURRENT_SOURCE = res.default_source || payload.id;
+
+  await loadSources();
+  await loadFields();
+  await loadPresets();
+  renderSourcesManager();
+  populateBuilderSourceSelect();
+  if (!BUILDER_SOURCE) BUILDER_SOURCE = CURRENT_SOURCE;
+  refreshBuilderSourceInfo();
+
+  const savedSource = (SOURCES || []).find(x => x.id === payload.id);
+  if (savedSource) {
+    loadSourceIntoForm(savedSource);
+    await previewSourceFromForm(true).catch(() => {});
+  }
+  if (BUILDER_SOURCE) {
+    await loadSourcePreview(BUILDER_SOURCE);
+  }
+  setStatus("Sorgente dati salvata correttamente.");
+}
+
+async function deleteSourceFromForm(){
+  const sourceId = document.getElementById("srcId").value.trim();
+  if (!sourceId) throw new Error("Seleziona o inserisci una sorgente da eliminare");
+
+  const ok = window.confirm(
+    'Confermi l\'eliminazione della sorgente dati "' + sourceId + '"?\n\nI preset JSON non vengono cancellati automaticamente.'
+  );
+  if (!ok) return;
+
+  const res = await api("/sources/delete", {
+    method: "POST",
+    body: JSON.stringify({ source_id: sourceId })
+  });
+
+  SOURCES = res.items || [];
+  CURRENT_SOURCE = res.default_source || (SOURCES[0] ? SOURCES[0].id : null);
+
+  await loadSources();
+  if (CURRENT_SOURCE) {
+    await loadFields();
+    await loadPresets();
+  } else {
+    CURRENT_FIELDS = [];
+    PRESETS = [];
+    CURRENT = null;
+    document.getElementById("tabbar").innerHTML = "";
+    document.getElementById("filters").innerHTML = "";
+    document.getElementById("report").innerHTML = "<p>Nessuna sorgente dati configurata.</p>";
+  }
+
+  resetSourceForm();
+  if (BUILDER_SOURCE === sourceId) BUILDER_SOURCE = CURRENT_SOURCE || null;
+  renderSourcesManager();
+  populateBuilderSourceSelect();
+  refreshBuilderSourceInfo();
+  setStatus("Sorgente dati eliminata correttamente.");
+}
+
+async function deleteCurrentPreset(){
+  const p = PRESETS.find(x => x.id === CURRENT);
+  CURRENT_HEADER_FILTERS = CURRENT_HEADER_FILTERS || {};
+  if (!p) {
+    setStatus("ERRORE: nessun preset attivo da eliminare.");
+    return;
+  }
+
+  const ok = window.confirm(
+    'Confermi l\'eliminazione del preset "' + (p.title || p.id) + '"?\n\nL\'operazione non è annullabile.'
+  );
+  if (!ok) return;
+
+  try {
+    setStatus("Eliminazione preset in corso...");
+    const filename = presetFilenameFromPreset(p);
+
+    await api("/preset-editor/delete", {
+      method: "POST",
+      body: JSON.stringify({
+        source_id: BUILDER_SOURCE,
+        filename: filename,
+        preset_id: p.id
+      })
+    });
+
+    CURRENT = null;
+    await loadPresets();
+    await renderFilters();
+    await runCurrent();
+    refreshQuickbarFromPreset();
+    setStatus("Preset eliminato: " + (p.title || p.id));
+  } catch (e) {
+    setStatus("ERRORE: " + e.message);
+  }
+}
+
+async function api(url, options = {}){
+  const fetchOptions = {
+    cache: "no-store",
+    ...options,
+    headers: {
+      ...(options.body ? { "Content-Type": "application/json" } : {}),
+      ...(options.headers || {})
+    }
+  };
+
+  const r = await fetch(url, fetchOptions);
+  const data = await r.json().catch(() => ({}));
+
+  if (!r.ok) {
+    const details = [];
+    if (data.detail) details.push(data.detail);
+    if (data.error) details.push(data.error);
+    if (data.message) details.push(data.message);
+    if (data.missing_columns) details.push("Colonne mancanti: " + data.missing_columns.join(", "));
+    throw new Error(details.join("\n") || ("Errore API: " + url));
+  }
+
+  return data;
+}
+
+async function loadSources(){
+  const j = await api("/sources");
+  SOURCES = Array.isArray(j.items) ? j.items : [];
+
+  const sel = document.getElementById("sourceSelect");
+  if (!sel) {
+    throw new Error("Elemento sourceSelect non trovato");
+  }
+
+  sel.innerHTML = "";
+
+  if (!SOURCES.length) {
+    CURRENT_SOURCE = null;
+
+    const o = document.createElement("option");
+    o.value = "";
+    o.textContent = "Nessuna sorgente configurata";
+    sel.appendChild(o);
+
+    document.getElementById("tabbar").innerHTML = "";
+    document.getElementById("filters").innerHTML = "";
+    document.getElementById("report").innerHTML = "<p>Nessuna sorgente dati configurata.</p>";
+    document.getElementById("columnsCount").innerText = "0 colonne";
+    document.getElementById("columnsRaw").innerText = "";
+
+    refreshQuickbarFromPreset();
+    setStatus("Nessuna sorgente configurata.");
+    return;
+  }
+
+  const defaultSource = String(j.default_source || "").trim();
+  CURRENT_SOURCE = SOURCES.some(s => s.id === defaultSource) ? defaultSource : SOURCES[0].id;
+
+  for (const src of SOURCES) {
+    const o = document.createElement("option");
+    o.value = src.id;
+    o.textContent = src.title || src.id;
+    sel.appendChild(o);
+  }
+
+  sel.value = CURRENT_SOURCE;
+
+  sel.onchange = async () => {
+    CURRENT_SOURCE = sel.value;
+    CURRENT = null;
+    CURRENT_VIEW_OPTIONS = null;
+    CURRENT_HEADER_FILTERS = {};
+
+    clearBuilder();
+
+    document.getElementById("tabbar").innerHTML = "";
+    document.getElementById("filters").innerHTML = "";
+    document.getElementById("report").innerHTML = "<p>Caricamento preset della sorgente selezionata...</p>";
+
+    refreshQuickbarFromPreset();
+
+    await loadFields();
+    await loadPresets();
+  };
+
+  populateBuilderSourceSelect();
+  setStatus("Sorgenti caricate: " + SOURCES.length);
+}
+
+async function loadFields(){
+  if (!CURRENT_SOURCE) {
+    CURRENT_FIELDS = [];
+    renderFieldsSidebar();
+    renderColumnsPanel();
+    fillSortFieldOptions();
+    return;
+  }
+
+  const j = await api("/fields?source_id=" + encodeURIComponent(CURRENT_SOURCE));
+  CURRENT_FIELDS = j.fields || [];
+  renderFieldsSidebar();
+  renderColumnsPanel();
+  fillSortFieldOptions();
+}
+
+async function loadPresets(){
+  if (!CURRENT_SOURCE) {
+    PRESETS = [];
+    CURRENT = null;
+    document.getElementById("tabbar").innerHTML = "";
+    document.getElementById("filters").innerHTML = "";
+    document.getElementById("report").innerHTML = "<p>Nessun preset disponibile.</p>";
+    refreshQuickbarFromPreset();
+    return;
+  }
+
+  const j = await api("/pivots?source_id=" + encodeURIComponent(CURRENT_SOURCE));
+  PRESETS = (j.items || []).filter(p => p && p.id && (!p.source_id || p.source_id === CURRENT_SOURCE));
+
+  if (!PRESETS.length) {
+    CURRENT = null;
+    renderTabs();
+    await renderFilters();
+    document.getElementById("report").innerHTML = "<p>Nessun preset disponibile per questa sorgente.</p>";
+    refreshQuickbarFromPreset();
+    setStatus("Nessun preset disponibile per questa sorgente.");
+    return;
+  }
+
+  if (!CURRENT || !PRESETS.some(p => p.id === CURRENT)) {
+    CURRENT = PRESETS[0].id;
+  }
+
+  resetCurrentViewOptionsFromPreset();
+  renderTabs();
+  refreshQuickbarFromPreset();
+  await renderFilters();
+  await runCurrent();
+}
+
+function renderTabs(){
+  const box = document.getElementById("tabbar");
+  box.innerHTML = "";
+  PRESETS.forEach(p => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = p.title || p.id;
+    b.className = p.id === CURRENT ? "active" : "";
+    b.onclick = async () => {
+      CURRENT = p.id;
+      CURRENT_HEADER_FILTERS = {};
+      renderTabs();
+      resetCurrentViewOptionsFromPreset();
+      refreshQuickbarFromPreset();
+      await renderFilters();
+      await runCurrent();
+    };
+    box.appendChild(b);
+  });
+}
+
+async function renderFilters(){
+  const box = document.getElementById("filters");
+  box.innerHTML = "";
+
+  const p = PRESETS.find(x => x.id === CURRENT);
+  CURRENT_HEADER_FILTERS = CURRENT_HEADER_FILTERS || {};
+  const filters = p ? (p.filters || []) : [];
+
+  for (const field of filters) {
+    const wrap = document.createElement("div");
+    wrap.className = "field";
+
+    const lab = document.createElement("label");
+    lab.textContent = field;
+
+    const sel = document.createElement("select");
+    sel.dataset.field = field;
+
+    const o0 = document.createElement("option");
+    o0.value = "";
+    o0.textContent = "(Tutto)";
+    sel.appendChild(o0);
+
+    try {
+      const j = await api("/filter-values?source_id=" + encodeURIComponent(CURRENT_SOURCE) + "&field=" + encodeURIComponent(field));
+      (j.values || []).forEach(v => {
+        const o = document.createElement("option");
+        o.value = v;
+        o.textContent = v;
+        sel.appendChild(o);
+      });
+    } catch (e) {}
+
+    sel.onchange = () => runCurrent();
+
+    wrap.appendChild(lab);
+    wrap.appendChild(sel);
+    box.appendChild(wrap);
+  }
+}
+
+function getFilters(){
+  const out = {};
+  document.querySelectorAll("#filters select").forEach(sel => {
+    if (sel.value) out[sel.dataset.field] = sel.value;
+  });
+  Object.keys(CURRENT_HEADER_FILTERS || {}).forEach(k => {
+    const v = CURRENT_HEADER_FILTERS[k];
+    if (v !== undefined && v !== null && String(v) !== "") out[k] = v;
+  });
+  return out;
+}
+
+async function runCurrent(){
+  const p = PRESETS.find(x => x.id === CURRENT);
+  CURRENT_HEADER_FILTERS = CURRENT_HEADER_FILTERS || {};
+
+  if (!CURRENT_SOURCE) {
+    document.getElementById("report").innerHTML = "<p>Nessuna sorgente dati configurata.</p>";
+    setStatus("Nessuna sorgente dati configurata.");
+    return;
+  }
+
+  if (!p) {
+    document.getElementById("report").innerHTML = "<p>Nessun preset disponibile.</p>";
+    setStatus("Nessun preset disponibile.");
+    return;
+  }
+
+  setStatus("Calcolo pivot in corso...");
+
+  const filters = encodeURIComponent(JSON.stringify(getFilters()));
+  const viewOptions = encodeURIComponent(JSON.stringify(getEffectiveViewOptions()));
+
+  const url =
+    "/pivot/run?pivot_id=" + encodeURIComponent(p.id) +
+    "&source_id=" + encodeURIComponent(CURRENT_SOURCE || "") +
+    "&filters=" + filters +
+    "&view_options=" + viewOptions;
+
+  try {
+    const j = await api(url);
+    const opts = j.preset_options || {};
+
+document.getElementById("report").innerHTML =
+  '<h3 class="report-title">' + escapeHtml(p.title || p.id) + '</h3>' +
+  '<div class="table-responsive">' + (j.html || "") + '</div>';
+
+try {
+  if (typeof enableRenderedTableSortingAndFilters === "function") {
+    enableRenderedTableSortingAndFilters(p, opts);
+  }
+} catch (err) {
+  console.warn("Sorting non attivato:", err);
+}
+
+    setStatus(
+      "OK\n" +
+      "layout=" + String(opts.measures_layout || "-") +
+      " | row_totals=" + String(opts.show_row_totals) +
+      " | col_totals=" + String(opts.show_col_totals) +
+      " | subtotals=" + String(opts.show_subtotals)
+    );
+  } catch (e) {
+    document.getElementById("report").innerHTML = "<p>Errore nel caricamento della pivot.</p>";
+    setStatus("ERRORE: " + e.message);
+  }
+}
+
+function renderColumnsPanel(){
+  document.getElementById("columnsCount").innerText = CURRENT_FIELDS.length + " colonne";
+  document.getElementById("columnsRaw").innerText = CURRENT_FIELDS.join("\n");
+}
+
+
+function normalizeCalculatedFields(items){
+  return (Array.isArray(items) ? items : [])
+    .map(item => ({
+      name: String(item?.name || "").trim(),
+      formula: String(item?.formula || "").trim(),
+      type: String(item?.type || "string").trim() || "string"
+    }))
+    .filter(item => item.name && item.formula);
+}
+
+function getBuilderAvailableFields(){
+  const base = Array.isArray(CURRENT_FIELDS) ? CURRENT_FIELDS.slice() : [];
+  const calc = normalizeCalculatedFields(BUILDER.calculated_fields).map(x => x.name);
+  return Array.from(new Set(base.concat(calc)));
+}
+
+function renderCalculatedFieldsMiniList(){
+  const box = document.getElementById("calculatedFieldsMiniList");
+  if (!box) return;
+  const items = normalizeCalculatedFields(BUILDER.calculated_fields);
+  if (!items.length) {
+    box.textContent = "Nessun campo calcolato definito.";
+    return;
+  }
+  box.innerHTML = items.map((item, idx) =>
+    '<div class="drop-item" style="margin-bottom:8px; align-items:center;">' +
+      '<div>' +
+        '<div><strong>FX ' + escapeHtml(item.name) + '</strong></div>' +
+        '<div class="meta">' + escapeHtml(item.type || "string") + ' · ' + escapeHtml(item.formula || "") + '</div>' +
+      '</div>' +
+      '<div class="actions-inline">' +
+        '<button type="button" onclick="window.openCalculatedFieldModal(' + idx + ')">Modifica</button>' +
+        '<button type="button" class="danger" onclick="window.deleteCalculatedFieldByIndex(' + idx + ')">Elimina</button>' +
+      '</div>' +
+    '</div>'
+  ).join("");
+}
+
+function openCalculatedFieldModal(index = null){
+  CALC_EDIT_INDEX = Number.isInteger(index) ? index : null;
+  const modal = document.getElementById("calcFieldModal");
+  const status = document.getElementById("calcFieldStatus");
+  const delBtn = document.getElementById("btnDeleteCalculatedField");
+  if (!modal) return;
+  const item = CALC_EDIT_INDEX !== null ? (normalizeCalculatedFields(BUILDER.calculated_fields)[CALC_EDIT_INDEX] || null) : null;
+  document.getElementById("calcFieldName").value = item ? (item.name || "") : "";
+  document.getElementById("calcFieldType").value = item ? (item.type || "string") : "string";
+  document.getElementById("calcFieldFormula").value = item ? (item.formula || "") : "";
+  if (status) {
+    status.textContent = item
+      ? "Modifica il campo calcolato esistente e salva per aggiornare il preset."
+      : "Suggerimento: usa after(), before(), between(), year(), month(), day() o concat().";
+  }
+  if (delBtn) delBtn.style.display = item ? "" : "none";
+  modal.style.display = "flex";
+}
+
+function closeCalculatedFieldModal(){
+  const modal = document.getElementById("calcFieldModal");
+  if (modal) modal.style.display = "none";
+  CALC_EDIT_INDEX = null;
+}
+
+function saveCalculatedFieldFromModal(){
+  const name = (document.getElementById("calcFieldName").value || "").trim();
+  const type = (document.getElementById("calcFieldType").value || "string").trim() || "string";
+  const formula = (document.getElementById("calcFieldFormula").value || "").trim();
+  const status = document.getElementById("calcFieldStatus");
+
+  if (!name) {
+    if (status) status.textContent = "Inserisci il nome del campo.";
+    throw new Error("Inserisci il nome del campo calcolato");
+  }
+  if (!formula) {
+    if (status) status.textContent = "Inserisci la formula.";
+    throw new Error("Inserisci la formula del campo calcolato");
+  }
+
+  const items = normalizeCalculatedFields(BUILDER.calculated_fields);
+  const duplicateIndex = items.findIndex((x, idx) => x.name.toLowerCase() === name.toLowerCase() && idx !== CALC_EDIT_INDEX);
+  if (duplicateIndex >= 0) {
+    if (status) status.textContent = "Esiste già un campo calcolato con questo nome.";
+    throw new Error("Esiste già un campo calcolato con questo nome");
+  }
+
+  const payload = { name, type, formula };
+  if (CALC_EDIT_INDEX !== null && items[CALC_EDIT_INDEX]) items[CALC_EDIT_INDEX] = payload;
+  else items.push(payload);
+
+  BUILDER.calculated_fields = items;
+  renderFieldsSidebar();
+  renderBuilder();
+  closeCalculatedFieldModal();
+  setStatus("Campo calcolato salvato: " + name);
+}
+
+function deleteCalculatedFieldFromModal(){
+  if (CALC_EDIT_INDEX === null) return;
+  const items = normalizeCalculatedFields(BUILDER.calculated_fields);
+  const removed = items[CALC_EDIT_INDEX];
+  if (!removed) return;
+  BUILDER.filters = BUILDER.filters.filter(x => x !== removed.name);
+  BUILDER.rows = BUILDER.rows.filter(x => x !== removed.name);
+  BUILDER.cols = BUILDER.cols.filter(x => x !== removed.name);
+  BUILDER.values = BUILDER.values.filter(x => x.field !== removed.name);
+  items.splice(CALC_EDIT_INDEX, 1);
+  BUILDER.calculated_fields = items;
+  renderFieldsSidebar();
+  renderBuilder();
+  closeCalculatedFieldModal();
+  setStatus("Campo calcolato eliminato: " + removed.name);
+}
+
+window.openCalculatedFieldModal = openCalculatedFieldModal;
+window.closeCalculatedFieldModal = closeCalculatedFieldModal;
+window.deleteCalculatedFieldByIndex = function(index){
+  CALC_EDIT_INDEX = Number.isInteger(index) ? index : null;
+  deleteCalculatedFieldFromModal();
+};
+
+
+
+function renderFieldsSidebar(){
+  const list = document.getElementById("fieldsList");
+  const q = (document.getElementById("fieldsSearch").value || "").toLowerCase().trim();
+  list.innerHTML = "";
+
+  const calcNames = new Set(normalizeCalculatedFields(BUILDER.calculated_fields).map(x => x.name));
+  getBuilderAvailableFields()
+    .filter(f => !q || f.toLowerCase().includes(q))
+    .forEach(field => {
+      const el = document.createElement("div");
+      el.className = "field-chip";
+      el.draggable = true;
+      el.dataset.field = field;
+      el.innerHTML = calcNames.has(field)
+        ? '<span>' + escapeHtml(field) + '</span><span class="badge" style="margin-left:8px;">FX</span>'
+        : '<span>' + escapeHtml(field) + '</span>';
+
+      el.addEventListener("dragstart", ev => {
+        ev.dataTransfer.setData("text/plain", JSON.stringify({
+          field,
+          source: "fields"
+        }));
+      });
+
+      list.appendChild(el);
+    });
+
+  renderCalculatedFieldsMiniList();
+}
+
+function clearBuilder(){
+  BUILDER.filters = [];
+  BUILDER.rows = [];
+  BUILDER.cols = [];
+  BUILDER.values = [];
+  BUILDER.calculated_fields = [];
+  renderBuilder();
+  document.getElementById("presetFilename").value = "nuova_pivot.json";
+  document.getElementById("presetTitle").value = "Nuova Pivot";
+  fillSortFieldOptions();
+  resetBuilderOptions();
+  setBuilderMode("new");
+}
+
+function addToZone(zone, field){
+  if (zone === "values") {
+    if (BUILDER.values.find(x => x.field === field)) return;
+    BUILDER.values.push({
+      field,
+      agg: "sum",
+      label: field,
+      numeric: true
+    });
+  } else {
+    if (BUILDER[zone].includes(field)) return;
+    BUILDER[zone].push(field);
+  }
+  renderBuilder();
+}
+
+function removeFromZone(zone, field){
+  if (zone === "values") {
+    BUILDER.values = BUILDER.values.filter(x => x.field !== field);
+  } else {
+    BUILDER[zone] = BUILDER[zone].filter(x => x !== field);
+  }
+  renderBuilder();
+}
+
+function renderBuilder(){
+  renderSimpleZone("filters");
+  renderSimpleZone("rows");
+  renderSimpleZone("cols");
+  renderValuesZone();
+}
+
+function renderSimpleZone(zone){
+  const box = document.getElementById("zone-" + zone);
+  box.innerHTML = "";
+  BUILDER[zone].forEach(field => {
+    const row = document.createElement("div");
+    row.className = "drop-item";
+    row.innerHTML = '<span>' + escapeHtml(field) + '</span><button type="button">Rimuovi</button>';
+    row.querySelector("button").onclick = () => removeFromZone(zone, field);
+    box.appendChild(row);
+  });
+}
+
+function renderValuesZone(){
+  const box = document.getElementById("zone-values");
+  box.innerHTML = "";
+
+  BUILDER.values.forEach(v => {
+    const row = document.createElement("div");
+    row.className = "drop-item";
+
+    const left = document.createElement("div");
+    left.innerHTML = '<div>' + escapeHtml(v.field) + '</div><div class="meta">Misura</div>';
+
+    const right = document.createElement("div");
+    right.className = "actions-inline";
+
+    const agg = document.createElement("select");
+    ["sum","count","avg","min","max"].forEach(a => {
+      const o = document.createElement("option");
+      o.value = a;
+      o.textContent = a;
+      if (v.agg === a) o.selected = true;
+      agg.appendChild(o);
+    });
+    agg.onchange = () => v.agg = agg.value;
+
+    const label = document.createElement("input");
+    label.placeholder = "Etichetta";
+    label.value = v.label || v.field || "";
+    label.oninput = () => v.label = label.value;
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.textContent = "Rimuovi";
+    btn.onclick = () => removeFromZone("values", v.field);
+
+    right.appendChild(agg);
+    right.appendChild(label);
+    right.appendChild(btn);
+
+    row.appendChild(left);
+    row.appendChild(right);
+    box.appendChild(row);
+  });
+}
+
+function initDropZones(){
+  document.querySelectorAll(".drop-zone").forEach(zone => {
+    zone.addEventListener("dragover", ev => {
+      ev.preventDefault();
+      zone.classList.add("active");
+    });
+
+    zone.addEventListener("dragleave", () => {
+      zone.classList.remove("active");
+    });
+
+    zone.addEventListener("drop", ev => {
+      ev.preventDefault();
+      zone.classList.remove("active");
+      try {
+        const payload = JSON.parse(ev.dataTransfer.getData("text/plain"));
+        const field = payload.field;
+        const targetZone = zone.dataset.zone;
+        addToZone(targetZone, field);
+      } catch (e) {}
+    });
+  });
+}
+
+function loadCurrentPresetIntoBuilder(){
+  const p = PRESETS.find(x => x.id === CURRENT);
+  CURRENT_HEADER_FILTERS = CURRENT_HEADER_FILTERS || {};
+  if (!p) return;
+
+  BUILDER.filters = [].concat(p.filters || []);
+  BUILDER.rows = [].concat(p.rows || []);
+  BUILDER.cols = [].concat(p.cols || []);
+  BUILDER.values = (p.values || []).map(v => ({
+    field: v.field,
+    agg: v.agg || "sum",
+    label: (v.label || v.field || "").trim(),
+    numeric: true
+  }));
+  BUILDER.calculated_fields = normalizeCalculatedFields(p.calculated_fields || []);
+
+  BUILDER_SOURCE = p.source_id || CURRENT_SOURCE || null;
+  document.getElementById("presetFilename").value = presetFilenameFromPreset(p);
+  document.getElementById("presetTitle").value = p.title || p.id || "";
+
+  renderBuilder();
+  populateBuilderSourceSelect();
+  setBuilderSource(BUILDER_SOURCE, { keepBuilder: true }).catch(e => {
+    setStatus("ERRORE: " + e.message);
+  });
+  loadBuilderOptions(p.options || {});
+  setBuilderMode("edit", p);
+  openBuilderScreen();
+}
+
+async function saveBuilderPreset(){
+  const rawFilename = document.getElementById("presetFilename").value.trim();
+  const cleanFilename = sanitizeFilename(rawFilename);
+  const title = document.getElementById("presetTitle").value.trim();
+
+  if (!cleanFilename) throw new Error("Inserisci il nome file JSON");
+  if (!BUILDER_SOURCE) throw new Error("Seleziona prima la sorgente dati del preset");
+  if (!BUILDER.values.length) throw new Error("Inserisci almeno una misura");
+  if (!BUILDER.rows.length && !BUILDER.cols.length) throw new Error("Inserisci almeno una riga o una colonna");
+
+  const normalizedValues = normalizeValueLabels(BUILDER.values);
+  validateUniqueValueLabels(normalizedValues);
+
+  const numericFields = normalizedValues
+    .filter(v => ["sum","avg","min","max"].includes(v.agg))
+    .map(v => v.field);
+
+  const payload = {
+    source_id: BUILDER_SOURCE,
+    filename: cleanFilename,
+    title: title || cleanFilename.replace(/\.json$/i, ""),
+    filters: [].concat(BUILDER.filters),
+    rows: [].concat(BUILDER.rows),
+    cols: [].concat(BUILDER.cols),
+    numeric_fields: Array.from(new Set(numericFields)),
+    date_fields: BUILDER.filters.filter(x => x.includes("DATA")),
+    values: normalizedValues.map(v => ({
+      field: v.field,
+      agg: v.agg,
+      label: v.label
+    })),
+    calculated_fields: normalizeCalculatedFields(BUILDER.calculated_fields),
+    options: collectBuilderOptions()
+  };
+
+  setStatus(BUILDER_MODE === "edit" ? "Aggiornamento preset in corso..." : "Salvataggio preset in corso...");
+
+  const res = await api("/preset-editor/save", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+
+  CURRENT = String(res.preset_id || cleanFilename.replace(/\.json$/i, "")).trim();
+
+  await loadPresets();
+  await renderFilters();
+  await runCurrent();
+  refreshQuickbarFromPreset();
+
+  setStatus(
+    BUILDER_MODE === "edit"
+      ? "Preset aggiornato: " + (res.filename || cleanFilename)
+      : "Preset salvato: " + (res.filename || cleanFilename)
+  );
+
+  closeBuilderScreen();
+}
+
+async function quickUpdateCurrentPresetOptions(newOptions){
+  const p = PRESETS.find(x => x.id === CURRENT);
+  CURRENT_HEADER_FILTERS = CURRENT_HEADER_FILTERS || {};
+  if (!p) {
+    setStatus("ERRORE: nessun preset attivo.");
+    return;
+  }
+
+  const payload = {
+    source_id: BUILDER_SOURCE,
+    filename: presetFilenameFromPreset(p),
+    title: p.title || p.id,
+    filters: [].concat(p.filters || []),
+    rows: [].concat(p.rows || []),
+    cols: [].concat(p.cols || []),
+    numeric_fields: [].concat(p.numeric_fields || []),
+    date_fields: [].concat(p.date_fields || []),
+    values: [].concat(p.values || []),
+    calculated_fields: normalizeCalculatedFields(p.calculated_fields || []),
+    options: Object.assign({}, getDefaultPresetOptions(), p.options || {}, newOptions || {})
+  };
+
+  try {
+    await api("/preset-editor/save", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
+
+    await loadPresets();
+    resetCurrentViewOptionsFromPreset();
+    await renderFilters();
+    await runCurrent();
+    refreshQuickbarFromPreset();
+    setStatus("Preset aggiornato.");
+  } catch (e) {
+    setStatus("ERRORE: " + e.message);
+  }
+}
+
+async function toggleCurrentPresetOption(optionName){
+  const p = PRESETS.find(x => x.id === CURRENT);
+  CURRENT_HEADER_FILTERS = CURRENT_HEADER_FILTERS || {};
+  if (!p) {
+    setStatus("ERRORE: nessun preset attivo.");
+    return;
+  }
+  const currentOptions = Object.assign({}, getDefaultPresetOptions(), p.options || {});
+  const patch = {};
+  patch[optionName] = !currentOptions[optionName];
+  await quickUpdateCurrentPresetOptions(patch);
+}
+
+function bindClick(id, handler){
+  const el = document.getElementById(id);
+  if (!el) {
+    console.warn("Elemento non trovato:", id);
+    return;
+  }
+  el.onclick = handler;
+}
+
+function bindInput(id, eventName, handler){
+  const el = document.getElementById(id);
+  if (!el) {
+    console.warn("Elemento non trovato:", id);
+    return;
+  }
+  el.addEventListener(eventName, handler);
+}
+
+function bindSourceUiButtons(){
+  const btnOpen = document.getElementById("btnBuilderOpenSources");
+  if (btnOpen) {
+    btnOpen.onclick = function(ev){
+      if (ev) { ev.preventDefault(); ev.stopPropagation(); }
+      openSourcesScreen();
+      return false;
+    };
+  }
+
+  const btnRefresh = document.getElementById("btnBuilderRefreshSourceFields");
+  if (btnRefresh) {
+    btnRefresh.onclick = async function(ev){
+      if (ev) { ev.preventDefault(); ev.stopPropagation(); }
+      try {
+        await setBuilderSource(BUILDER_SOURCE || document.getElementById("builderSourceSelect").value, { keepBuilder: true });
+        setStatus("Campi sorgente ricaricati nel costruttore.");
+      } catch (e) {
+        setStatus("ERRORE: " + e.message);
+      }
+      return false;
+    };
+  }
+
+  const btnSourcePreview = document.getElementById("btnSourceRefreshPreview");
+  if (btnSourcePreview) {
+    btnSourcePreview.onclick = async function(ev){
+      if (ev) { ev.preventDefault(); ev.stopPropagation(); }
+      try {
+        await previewSourceFromForm(true);
+        setStatus("Anteprima sorgente aggiornata.");
+      } catch (e) {
+        setStatus("ERRORE: " + e.message);
+      }
+      return false;
+    };
+  }
+
+  const btnPreview = document.getElementById("btnBuilderRefreshPreview");
+  if (btnPreview) {
+    btnPreview.onclick = async function(ev){
+      if (ev) { ev.preventDefault(); ev.stopPropagation(); }
+      try {
+        await loadSourcePreview(BUILDER_SOURCE || document.getElementById("builderSourceSelect").value);
+        setStatus("Anteprima sorgente aggiornata.");
+      } catch (e) {
+        setStatus("ERRORE: " + e.message);
+      }
+      return false;
+    };
+  }
+
+  const btnPick = document.getElementById("btnPickSourceFile");
+  if (btnPick) {
+    btnPick.onclick = function(ev){
+      if (ev) { ev.preventDefault(); ev.stopPropagation(); }
+      const picker = document.getElementById("srcFilePicker");
+      if (picker) picker.click();
+      return false;
+    };
+  }
+
+  const picker = document.getElementById("srcFilePicker");
+  if (picker && !picker.dataset.boundFilePicker) {
+    picker.dataset.boundFilePicker = "1";
+    picker.addEventListener("change", async ev => {
+      const file = ev.target.files && ev.target.files[0] ? ev.target.files[0] : null;
+      if (!file) {
+        setPickedFileLabel("Nessun file selezionato");
+        return;
+      }
+      try {
+        setPickedFileLabel("Caricamento " + file.name + "...");
+        const info = await uploadSelectedSourceFile(file);
+        document.getElementById("srcPath").value = info.path || "";
+        document.getElementById("srcType").value = info.source_type || "csv";
+        document.getElementById("srcResolvedInfo").value = info.resolved_info || "";
+        updateSourceFormVisibility();
+        setPickedFileLabel(info.filename || file.name);
+        await previewSourceFromForm(true).catch(() => {});
+        setStatus("File caricato correttamente.");
+      } catch (e) {
+        setPickedFileLabel(file.name);
+        setStatus("ERRORE: " + e.message);
+      }
+    });
+  }
+
+  const sel = document.getElementById("builderSourceSelect");
+  if (sel && !sel.dataset.boundBuilderSource) {
+    sel.dataset.boundBuilderSource = "1";
+    sel.addEventListener("change", async ev => {
+      const nextSource = String(ev.target.value || "").trim();
+      if (!nextSource) {
+        BUILDER_SOURCE = null;
+        refreshBuilderSourceInfo();
+        CURRENT_FIELDS = [];
+        renderFieldsSidebar();
+        renderColumnsPanel();
+        fillSortFieldOptions();
+        clearSourcePreview();
+        return;
+      }
+
+      const hasContent = BUILDER.filters.length || BUILDER.rows.length || BUILDER.cols.length || BUILDER.values.length || BUILDER.calculated_fields.length;
+      if (hasContent && nextSource !== BUILDER_SOURCE) {
+        const ok = window.confirm("Cambiare sorgente dati nel costruttore azzererà i campi già inseriti. Continuare?");
+        if (!ok) {
+          ev.target.value = BUILDER_SOURCE || "";
+          return;
+        }
+      }
+
+      try {
+        await setBuilderSource(nextSource, { keepBuilder: false });
+        setStatus("Sorgente del costruttore aggiornata.");
+      } catch (e) {
+        setStatus("ERRORE: " + e.message);
+      }
+    });
+  }
+}
+
+bindInput("fieldsSearch", "input", renderFieldsSidebar);
+
+bindClick("btnCloseBuilder", () => closeBuilderScreen());
+bindClick("btnBuilderClear", () => clearBuilder());
+bindClick("btnBuilderLoadCurrent", () => loadCurrentPresetIntoBuilder());
+bindClick("btnBuilderSave", async () => {
+  try {
+    await saveBuilderPreset();
+  } catch (e) {
+    setStatus("ERRORE: " + e.message);
+  }
+});
+
+bindClick("btnOpenCalculatedFieldModal", () => openCalculatedFieldModal());
+bindClick("btnCloseCalculatedFieldModal", () => closeCalculatedFieldModal());
+bindClick("btnSaveCalculatedField", () => {
+  try {
+    saveCalculatedFieldFromModal();
+  } catch (e) {
+    setStatus("ERRORE: " + e.message);
+  }
+});
+bindClick("btnDeleteCalculatedField", () => deleteCalculatedFieldFromModal());
+
+document.querySelectorAll(".calc-example-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const formula = btn.getAttribute("data-formula") || "";
+    const box = document.getElementById("calcFieldFormula");
+    if (box) box.value = formula;
+  });
+});
+
+bindClick("btnCloseSources", () => closeSourcesScreen());
+bindClick("btnSourceNew", () => resetSourceForm());
+bindClick("btnSourceSave", async () => {
+  try {
+    await saveSourceFromForm();
+  } catch (e) {
+    setStatus("ERRORE: " + e.message);
+  }
+});
+bindClick("btnSourceDelete", async () => {
+  try {
+    await deleteSourceFromForm();
+  } catch (e) {
+    setStatus("ERRORE: " + e.message);
+  }
+});
+
+
+bindInput("srcType", "change", async () => {
+  updateSourceFormVisibility();
+  try { await previewSourceFromForm(); } catch (_) {}
+});
+bindInput("srcDelimiter", "change", async () => {
+  try { await previewSourceFromForm(); } catch (_) {}
+});
+bindInput("srcEncoding", "change", async () => {
+  try { await previewSourceFromForm(); } catch (_) {}
+});
+bindInput("srcSheetName", "input", async () => {
+  try { await previewSourceFromForm(); } catch (_) {}
+});
+bindInput("srcSkipRows", "input", async () => {
+  try { await previewSourceFromForm(); } catch (_) {}
+});
+bindInput("srcPath", "input", async () => {
+  try { await previewSourceFromForm(); } catch (_) {}
+});
+
+bindClick("btnCloseSettings", () => closeSettingsScreen());
+bindClick("btnSaveSettings", async () => {
+  try {
+    await saveSettingsFromForm();
+  } catch (e) {
+    setStatus("ERRORE: " + e.message);
+  }
+});
+
+setBuilderMode("new");
+initDropZones();
+initQuickbar();
+
+
+function parseSortableValue(text) {
+  const raw = String(text || "").trim();
+  if (!raw) return { type: "text", value: "" };
+
+  const normalized = raw
+    .replace(/\s/g, "")
+    .replace(/\.(?=\d{3}(\D|$))/g, "")
+    .replace(",", ".");
+
+  if (!isNaN(normalized) && /^-?\d+(\.\d+)?$/.test(normalized)) {
+    return { type: "number", value: parseFloat(normalized) };
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    return { type: "date", value: raw };
+  }
+
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(raw)) {
+    const [dd, mm, yyyy] = raw.split("/");
+    return { type: "date", value: `${yyyy}-${mm}-${dd}` };
+  }
+
+  return { type: "text", value: raw.toLowerCase() };
+}
+
+function sortRenderedTableByColumn(table, colIndex, direction) {
+  const tbody = table.querySelector("tbody");
+  if (!tbody) return;
+
+  const rows = Array.from(tbody.querySelectorAll("tr"));
+  const normalRows = [];
+  const specialRows = [];
+
+  for (const row of rows) {
+    if (row.classList.contains("subtotal-row") || row.classList.contains("total-row")) {
+      specialRows.push(row);
+    } else {
+      normalRows.push(row);
+    }
+  }
+
+  normalRows.sort((a, b) => {
+    const aText = a.children[colIndex]?.innerText ?? "";
+    const bText = b.children[colIndex]?.innerText ?? "";
+
+    const av = parseSortableValue(aText);
+    const bv = parseSortableValue(bText);
+
+    let cmp = 0;
+    if (av.type === "number" && bv.type === "number") {
+      cmp = av.value - bv.value;
+    } else {
+      cmp = String(av.value).localeCompare(String(bv.value), "it", { numeric: true, sensitivity: "base" });
+    }
+
+    return direction === "asc" ? cmp : -cmp;
+  });
+
+  tbody.innerHTML = "";
+  for (const row of normalRows) tbody.appendChild(row);
+  for (const row of specialRows) tbody.appendChild(row);
+}
+
+function applyRenderedTableFilters(table) {
+  const tbody = table.querySelector("tbody");
+  if (!tbody) return;
+
+  const filterInputs = Array.from(table.querySelectorAll("thead tr.filter-row input"));
+  const rows = Array.from(tbody.querySelectorAll("tr"));
+
+  rows.forEach(row => {
+    if (row.classList.contains("subtotal-row") || row.classList.contains("total-row")) {
+      row.style.display = "";
+      return;
+    }
+
+    let visible = true;
+    filterInputs.forEach((input, idx) => {
+      const term = String(input.value || "").trim().toLowerCase();
+      if (!term) return;
+      const cellText = String(row.children[idx]?.innerText || "").toLowerCase();
+      if (!cellText.includes(term)) visible = false;
+    });
+
+    row.style.display = visible ? "" : "none";
+  });
+}
+
+function enableRenderedTableSortingAndFilters(preset, runtimeOptions) {
+  const table = document.querySelector("#report table.pd-table");
+  if (!table) return;
+
+  const thead = table.querySelector("thead");
+  if (!thead) return;
+
+  const headerRows = thead.querySelectorAll("tr");
+  const headerRow = headerRows[headerRows.length - 1];
+  if (!headerRow) return;
+
+  const headers = Array.from(headerRow.querySelectorAll("th"));
+  const presetFields = new Set([].concat(preset?.filters || [], preset?.rows || [], preset?.cols || []));
+  const subtotalsEnabled = !!(runtimeOptions?.show_subtotals ?? getEffectiveViewOptions().show_subtotals);
+
+  headers.forEach((th, idx) => {
+    th.classList.add("sortable");
+    th.onclick = async () => {
+      const currentAsc = th.classList.contains("sort-asc");
+      const nextDir = currentAsc ? "desc" : "asc";
+      headers.forEach(h => h.classList.remove("sort-asc", "sort-desc"));
+      th.classList.add(nextDir === "asc" ? "sort-asc" : "sort-desc");
+
+      const sortableField = String(th.innerText || th.textContent || "").trim();
+      const canServerSort = presetFields.has(sortableField);
+
+      if (subtotalsEnabled && canServerSort) {
+        setCurrentViewOptions({
+          sort_enabled: true,
+          sort_field: sortableField,
+          sort_direction: nextDir,
+          sort_by: "label"
+        });
+        await runCurrent();
+        return;
+      }
+
+      sortRenderedTableByColumn(table, idx, nextDir);
+      applyRenderedTableFilters(table);
+    };
+  });
+
+  const existingFilterRow = thead.querySelector("tr.filter-row");
+  if (existingFilterRow) existingFilterRow.remove();
+
+  const filterRow = document.createElement("tr");
+  filterRow.className = "filter-row";
+
+  headers.forEach((th, idx) => {
+    const cell = document.createElement("th");
+    const headerText = String(th.innerText || th.textContent || "").trim();
+    const canServerFilter = presetFields.has(headerText);
+
+    if (subtotalsEnabled && canServerFilter) {
+      const sel = document.createElement("select");
+      sel.className = "pivot-col-filter";
+      sel.dataset.field = headerText;
+
+      const empty = document.createElement("option");
+      empty.value = "";
+      empty.textContent = "(Tutto)";
+      sel.appendChild(empty);
+
+      const values = new Set();
+      Array.from(table.querySelectorAll("tbody tr")).forEach(row => {
+        if (row.classList.contains("subtotal-row") || row.classList.contains("total-row")) return;
+        const txt = String(row.children[idx]?.innerText || "").trim();
+        if (txt) values.add(txt);
+      });
+
+      Array.from(values)
+        .sort((a, b) => a.localeCompare(b, "it", { numeric: true, sensitivity: "base" }))
+        .forEach(v => {
+          const opt = document.createElement("option");
+          opt.value = v;
+          opt.textContent = v;
+          if ((CURRENT_HEADER_FILTERS || {})[headerText] === v) opt.selected = true;
+          sel.appendChild(opt);
+        });
+
+      sel.addEventListener("change", async ev => {
+        const val = String(ev.target.value || "");
+        if (val) CURRENT_HEADER_FILTERS[headerText] = val;
+        else delete CURRENT_HEADER_FILTERS[headerText];
+        await runCurrent();
+      });
+      sel.addEventListener("click", ev => ev.stopPropagation());
+      cell.appendChild(sel);
+    } else if (!subtotalsEnabled) {
+      const input = document.createElement("input");
+      input.type = "text";
+      input.placeholder = "Filtra...";
+      input.className = "pivot-col-filter";
+      input.addEventListener("input", () => applyRenderedTableFilters(table));
+      input.addEventListener("click", ev => ev.stopPropagation());
+      cell.appendChild(input);
+    } else {
+      const span = document.createElement("span");
+      span.className = "small muted";
+      span.textContent = canServerFilter ? "(Tutto)" : "—";
+      cell.appendChild(span);
+    }
+
+    filterRow.appendChild(cell);
+  });
+
+  headerRow.insertAdjacentElement("afterend", filterRow);
+}
+
+
+
+function hasFeature(name){
+  const features = (window.LICENSE_CONTEXT && window.LICENSE_CONTEXT.features) || {};
+  if (features["*"] === true) return true;
+  return !!features[name];
+}
+
+function showLockedFeature(label, featureName){
+  const message = (label || featureName || "Questa funzione") + " è disponibile con una licenza che abilita '" + (featureName || "feature") + "'.";
+  if (typeof setStatus === "function") {
+    setStatus(message);
+  } else {
+    alert(message);
+  }
+}
+
+function lockControl(el, label, featureName){
+  if (!el || hasFeature(featureName)) return;
+  el.disabled = true;
+  el.classList.add("feature-locked");
+  el.title = (label || featureName) + " disponibile con licenza che abilita questa funzione";
+  const handler = function(ev){
+    if (ev) {
+      ev.preventDefault();
+      ev.stopPropagation();
+    }
+    showLockedFeature(label, featureName);
+    return false;
+  };
+  el.addEventListener("click", handler, true);
+  if (el.closest && el.closest("label")) {
+    el.closest("label").classList.add("feature-locked");
+    el.closest("label").title = el.title;
+  }
+}
+
+function updatePreviewLockState(){
+  const wrap = document.getElementById("sourcePreviewTableWrap");
+  const msg = document.getElementById("sourcePreviewLockedMessage");
+  if (wrap) wrap.classList.remove("hidden");
+  if (msg) msg.classList.add("hidden");
+}
+
+function applyLicenseUiGuards(){
+  const bindings = [
+    { id: "menuPrint", feature: "print", label: "Stampa pivot" },
+    { id: "menuToggleSubtotals", feature: "subtotals", label: "Subtotali" },
+    { id: "chkSubtotals", feature: "subtotals", label: "Subtotali" },
+    { id: "optShowSubtotals", feature: "subtotals", label: "Subtotali nel preset" }
+  ];
+  bindings.forEach(item => lockControl(document.getElementById(item.id), item.label, item.feature));
+  updatePreviewLockState();
+}
+
+function showLicenseInfo(){
+  const lines = [];
+  lines.push("Licenza: {{ license_label or 'N/D' }}");
+  lines.push("Stato: {{ (license_status or 'unknown')|upper }}");
+  {% if license and license.customer_name %}
+  lines.push("Cliente: {{ license.customer_name }}");
+  {% endif %}
+  {% if license and license.customer_email %}
+  lines.push("Email: {{ license.customer_email }}");
+  {% endif %}
+  lines.push("Preview: {{ 'Sì' if license_features.preview else 'No' }}");
+  lines.push("Stampa: {{ 'Sì' if license_features.print else 'No' }}");
+  lines.push("Subtotali: {{ 'Sì' if license_features.subtotals else 'No' }}");
+  {% if license_features.plugins is defined %}
+  lines.push("Plugin: {{ 'Sì' if license_features.plugins else 'No' }}");
+  {% endif %}
+  alert(lines.join("\n"));
+}
+
+Promise.resolve()
+  .then(async () => {
+    resetSourceForm();
+    await loadSources();
+
+    try {
+      await loadSettings();
+    } catch (e) {
+      console.warn("SETTINGS ERROR:", e);
+    }
+
+    if (CURRENT_SOURCE) {
+      await loadFields();
+      await loadPresets();
+    } else {
+      document.getElementById("report").innerHTML = "<p>Nessuna sorgente dati configurata.</p>";
+    }
+
+    renderBuilder();
+    refreshQuickbarFromPreset();
+    applyLicenseUiGuards();
+  })
+  .catch(e => {
+    console.error("INIT ERROR:", e);
+    setStatus("ERRORE INIT: " + e.message);
+  });
+</script>
+</body>
+</html>

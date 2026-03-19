@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+pydantic
+jinja2
+pandas
+openpyxl
+sqlalchemy
+python-multipart
+pystray
+pillow
+itsdangerous
