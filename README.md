@@ -82,6 +82,7 @@ Alla prima esecuzione viene creato un utente admin:
 - Endpoint diagnostico `GET /lan/status` disponibile per utenti autenticati: riporta host configurato, bind effettivo, URL loopback/LAN e suggerimento firewall.
 - Nel frontend (modale “Dettagli licenza”) è disponibile il pulsante “Diagnostica LAN” che mostra lo stato letto da `GET /lan/status`.
 - Per verifica pratica firewall/LAN: `POST /lan/probe/new` (autenticato) genera una URL test, `GET /lan/probe/{id}` registra il passaggio dal client remoto e `GET /lan/probe/status` (autenticato) mostra se la sonda è stata raggiunta.
+- Endpoint admin `POST /lan/firewall/open` tenta apertura automatica della porta app nel firewall locale (Windows via `netsh`, Linux via `ufw` se disponibile).
 - Nei campi calcolati è disponibile `token_after(testo, marcatore, case_sensitive?)` per estrarre il primo token dopo stringhe come `#` o `CRO:` (utile su descrizioni bancarie/libere). Il terzo parametro è opzionale (`false` default).
 - Nel modal dei campi calcolati puoi trascinare i campi dalla sidebar direttamente dentro la formula (`[Nome Campo]`).
 - Nell’anteprima sorgente del builder, i campi calcolati definiti vengono mostrati come colonne aggiuntive (anteprima aggiornata al salvataggio/eliminazione campo calcolato).

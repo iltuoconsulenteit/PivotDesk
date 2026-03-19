@@ -4,6 +4,7 @@ import json
 import csv
 import os
 import sys
+import platform
 import hashlib
 import shutil
 import subprocess
@@ -1715,6 +1716,82 @@ def lan_probe_status(request: Request, probe_id: str = Query(...)):
         "last_hit": latest,
         "reachable": bool(hits),
     }
+
+
+@app.post("/lan/firewall/open")
+async def lan_firewall_open(request: Request):
+    current_user = require_admin(request)
+    if not current_user:
+        return JSONResponse({"error": "Non autorizzato"}, status_code=403)
+
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+
+    cfg = load_config()
+    port = int(payload.get("port", cfg.get("port", 8091)))
+    system_name = platform.system().lower()
+
+    commands: list[list[str]] = []
+    if system_name == "windows":
+        commands.append([
+            "netsh", "advfirewall", "firewall", "add", "rule",
+            f"name=PivotDesk {port}",
+            "dir=in",
+            "action=allow",
+            "protocol=TCP",
+            f"localport={port}",
+        ])
+    elif system_name == "linux":
+        if shutil.which("ufw"):
+            commands.append(["ufw", "allow", f"{port}/tcp"])
+    elif system_name == "darwin":
+        return JSONResponse(
+            {
+                "ok": False,
+                "error": "Apertura firewall automatica non supportata su macOS da questa build.",
+                "manual_hint": f"Consenti l'app Python nel firewall macOS oppure apri la porta TCP {port}.",
+            },
+            status_code=400,
+        )
+
+    if not commands:
+        return JSONResponse(
+            {
+                "ok": False,
+                "error": "Nessun comando firewall disponibile per questa piattaforma.",
+                "manual_hint": f"Apri manualmente la porta TCP {port} in ingresso.",
+            },
+            status_code=400,
+        )
+
+    last_error = ""
+    for cmd in commands:
+        try:
+            proc = subprocess.run(cmd, capture_output=True, text=True, check=False)
+            if proc.returncode == 0:
+                return {
+                    "ok": True,
+                    "platform": system_name,
+                    "port": port,
+                    "command": " ".join(cmd),
+                    "message": (proc.stdout or "Regola firewall applicata.").strip(),
+                }
+            last_error = (proc.stderr or proc.stdout or "").strip()
+        except Exception as exc:
+            last_error = str(exc)
+
+    return JSONResponse(
+        {
+            "ok": False,
+            "platform": system_name,
+            "port": port,
+            "error": last_error or "Impossibile applicare regola firewall.",
+            "manual_hint": f"Esegui l'app come amministratore e apri la porta TCP {port} in ingresso.",
+        },
+        status_code=500,
+    )
 
 
 @app.post("/license/activate")

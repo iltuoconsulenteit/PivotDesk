@@ -1019,6 +1019,7 @@ window.LICENSE_CONTEXT = {
       <div style="display:flex; gap:8px;">
         <button id="btnCheckLanStatus" type="button">Diagnostica LAN</button>
         <button id="btnRunLanProbe" type="button">Test Firewall/LAN</button>
+        <button id="btnOpenLanFirewall" type="button">Apri Firewall</button>
         <button id="btnCloseLicenseDetails" type="button">Chiudi</button>
       </div>
     </div>
@@ -3103,6 +3104,13 @@ bindClick("btnRunLanProbe", async () => {
     setStatus("ERRORE: " + e.message);
   }
 });
+bindClick("btnOpenLanFirewall", async () => {
+  try {
+    await openLanFirewallFromModal();
+  } catch (e) {
+    setStatus("ERRORE: " + e.message);
+  }
+});
 bindClick("licenseDetailsModal", ev => {
   if (ev && ev.target && ev.target.id === "licenseDetailsModal") closeLicenseInfo();
 });
@@ -3547,6 +3555,31 @@ async function runLanProbeFromModal(){
     }
   } catch (e) {
     box.textContent = "Errore test LAN: " + (e && e.message ? e.message : e);
+  }
+}
+
+async function openLanFirewallFromModal(){
+  const box = document.getElementById("lanProbeBox");
+  if (!box) return;
+  const ok = window.confirm("Vuoi provare ad aprire automaticamente la porta dell'app nel firewall locale?");
+  if (!ok) return;
+
+  box.textContent = "Tentativo apertura firewall in corso...";
+  try {
+    const data = await api("/lan/firewall/open", {
+      method: "POST",
+      body: JSON.stringify({})
+    });
+    box.innerHTML =
+      '<div style="color:#027a48; font-weight:700;">✅ Firewall aggiornato</div>' +
+      '<div>' + escapeHtml(String(data.message || "Regola applicata.")) + "</div>";
+    await loadLanStatusIntoModal();
+  } catch (e) {
+    const msg = e && e.message ? e.message : String(e);
+    box.innerHTML =
+      '<div style="color:#b42318; font-weight:700;">❌ Apertura firewall non riuscita</div>' +
+      '<div>' + escapeHtml(msg) + "</div>" +
+      '<div style="margin-top:6px;">Suggerimento: avvia l\\'app come amministratore e apri manualmente la porta in ingresso.</div>';
   }
 }
 
