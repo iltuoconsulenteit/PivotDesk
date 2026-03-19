@@ -55,7 +55,25 @@ def detect_license_type() -> str:
 
 
 def license_allows_lan_access(license_type: str) -> bool:
-    return str(license_type or "").strip().lower() in {"dev", "developer", "full"}
+    value = str(license_type or "").strip().lower()
+    if value in {"", "demo", "trial", "free", "community"}:
+        return False
+    return True
+
+
+def resolve_public_lan_host() -> str:
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.connect(("8.8.8.8", 80))
+            ip = s.getsockname()[0]
+            if ip:
+                return ip
+    except Exception:
+        pass
+    try:
+        return socket.gethostbyname(socket.gethostname())
+    except Exception:
+        return "127.0.0.1"
 
 
 def resolve_host() -> str:
@@ -106,6 +124,10 @@ def print_banner() -> None:
     print(f"Cartella base: {BASE_DIR}")
     print(f"App import: {APP_IMPORT}")
     print(f"Server: http://{PUBLIC_HOST}:{PORT}/")
+    if HOST == "0.0.0.0":
+        lan_host = resolve_public_lan_host()
+        print(f"LAN: http://{lan_host}:{PORT}/")
+        print("Nota LAN: verifica che il firewall del sistema consenta connessioni in ingresso sulla porta configurata.")
 
 
 def ensure_dependencies() -> None:

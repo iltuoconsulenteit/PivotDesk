@@ -105,7 +105,25 @@ def detect_license_type() -> str:
 
 
 def license_allows_lan_access(license_type: str) -> bool:
-    return str(license_type or "").strip().lower() in {"dev", "developer", "full"}
+    value = str(license_type or "").strip().lower()
+    if value in {"", "demo", "trial", "free", "community"}:
+        return False
+    return True
+
+
+def resolve_public_lan_host() -> str:
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.connect(("8.8.8.8", 80))
+            ip = s.getsockname()[0]
+            if ip:
+                return ip
+    except Exception:
+        pass
+    try:
+        return socket.gethostbyname(socket.gethostname())
+    except Exception:
+        return "127.0.0.1"
 
 
 def resolve_bind_host(config_host: str, license_type: str) -> str:
@@ -171,6 +189,9 @@ def main() -> None:
     write_log(f"Host bind: {APP_HOST}")
     write_log(f"Host browser: {APP_PUBLIC_HOST}")
     write_log(f"Porta: {APP_PORT}")
+    if APP_HOST == "0.0.0.0":
+        write_log(f"LAN URL suggerito: http://{resolve_public_lan_host()}:{APP_PORT}")
+        write_log("Nota: verificare regole firewall in ingresso sulla porta dell'app.")
 
     server_thread = threading.Thread(target=run_server, daemon=True)
     server_thread.start()
