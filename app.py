@@ -1867,11 +1867,21 @@ async def sources_pick_local_file(request: Request):
             "Write-Output $dlg.FileName }"
         )
         try:
+            startupinfo = None
+            creationflags = 0
+            if hasattr(subprocess, "STARTUPINFO"):
+                startupinfo = subprocess.STARTUPINFO()
+                startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            if hasattr(subprocess, "CREATE_NO_WINDOW"):
+                creationflags = subprocess.CREATE_NO_WINDOW
+
             proc = subprocess.run(
                 ["powershell", "-NoProfile", "-STA", "-Command", ps_script],
                 capture_output=True,
                 text=True,
                 timeout=120,
+                startupinfo=startupinfo,
+                creationflags=creationflags,
             )
             if proc.returncode == 0:
                 selected = (proc.stdout or "").strip()

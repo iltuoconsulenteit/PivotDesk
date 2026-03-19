@@ -90,6 +90,7 @@ def read_json_file(path: Path) -> dict | None:
 def detect_license_type() -> str:
     candidates = [
         appdata_dir() / "license.json",
+        BASE_DIR / "PivotDesk" / "license.json",
         BASE_DIR / "licenses" / "dev-license.json",
         BASE_DIR / "licenses" / "demo-license.json",
     ]

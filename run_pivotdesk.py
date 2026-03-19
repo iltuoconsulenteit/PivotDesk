@@ -38,6 +38,7 @@ def detect_license_type() -> str:
     candidates = []
     if appdata:
         candidates.append(Path(appdata) / "PivotDesk" / "license.json")
+    candidates.append(BASE_DIR / "PivotDesk" / "license.json")
     candidates.extend([
         BASE_DIR / "licenses" / "dev-license.json",
         BASE_DIR / "licenses" / "demo-license.json",
