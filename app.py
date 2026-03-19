@@ -1912,7 +1912,7 @@ async def sources_pick_local_file(request: Request):
             if result:
                 selected = file_buffer.value
             else:
-                dlg_error = ctypes.windll.commdlg.CommDlgExtendedError()
+                dlg_error = ctypes.windll.comdlg32.CommDlgExtendedError()
                 if int(dlg_error) == 0:
                     cancelled = True
                 else:
