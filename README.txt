@@ -1,11 +1,12 @@
-File completi corretti da sostituire nel progetto:
+Questo file è stato mantenuto per retrocompatibilità.
 
-- app.py -> root del progetto
-- templates/index.html -> templates/index.html
-- tray.py -> root del progetto
-- PivotDesk.bat -> root del progetto
+Documentazione principale:
+- README.md (root progetto)
 
-Questa base usa:
-- index con userbar, gestione utenti, logout, seleziona file, anteprima sorgente
-- app con contesto licenza, current_user placeholder, upload sorgenti, preview sorgente
-- batch che avvia la tray senza aprire la console di main.py
+Avvio rapido:
+1) Installa dipendenze:
+   python -m pip install -r requirements-core.txt
+2) Avvia:
+   python run_pivotdesk.py
+3) Apri:
+   http://127.0.0.1:8091
