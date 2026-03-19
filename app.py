@@ -1831,6 +1831,7 @@ async def sources_pick_local_file(request: Request):
 
     selected = ""
     last_error = ""
+    cancelled = False
 
     try:
         import tkinter as tk
@@ -1910,6 +1911,12 @@ async def sources_pick_local_file(request: Request):
             result = ctypes.windll.comdlg32.GetOpenFileNameW(ctypes.byref(ofn))
             if result:
                 selected = file_buffer.value
+            else:
+                dlg_error = ctypes.windll.commdlg.CommDlgExtendedError()
+                if int(dlg_error) == 0:
+                    cancelled = True
+                else:
+                    last_error = f"Errore WinAPI dialog ({int(dlg_error)})"
         except Exception as exc:
             last_error = str(exc)
 
@@ -1927,6 +1934,10 @@ async def sources_pick_local_file(request: Request):
             )
             if proc.returncode == 0:
                 selected = (proc.stdout or "").strip()
+            elif proc.returncode in {1, 256}:
+                cancelled = True
+            elif proc.stderr:
+                last_error = (proc.stderr or "").strip()
         except Exception as exc:
             last_error = str(exc)
 
@@ -1946,6 +1957,8 @@ async def sources_pick_local_file(request: Request):
                 )
                 if proc.returncode == 0:
                     selected = (proc.stdout or "").strip()
+                elif proc.returncode == 1:
+                    cancelled = True
             elif shutil.which("kdialog"):
                 proc = subprocess.run(
                     [
@@ -1960,8 +1973,13 @@ async def sources_pick_local_file(request: Request):
                 )
                 if proc.returncode == 0:
                     selected = (proc.stdout or "").strip()
+                elif proc.returncode == 1:
+                    cancelled = True
         except Exception as exc:
             last_error = str(exc)
+
+    if not selected and cancelled:
+        return {"ok": False, "cancelled": True}
 
     if not selected and last_error:
         return JSONResponse(

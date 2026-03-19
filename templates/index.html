@@ -2583,6 +2583,11 @@ function bindSourceUiButtons(){
       try {
         setPickedFileLabel("Apertura selettore file...");
         const info = await pickSourceFilePath();
+        if (info && info.cancelled) {
+          setPickedFileLabel("Nessun file selezionato");
+          setStatus("Selezione file annullata.");
+          return false;
+        }
         document.getElementById("srcPath").value = info.path || "";
         document.getElementById("srcType").value = info.source_type || "csv";
         document.getElementById("srcResolvedInfo").value = info.resolved_info || "";
