@@ -1,0 +1,10 @@
+{
+  "id": "calculated_fields",
+  "name": "Calculated Fields",
+  "version": "0.2.0",
+  "author": "IlTuoConsulenteIT",
+  "enabled_by_default": false,
+  "license_feature": "calculated_fields",
+  "type": "pivot_extension",
+  "description": "UI and preset support for row-level calculated fields."
+}

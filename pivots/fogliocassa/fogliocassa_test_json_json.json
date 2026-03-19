@@ -1,0 +1,33 @@
+{
+  "id": "fogliocassa_test_json_json",
+  "title": "Test",
+  "source_id": "fogliocassa",
+  "filters": [
+    "DATA_FC"
+  ],
+  "numeric_fields": [
+    "PREMIO",
+    "PROVVIGIONI"
+  ],
+  "date_fields": [
+    "DATA_FC"
+  ],
+  "rows": [
+    "COD_SUBAGENTE"
+  ],
+  "cols": [
+    "MOD_PAGAMENTO_PASS_DESC"
+  ],
+  "values": [
+    {
+      "field": "PREMIO",
+      "agg": "sum",
+      "label": "PREMI"
+    },
+    {
+      "field": "PROVVIGIONI",
+      "agg": "sum",
+      "label": "PROVVIGIONI"
+    }
+  ]
+}

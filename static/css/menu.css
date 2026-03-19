@@ -1,0 +1,84 @@
+function closeAllMenus() {
+  document.querySelectorAll(".menu-dropdown").forEach(el => el.classList.add("hidden"));
+}
+
+function toggleMenu(menuId) {
+  const target = document.getElementById(menuId);
+  if (!target) return;
+
+  const wasHidden = target.classList.contains("hidden");
+  closeAllMenus();
+  if (wasHidden) target.classList.remove("hidden");
+}
+
+function initMenus() {
+  document.querySelectorAll(".menu-btn").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      toggleMenu(btn.dataset.menu);
+    });
+  });
+
+  document.addEventListener("click", () => closeAllMenus());
+
+  document.getElementById("menuReload").onclick = () =>
+    Promise.resolve().then(loadFields).then(loadPresets).catch(e => setStatus("ERRORE: " + e.message));
+
+  document.getElementById("menuOpenSources").onclick = () => {
+    closeAllMenus();
+    resetSourceForm();
+    renderSourcesManager();
+    openSourcesScreen();
+  };
+
+  document.getElementById("menuToggleColumns").onclick = () => {
+    closeAllMenus();
+    const panel = document.getElementById("columnsPanel");
+    panel.classList.toggle("hidden");
+  };
+
+  document.getElementById("menuOpenBuilder").onclick = () => {
+    closeAllMenus();
+    openBuilderForNew();
+  };
+
+  document.getElementById("menuEditCurrentPreset").onclick = () => {
+    closeAllMenus();
+    openBuilderForCurrentPreset();
+  };
+
+  document.getElementById("menuDeleteCurrentPreset").onclick = () => {
+    closeAllMenus();
+    deleteCurrentPreset();
+  };
+
+  document.getElementById("menuPrint").onclick = () => {
+    closeAllMenus();
+    printPivotOnly();
+  };
+
+  document.getElementById("menuOpenSettings").onclick = () => {
+    closeAllMenus();
+    openSettingsScreen();
+  };
+
+  document.getElementById("menuSetVerticalLayout").onclick = async () => {
+    closeAllMenus();
+    await quickUpdateCurrentPresetOptions({ measures_layout: "vertical" });
+  };
+
+  document.getElementById("menuSetHorizontalLayout").onclick = async () => {
+    closeAllMenus();
+    await quickUpdateCurrentPresetOptions({ measures_layout: "horizontal" });
+  };
+
+  document.getElementById("menuToggleRowTotals").onclick = async () => {
+    closeAllMenus();
+    await toggleCurrentPresetOption("show_row_totals");
+  };
+
+  document.getElementById("menuToggleColTotals").onclick = async () => {
+    closeAllMenus();
+    await toggleCurrentPresetOption("show_col_totals");
+  };
+}

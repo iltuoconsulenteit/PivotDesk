@@ -1,0 +1,20 @@
+{
+  "id": "charts",
+  "name": "Grafici",
+  "version": "0.1.0",
+  "description": "Serie dati per grafici semplici dalla pivot o dalla sorgente.",
+  "enabled": true,
+  "frontend": {
+    "menu": [
+      {
+        "section": "Visualizza",
+        "label": "Grafici",
+        "action": "openChartsPanel"
+      }
+    ],
+    "panel": {
+      "id": "chartsPanel",
+      "title": "Grafici"
+    }
+  }
+}

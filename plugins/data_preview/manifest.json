@@ -1,0 +1,20 @@
+{
+  "id": "data_preview",
+  "name": "Anteprima dati",
+  "version": "0.1.0",
+  "description": "Anteprima righe sorgente e metadati base.",
+  "enabled": true,
+  "frontend": {
+    "menu": [
+      {
+        "section": "Dati",
+        "label": "Anteprima dati",
+        "action": "openDataPreview"
+      }
+    ],
+    "panel": {
+      "id": "dataPreviewPanel",
+      "title": "Anteprima dati"
+    }
+  }
+}
