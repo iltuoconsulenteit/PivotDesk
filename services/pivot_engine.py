@@ -260,6 +260,7 @@ def _build_group_subtotal_record(
     include_measure: bool = True,
 ) -> dict[str, Any]:
     subtotal: dict[str, Any] = {}
+    subtotal["__row_type__"] = "subtotal"
 
     for i, name in enumerate(idx_names):
         subtotal[name] = group_key[i] if i < len(group_key) else ""
@@ -332,6 +333,7 @@ def _build_vertical_table(
             idx_names[i]: idx_tuple[i] if i < len(idx_tuple) else ""
             for i in range(len(idx_names))
         }
+        base["__row_type__"] = ""
 
         for req, table in pivot_tables:
             if idx not in table.index:
@@ -374,6 +376,7 @@ def _build_horizontal_group_subtotal_record(
     group_rows: list[dict[str, Any]],
 ) -> dict[str, Any]:
     subtotal: dict[str, Any] = {}
+    subtotal["__row_type__"] = "subtotal"
 
     for i, name in enumerate(idx_names):
         subtotal[name] = group_key[i] if i < len(group_key) else ""
@@ -446,6 +449,7 @@ def _build_horizontal_table(
             idx_names[i]: idx_tuple[i] if i < len(idx_tuple) else ""
             for i in range(len(idx_names))
         }
+        record["__row_type__"] = ""
 
         for col in all_col_keys:
             header = _col_header_from_key(col)
@@ -539,7 +543,8 @@ def table_to_html(table: pd.DataFrame) -> str:
     if table is None or table.empty:
         return '<table class="pd-table"><tbody><tr><td>Nessun dato</td></tr></tbody></table>'
 
-    cols = list(table.columns)
+    row_type_col = "__row_type__" if "__row_type__" in table.columns else None
+    cols = [c for c in table.columns if c != row_type_col]
 
     html = ['<table class="pd-table">']
 
@@ -554,9 +559,10 @@ def table_to_html(table: pd.DataFrame) -> str:
     for _, row in table.iterrows():
 
         values = [str(_format_cell(row[c])).strip() for c in cols]
+        row_type = str(row.get(row_type_col, "")).strip().lower() if row_type_col else ""
 
         is_total = any(v.upper() == "TOTALE" for v in values)
-        is_subtotal = any("SUBTOTALE" in v.upper() for v in values)
+        is_subtotal = row_type == "subtotal" or any("SUBTOTALE" in v.upper() for v in values)
 
         css = ""
         if is_total:
