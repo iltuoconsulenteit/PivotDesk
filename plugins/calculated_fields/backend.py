@@ -28,6 +28,7 @@ Supported syntax:
     to_number(x)
     to_text(x)
     round(x, digits?)
+    token_after(text, marker)
 """
 
 from __future__ import annotations
@@ -244,6 +245,38 @@ def fn_round(value: Any, digits: Any = 0) -> float | None:
     return round(number, int(digits_n or 0))
 
 
+def fn_token_after(text: Any, marker: Any) -> str:
+    """
+    Return the first token that appears after `marker`.
+
+    Examples:
+    - token_after("... CRO: 12345 ABI: 03069", "CRO:") -> "12345"
+    - token_after("Pagamento #IBAN IT60X0542811101000000123456", "#IBAN") -> "IT60X0542811101000000123456"
+    """
+    text_s = _to_text(text)
+    marker_s = _to_text(marker)
+    if not marker_s:
+        return ""
+
+    idx = text_s.find(marker_s)
+    if idx < 0:
+        return ""
+
+    tail = text_s[idx + len(marker_s):]
+    tail = tail.lstrip()
+    if not tail:
+        return ""
+
+    # stop at first whitespace or common separator
+    separators = set(" \t\r\n,;|()[]{}")
+    out: list[str] = []
+    for ch in tail:
+        if ch in separators:
+            break
+        out.append(ch)
+    return "".join(out).strip()
+
+
 SAFE_FUNCTIONS: dict[str, Callable[..., Any]] = {
     "after": fn_after,
     "after_last": fn_after_last,
@@ -261,6 +294,7 @@ SAFE_FUNCTIONS: dict[str, Callable[..., Any]] = {
     "to_number": fn_to_number,
     "to_text": fn_to_text,
     "round": fn_round,
+    "token_after": fn_token_after,
 }
 
 

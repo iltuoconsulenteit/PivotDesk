@@ -895,7 +895,7 @@ window.LICENSE_CONTEXT = {
         <div id="calcExamplesList" style="display:grid; gap:8px; margin-top:10px;"></div>
         <div id="calcFieldsHint" class="small" style="margin-top:10px; color:#667085;"></div>
         <div class="small" style="margin-top:8px;">
-          Funzioni disponibili: <code>after</code>, <code>after_last</code>, <code>before</code>, <code>before_last</code>, <code>between</code>, <code>concat</code>, <code>upper</code>, <code>lower</code>, <code>trim</code>, <code>replace</code>, <code>year</code>, <code>month</code>, <code>day</code>, <code>to_number</code>, <code>to_text</code>, <code>round</code>.
+          Funzioni disponibili: <code>after</code>, <code>after_last</code>, <code>before</code>, <code>before_last</code>, <code>between</code>, <code>concat</code>, <code>upper</code>, <code>lower</code>, <code>trim</code>, <code>replace</code>, <code>year</code>, <code>month</code>, <code>day</code>, <code>to_number</code>, <code>to_text</code>, <code>round</code>, <code>token_after</code> (es.: <code>token_after([Descrizione], "CRO:")</code>).
         </div>
       </div>
 
@@ -2260,6 +2260,8 @@ function renderCalculatedFormulaExamples(){
     `replace([${textField}], "#", "")`,
     `concat([${textField}], " - ", [${altTextField}])`,
     `after([${textField}], "#")`,
+    `token_after([${textField}], "#")`,
+    `token_after([${textField}], "CRO:")`,
     `before([${textField}], "#")`,
     `year([${dateField}])`,
     `month([${dateField}])`,
