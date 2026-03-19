@@ -762,6 +762,25 @@ def has_license_feature(feature_name: str) -> bool:
     return False
 
 
+def license_allows_lan_access(status: str) -> bool:
+    value = str(status or "").strip().lower()
+    return value not in {"", "demo", "trial", "free", "community"}
+
+
+def resolve_public_lan_host() -> str:
+    try:
+        import socket
+
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.connect(("8.8.8.8", 80))
+            ip = s.getsockname()[0]
+            if ip:
+                return ip
+    except Exception:
+        pass
+    return "127.0.0.1"
+
+
 def create_dev_license_file() -> dict[str, Any]:
     data = build_dev_license()
     write_json(DEV_LICENSE_PATH, data)
@@ -1566,6 +1585,41 @@ def license_providers():
             "lemonsqueezy": {"enabled": bool(settings.get("lemonsqueezy", {}).get("enabled", False)), "product_id": settings.get("lemonsqueezy", {}).get("product_id", ""), "variant_id": settings.get("lemonsqueezy", {}).get("variant_id", "")},
             "custom": {"enabled": bool(settings.get("custom", {}).get("enabled", False)), "activate_url": settings.get("custom", {}).get("activate_url", "")},
         },
+    }
+
+
+@app.get("/lan/status")
+def lan_status(request: Request):
+    current_user = require_login(request)
+    if not current_user:
+        return JSONResponse({"error": "Non autenticato"}, status_code=401)
+
+    ctx = get_license_context(prefer_online=False)
+    cfg = load_config()
+    configured_host = str(cfg.get("host", "127.0.0.1") or "127.0.0.1").strip() or "127.0.0.1"
+    port = int(cfg.get("port", 8091))
+
+    status = str(ctx.get("license_status", "demo")).strip().lower() or "demo"
+    lan_by_license = license_allows_lan_access(status)
+
+    if configured_host in {"127.0.0.1", "localhost", "::1"} and lan_by_license:
+        effective_bind_host = "0.0.0.0"
+    else:
+        effective_bind_host = configured_host
+
+    lan_host = resolve_public_lan_host() if effective_bind_host == "0.0.0.0" else effective_bind_host
+
+    return {
+        "ok": True,
+        "license_status": status,
+        "license_label": ctx.get("license_label", "N/D"),
+        "configured_host": configured_host,
+        "effective_bind_host": effective_bind_host,
+        "port": port,
+        "lan_enabled": effective_bind_host == "0.0.0.0",
+        "loopback_url": f"http://127.0.0.1:{port}/",
+        "lan_url": f"http://{lan_host}:{port}/",
+        "firewall_hint": "Se lan_enabled=true ma non raggiungibile da altri PC, verificare firewall/antivirus/router (client isolation).",
     }
 
 
