@@ -257,18 +257,20 @@ def _build_group_subtotal_record(
     group_key: tuple[Any, ...],
     idx_names: list[str],
     group_rows: list[dict[str, Any]],
+    include_measure: bool = True,
 ) -> dict[str, Any]:
     subtotal: dict[str, Any] = {}
 
     for i, name in enumerate(idx_names):
         subtotal[name] = group_key[i] if i < len(group_key) else ""
 
-    subtotal["Misura"] = "Subtotale"
+    if include_measure:
+        subtotal["Misura"] = "Subtotale"
 
     numeric_cols = set()
     for row in group_rows:
         for k, v in row.items():
-            if k in idx_names or k == "Misura":
+            if k in idx_names or (include_measure and k == "Misura"):
                 continue
             if isinstance(v, (int, float)) and not pd.isna(v):
                 numeric_cols.add(k)
@@ -294,6 +296,7 @@ def _build_vertical_table(
 
     first_table = pivot_tables[0][1]
     idx_names = _safe_index_names(first_table.index, rows)
+    include_measure = len(pivot_tables) > 1
 
     all_indexes: list[Any] = []
     seen = set()
@@ -316,7 +319,12 @@ def _build_vertical_table(
         if show_subtotals and current_group_key is not None and group_key != current_group_key:
             if current_group_rows:
                 data_rows.append(
-                    _build_group_subtotal_record(current_group_key, idx_names, current_group_rows)
+                    _build_group_subtotal_record(
+                        current_group_key,
+                        idx_names,
+                        current_group_rows,
+                        include_measure=include_measure,
+                    )
                 )
             current_group_rows = []
 
@@ -331,7 +339,8 @@ def _build_vertical_table(
 
             row_values = table.loc[idx]
             record = dict(base)
-            record["Misura"] = req["label"]
+            if include_measure:
+                record["Misura"] = req["label"]
 
             for col in table.columns:
                 header = _col_header_from_key(col)
@@ -345,11 +354,16 @@ def _build_vertical_table(
 
     if show_subtotals and current_group_key is not None and current_group_rows:
         data_rows.append(
-            _build_group_subtotal_record(current_group_key, idx_names, current_group_rows)
+            _build_group_subtotal_record(
+                current_group_key,
+                idx_names,
+                current_group_rows,
+                include_measure=include_measure,
+            )
         )
 
     out = pd.DataFrame(data_rows)
-    desired = idx_names + ["Misura"]
+    desired = idx_names + (["Misura"] if include_measure else [])
     extra = [c for c in out.columns if c not in desired]
     return out[desired + extra] if not out.empty else pd.DataFrame(columns=desired)
 
