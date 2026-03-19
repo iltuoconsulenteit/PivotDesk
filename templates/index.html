@@ -869,24 +869,18 @@ window.LICENSE_CONTEXT = {
       <div class="field" style="margin-top:12px;">
         <label for="calcFieldFormula">Formula</label>
         <textarea id="calcFieldFormula" rows="4" style="width:100%; resize:vertical;" placeholder='Esempio: year([Data valuta])'></textarea>
+        <div id="calcFormulaGuide" class="small" style="margin-top:8px;">
+          Usa <code>[Nome Campo]</code> per riferirti ai campi sorgente. Esempio: <code>trim([Nome])</code>.
+        </div>
       </div>
 
       <div class="card" style="margin-top:14px;">
         <div class="section-title" style="font-size:16px;">Esempi rapidi</div>
-        <div class="small">I riferimenti ai campi usano la sintassi <code>[Nome Campo]</code>.</div>
-        <div style="display:grid; gap:8px; margin-top:10px;">
-          <button type="button" class="ghost-btn calc-example-btn" data-formula='after([Descrizione], "#")'>after([Descrizione], "#")</button>
-          <button type="button" class="ghost-btn calc-example-btn" data-formula='after_last([Descrizione], "#")'>after_last([Descrizione], "#")</button>
-          <button type="button" class="ghost-btn calc-example-btn" data-formula='before([Descrizione], "#")'>before([Descrizione], "#")</button>
-          <button type="button" class="ghost-btn calc-example-btn" data-formula='before_last([Descrizione], "#")'>before_last([Descrizione], "#")</button>
-          <button type="button" class="ghost-btn calc-example-btn" data-formula='between([Descrizione], "#", " ")'>between([Descrizione], "#", " ")</button>
-          <button type="button" class="ghost-btn calc-example-btn" data-formula='concat([Descrizione], " ", [Importo (EUR)])'>concat([Descrizione], " ", [Importo (EUR)])</button>
-          <button type="button" class="ghost-btn calc-example-btn" data-formula='year([Data valuta])'>year([Data valuta])</button>
-          <button type="button" class="ghost-btn calc-example-btn" data-formula='month([Data valuta])'>month([Data valuta])</button>
-          <button type="button" class="ghost-btn calc-example-btn" data-formula='day([Data valuta])'>day([Data valuta])</button>
-          <button type="button" class="ghost-btn calc-example-btn" data-formula='trim([Descrizione])'>trim([Descrizione])</button>
-          <button type="button" class="ghost-btn calc-example-btn" data-formula='replace([Descrizione], "#", "")'>replace([Descrizione], "#", "")</button>
-          <button type="button" class="ghost-btn calc-example-btn" data-formula='to_number([Importo (EUR)])'>to_number([Importo (EUR)])</button>
+        <div class="small">Esempi generati dai campi disponibili nella sorgente selezionata.</div>
+        <div id="calcExamplesList" style="display:grid; gap:8px; margin-top:10px;"></div>
+        <div id="calcFieldsHint" class="small" style="margin-top:10px; color:#667085;"></div>
+        <div class="small" style="margin-top:8px;">
+          Funzioni disponibili: <code>after</code>, <code>after_last</code>, <code>before</code>, <code>before_last</code>, <code>between</code>, <code>concat</code>, <code>upper</code>, <code>lower</code>, <code>trim</code>, <code>replace</code>, <code>year</code>, <code>month</code>, <code>day</code>, <code>to_number</code>, <code>to_text</code>, <code>round</code>.
         </div>
       </div>
 
@@ -2126,6 +2120,51 @@ function renderCalculatedFieldsMiniList(){
   ).join("");
 }
 
+function renderCalculatedFormulaExamples(){
+  const box = document.getElementById("calcExamplesList");
+  const hint = document.getElementById("calcFieldsHint");
+  if (!box) return;
+
+  const available = (Array.isArray(CURRENT_FIELDS) ? CURRENT_FIELDS : []).filter(Boolean);
+  const textField = available.find(f => /descr|ragione|nome|cognome|citta|luogo|categoria|tipo|denom/i.test(f)) || available[0] || "CampoTesto";
+  const altTextField = available.find(f => f !== textField) || textField;
+  const dateField = available.find(f => /data|date|dt/i.test(f)) || textField;
+  const numberField = available.find(f => /importo|tot|saldo|prezzo|amount|valore|num/i.test(f)) || altTextField;
+
+  const examples = [
+    `trim([${textField}])`,
+    `upper([${textField}])`,
+    `replace([${textField}], "#", "")`,
+    `concat([${textField}], " - ", [${altTextField}])`,
+    `after([${textField}], "#")`,
+    `before([${textField}], "#")`,
+    `year([${dateField}])`,
+    `month([${dateField}])`,
+    `day([${dateField}])`,
+    `to_number([${numberField}])`,
+    `round(to_number([${numberField}]), 2)`
+  ];
+
+  box.innerHTML = "";
+  examples.forEach(formula => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "ghost-btn";
+    btn.textContent = formula;
+    btn.addEventListener("click", () => {
+      const area = document.getElementById("calcFieldFormula");
+      if (area) area.value = formula;
+    });
+    box.appendChild(btn);
+  });
+
+  if (hint) {
+    hint.textContent = available.length
+      ? ("Campi disponibili (estratto): " + available.slice(0, 8).join(", ") + (available.length > 8 ? "..." : ""))
+      : "Nessun campo sorgente rilevato: seleziona una sorgente per avere esempi contestuali.";
+  }
+}
+
 function openCalculatedFieldModal(index = null){
   CALC_EDIT_INDEX = Number.isInteger(index) ? index : null;
   const modal = document.getElementById("calcFieldModal");
@@ -2136,10 +2175,11 @@ function openCalculatedFieldModal(index = null){
   document.getElementById("calcFieldName").value = item ? (item.name || "") : "";
   document.getElementById("calcFieldType").value = item ? (item.type || "string") : "string";
   document.getElementById("calcFieldFormula").value = item ? (item.formula || "") : "";
+  renderCalculatedFormulaExamples();
   if (status) {
     status.textContent = item
       ? "Modifica il campo calcolato esistente e salva per aggiornare il preset."
-      : "Suggerimento: usa after(), before(), between(), year(), month(), day() o concat().";
+      : "Suggerimento: usa i bottoni esempio (contestuali alla sorgente) e riferimenti [Nome Campo].";
   }
   if (delBtn) delBtn.style.display = item ? "" : "none";
   modal.style.display = "flex";
@@ -2703,14 +2743,6 @@ bindClick("btnSaveCalculatedField", () => {
   }
 });
 bindClick("btnDeleteCalculatedField", () => deleteCalculatedFieldFromModal());
-
-document.querySelectorAll(".calc-example-btn").forEach(btn => {
-  btn.addEventListener("click", () => {
-    const formula = btn.getAttribute("data-formula") || "";
-    const box = document.getElementById("calcFieldFormula");
-    if (box) box.value = formula;
-  });
-});
 
 bindClick("btnCloseSources", () => closeSourcesScreen());
 bindClick("btnSourceNew", () => resetSourceForm());
