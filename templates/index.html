@@ -381,6 +381,18 @@
       text-transform: uppercase;
       letter-spacing: .04em;
     }
+    .calc-wizard-category-toggle {
+      width: 100%;
+      border: 1px solid #d0d5dd;
+      background: #f8fafc;
+      border-radius: 8px;
+      padding: 6px 8px;
+      text-align: left;
+      font-size: 12px;
+      font-weight: 700;
+      color: #344054;
+      cursor: pointer;
+    }
     .calc-wizard-signature {
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       font-size: 12px;
@@ -1185,6 +1197,10 @@ window.LICENSE_CONTEXT = {
               <input id="calcFunctionSearch" placeholder="es. round, token, year, if_else...">
             </div>
           </div>
+          <div class="builder-actions" style="justify-content:flex-start; margin-bottom:8px;">
+            <button id="btnCalcExpandAll" type="button">Espandi categorie</button>
+            <button id="btnCalcCollapseAll" type="button">Comprimi categorie</button>
+          </div>
           <div id="calcFunctionList" class="calc-wizard-list"></div>
           <div id="calcFunctionDetails" class="small" style="margin-top:10px; color:#475467;"></div>
           <div id="calcFunctionArgs" class="calc-wizard-args"></div>
@@ -1336,6 +1352,7 @@ const BUILDER = {
 
 let CALC_EDIT_INDEX = null;
 let CALC_SELECTED_FUNCTION = null;
+let CALC_FUNCTION_CATEGORY_STATE = {};
 const CALC_FUNCTION_LIBRARY = [
   { name: "trim", category: "Testo", args: ["valore"], description: "Rimuove spazi iniziali/finali." },
   { name: "upper", category: "Testo", args: ["valore"], description: "Converte testo in maiuscolo." },
@@ -3017,12 +3034,24 @@ function renderCalculatedFunctionLibrary(){
     grouped[key].push(fn);
   });
 
-  Object.keys(grouped).sort((a, b) => a.localeCompare(b)).forEach(category => {
-    const head = document.createElement("div");
-    head.className = "calc-wizard-category";
-    head.textContent = category;
+  const categories = Object.keys(grouped).sort((a, b) => a.localeCompare(b));
+  categories.forEach((category, catIdx) => {
+    const expanded = search
+      ? true
+      : (Object.prototype.hasOwnProperty.call(CALC_FUNCTION_CATEGORY_STATE, category)
+        ? !!CALC_FUNCTION_CATEGORY_STATE[category]
+        : (catIdx === 0));
+    const head = document.createElement("button");
+    head.type = "button";
+    head.className = "calc-wizard-category-toggle";
+    head.textContent = (expanded ? "▾ " : "▸ ") + category + " (" + grouped[category].length + ")";
+    head.addEventListener("click", () => {
+      CALC_FUNCTION_CATEGORY_STATE[category] = !expanded;
+      renderCalculatedFunctionLibrary();
+    });
     list.appendChild(head);
 
+    if (!expanded) return;
     grouped[category].forEach(fn => {
       const btn = document.createElement("button");
       btn.type = "button";
@@ -3117,6 +3146,18 @@ function applyFunctionArgsToFormula(){
   area.focus();
 }
 
+function setAllCalcFunctionCategories(expanded){
+  const grouped = {};
+  CALC_FUNCTION_LIBRARY.forEach(fn => {
+    const key = fn.category || "Altro";
+    grouped[key] = true;
+  });
+  Object.keys(grouped).forEach(category => {
+    CALC_FUNCTION_CATEGORY_STATE[category] = !!expanded;
+  });
+  renderCalculatedFunctionLibrary();
+}
+
 function openCalculatedFieldModal(index = null){
   CALC_EDIT_INDEX = Number.isInteger(index) ? index : null;
   const modal = document.getElementById("calcFieldModal");
@@ -3128,6 +3169,7 @@ function openCalculatedFieldModal(index = null){
   document.getElementById("calcFieldType").value = item ? (item.type || "string") : "string";
   document.getElementById("calcFieldFormula").value = item ? (item.formula || "") : "";
   CALC_SELECTED_FUNCTION = CALC_FUNCTION_LIBRARY[0] || null;
+  CALC_FUNCTION_CATEGORY_STATE = {};
   renderCalculatedFormulaExamples();
   renderCalculatedFunctionLibrary();
   renderSelectedFunctionDetails();
@@ -3790,6 +3832,8 @@ bindClick("btnBuilderSave", async () => {
 bindClick("btnOpenCalculatedFieldModal", () => openCalculatedFieldModal());
 bindClick("btnCloseCalculatedFieldModal", () => closeCalculatedFieldModal());
 bindInput("calcFunctionSearch", "input", () => renderCalculatedFunctionLibrary());
+bindClick("btnCalcExpandAll", () => setAllCalcFunctionCategories(true));
+bindClick("btnCalcCollapseAll", () => setAllCalcFunctionCategories(false));
 bindClick("btnInsertCalcFunctionTemplate", () => insertFunctionTemplate());
 bindClick("btnApplyCalcFunctionArgs", () => applyFunctionArgsToFormula());
 bindClick("btnSaveCalculatedField", () => {
