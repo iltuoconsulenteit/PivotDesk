@@ -255,6 +255,14 @@
     .wiki-content p{
       margin:0 0 8px;
     }
+    .wiki-content img{
+      max-width:100%;
+      height:auto;
+      border:1px solid #eaecf0;
+      border-radius:8px;
+      background:#fff;
+      padding:4px;
+    }
     @media (max-width: 1024px){
       :root{
         --wiki-drawer-width: 92vw;
@@ -902,6 +910,7 @@ window.LICENSE_CONTEXT = {
           <button type="button" class="menu-btn" data-menu-target="menu-settings" data-i18n="menu_settings">Impostazioni</button>
           <div class="menu-dropdown hidden" id="menu-settings">
             <button type="button" id="menuOpenSettings" data-i18n="menu_global_settings">Impostazioni globali</button>
+            <button type="button" id="menuOpenWiki">Apri Wiki</button>
           </div>
         </div>
 
@@ -1000,10 +1009,6 @@ window.LICENSE_CONTEXT = {
 
             <button type="button" id="btnOpenChartsNear" class="quick-toggle" title="Grafico da pivot" aria-label="Grafico da pivot">
               Grafico
-            </button>
-
-            <button type="button" id="btnOpenWikiDrawer" class="quick-toggle" aria-label="Apri wiki rapida">
-              Wiki
             </button>
 
             <button type="button" id="btnApplyPivotView" class="primary" data-i18n="save_view">Salva vista</button>
@@ -4689,7 +4694,7 @@ bindClick("btnSaveCalculatedField", () => {
 bindClick("btnDeleteCalculatedField", () => deleteCalculatedFieldFromModal());
 bindClick("menuOpenCharts", () => openChartsModal());
 bindClick("btnOpenChartsNear", () => openChartsModal());
-bindClick("btnOpenWikiDrawer", () => openWikiDrawer());
+bindClick("menuOpenWiki", () => openWikiDrawer());
 bindClick("btnCloseWikiDrawer", () => closeWikiDrawer());
 bindClick("btnWikiIt", () => setWikiLocale("it"));
 bindClick("btnWikiEn", () => setWikiLocale("en"));
@@ -5371,37 +5376,66 @@ function closeWikiDrawer(){
 }
 
 function renderWikiMarkdown(text){
-  const safe = String(text || "")
+  const lines = String(text || "").split(/\r?\n/);
+  const escapeHtml = value => String(value || "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
+  const resolveWikiUrl = rawUrl => {
+    const url = String(rawUrl || "").trim();
+    if (!url) return "#";
+    if (/^https?:\/\//i.test(url)) return url;
+    if (url.startsWith("../static/")) return "/" + url.replace(/^(\.\.\/)+/, "");
+    if (url.startsWith("/static/")) return url;
+    if (url.startsWith("images/")) return "/wiki/assets/" + url;
+    return "/wiki/assets/" + url.replace(/^\.\//, "");
+  };
+  const formatInline = value => {
+    let out = escapeHtml(value);
+    out = out.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, label, url) => {
+      return '<a href="' + escapeHtml(resolveWikiUrl(url)) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(label) + "</a>";
+    });
+    out = out.replace(/`([^`]+)`/g, "<code>$1</code>");
+    return out;
+  };
 
-  const lines = safe.split(/\r?\n/);
   let html = "";
   let inList = false;
   lines.forEach(line => {
-    if (/^\s*[-*]\s+/.test(line)) {
+    const trimmed = String(line || "").trim();
+    const imageMatch = trimmed.match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
+    if (imageMatch) {
+      if (inList) {
+        html += "</ul>";
+        inList = false;
+      }
+      const alt = escapeHtml(imageMatch[1] || "Wiki image");
+      const src = escapeHtml(resolveWikiUrl(imageMatch[2] || ""));
+      html += '<p><img src="' + src + '" alt="' + alt + '" loading="lazy"></p>';
+      return;
+    }
+    if (/^\s*[-*]\s+/.test(trimmed)) {
       if (!inList) {
         html += "<ul>";
         inList = true;
       }
-      html += "<li>" + line.replace(/^\s*[-*]\s+/, "") + "</li>";
+      html += "<li>" + formatInline(trimmed.replace(/^\s*[-*]\s+/, "")) + "</li>";
       return;
     }
     if (inList) {
       html += "</ul>";
       inList = false;
     }
-    if (/^###\s+/.test(line)) {
-      html += "<h3>" + line.replace(/^###\s+/, "") + "</h3>";
-    } else if (/^##\s+/.test(line)) {
-      html += "<h2>" + line.replace(/^##\s+/, "") + "</h2>";
-    } else if (/^#\s+/.test(line)) {
-      html += "<h1>" + line.replace(/^#\s+/, "") + "</h1>";
-    } else if (!String(line || "").trim()) {
+    if (/^###\s+/.test(trimmed)) {
+      html += "<h3>" + formatInline(trimmed.replace(/^###\s+/, "")) + "</h3>";
+    } else if (/^##\s+/.test(trimmed)) {
+      html += "<h2>" + formatInline(trimmed.replace(/^##\s+/, "")) + "</h2>";
+    } else if (/^#\s+/.test(trimmed)) {
+      html += "<h1>" + formatInline(trimmed.replace(/^#\s+/, "")) + "</h1>";
+    } else if (!trimmed) {
       html += "<p></p>";
     } else {
-      html += "<p>" + line + "</p>";
+      html += "<p>" + formatInline(trimmed) + "</p>";
     }
   });
   if (inList) html += "</ul>";

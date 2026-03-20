@@ -89,6 +89,7 @@ Change this password immediately in shared environments.
 - Layout quickbar now includes an inline view summary plus a **Wiki** button that opens a slide-out side panel with quick guidance links.
 - Pivot success summary is now shown directly in the quickbar (duplicate lower status row removed); the Wiki panel embeds scrollable WIKI content with adjustable width while keeping the main UI usable.
 - Wiki side panel content is served in-app via `GET /wiki/content?lang=it|en`, with draggable edge resize support.
+- Wiki is opened from the top menu (Settings → Apri Wiki) and now renders embedded images/logos from docs/static paths.
 - License-aware feature gating (including Free tier policy).
 - LAN diagnostics/probe/firewall helper endpoints.
 - Customer branding (logo upload + rendering in UI/print contexts).

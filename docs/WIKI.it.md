@@ -240,6 +240,7 @@ Su tablet/smartphone i gruppi menu vanno a capo e le sottovoci si aprono inline,
 La quickbar layout mostra anche il riepilogo vista sulla stessa riga e include un pulsante **Wiki** che apre una barra laterale a comparsa.
 La riga inferiore duplicata dello stato layout è stata rimossa: dopo il calcolo pivot il riepilogo resta nella quickbar. La barra Wiki visualizza direttamente il contenuto WIKI scorrevole ed è ridimensionabile senza bloccare l’uso del frontend.
 Il contenuto Wiki viene caricato dall’endpoint `GET /wiki/content?lang=it|en`; la larghezza può essere modificata anche trascinando il bordo sinistro della barra.
+L’apertura wiki è disponibile dal menu in alto (Impostazioni → Apri Wiki); immagini e loghi markdown vengono renderizzati direttamente nel pannello.
 
 ---
 

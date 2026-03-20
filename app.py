@@ -2371,6 +2371,18 @@ def wiki_content(lang: str = Query("it")):
     }
 
 
+@app.get("/wiki/assets/{asset_path:path}")
+def wiki_asset(asset_path: str):
+    rel = Path(str(asset_path or "").strip())
+    if rel.is_absolute() or ".." in rel.parts:
+        return JSONResponse({"error": "Invalid asset path"}, status_code=400)
+    target = (BASE_DIR / "docs" / rel).resolve()
+    docs_root = (BASE_DIR / "docs").resolve()
+    if not str(target).startswith(str(docs_root)) or not target.exists() or not target.is_file():
+        return JSONResponse({"error": "Asset not found"}, status_code=404)
+    return FileResponse(str(target))
+
+
 @app.get("/plugins")
 def plugins_registry():
     return plugin_manager.get_frontend_registry()
