@@ -95,6 +95,7 @@ Alla prima esecuzione viene creato un utente admin:
 - Nei campi calcolati sono disponibili anche `minutes_diff(uscita, ingresso)` e `hours_diff(uscita, ingresso)` (input orari `HH:MM` / `HH:MM:SS`) più `if_else(condizione, valore_true, valore_false)` con operatori di confronto (`>=`, `<=`, `==`, `!=`, `>`, `<`). Esempio: `if_else(hours_diff([Uscita], [Ingresso]) >= 8, 1, 0)`.
 - Nel modal dei campi calcolati puoi trascinare i campi dalla sidebar direttamente dentro la formula (`[Nome Campo]`).
 - Nell’anteprima sorgente del builder, i campi calcolati definiti vengono mostrati come colonne aggiuntive (anteprima aggiornata al salvataggio/eliminazione campo calcolato).
+- Nel menu **Visualizza** è disponibile **Grafico da pivot**: apre un template grafico (colonne, barre, linea, torta) costruito dalla tabella pivot corrente con scelta campo etichetta/valore e Top N.
 
 ## Troubleshooting veloce
 

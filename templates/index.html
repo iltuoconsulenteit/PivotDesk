@@ -294,6 +294,51 @@
       line-height: 1;
     }
 
+
+    .charts-modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, .45);
+      z-index: 3200;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .charts-modal {
+      width: min(980px, 96vw);
+      max-height: 92vh;
+      overflow: auto;
+      background: #fff;
+      border-radius: 16px;
+      border: 1px solid #d0d5dd;
+      box-shadow: 0 24px 60px rgba(15, 23, 42, .18);
+    }
+
+    .charts-controls-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .chart-canvas-wrap {
+      border: 1px solid #d0d5dd;
+      border-radius: 12px;
+      background: #fcfcfd;
+      padding: 8px;
+      min-height: 380px;
+    }
+
+    .chart-canvas-wrap canvas {
+      width: 100%;
+      min-height: 360px;
+      display: block;
+      background: #fff;
+      border-radius: 8px;
+    }
+
     @media (max-width: 900px) {
       .branding {
         flex-direction: column;
@@ -544,6 +589,7 @@ window.LICENSE_CONTEXT = {
         <button type="button" id="menuToggleRowTotals" data-i18n="menu_row_totals_toggle">Totali righe on/off</button>
         <button type="button" id="menuToggleColTotals" data-i18n="menu_col_totals_toggle">Totali colonne on/off</button>
         <button type="button" id="menuToggleSubtotals" data-feature="subtotals" data-i18n="menu_subtotals_toggle">Subtotali on/off</button>
+        <button type="button" id="menuOpenCharts">Grafico da pivot</button>
       </div>
     </div>
 
@@ -976,6 +1022,51 @@ window.LICENSE_CONTEXT = {
   </div>
 </div>
 
+
+
+<div id="chartsModal" class="charts-modal-overlay">
+  <div class="charts-modal">
+    <div style="padding:18px 20px; border-bottom:1px solid #eaecf0; display:flex; justify-content:space-between; align-items:center; gap:12px;">
+      <div>
+        <div class="section-title" style="margin:0;">Grafico da pivot</div>
+        <div class="small">Genera grafico direttamente dalla pivot visualizzata.</div>
+      </div>
+      <button id="btnCloseChartsModal" type="button">Chiudi</button>
+    </div>
+    <div style="padding:18px 20px;">
+      <div class="charts-controls-grid">
+        <div class="field">
+          <label for="chartTypeSelect">Tipo grafico</label>
+          <select id="chartTypeSelect">
+            <option value="column">Colonne</option>
+            <option value="bar">Barre</option>
+            <option value="line">Linea</option>
+            <option value="pie">Torta</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="chartLabelField">Campo etichetta</label>
+          <select id="chartLabelField"></select>
+        </div>
+        <div class="field">
+          <label for="chartValueField">Campo valore</label>
+          <select id="chartValueField"></select>
+        </div>
+        <div class="field">
+          <label for="chartTopN">Top N</label>
+          <input id="chartTopN" type="number" min="1" max="200" value="12">
+        </div>
+      </div>
+      <div class="builder-actions" style="justify-content:flex-start; margin-bottom:10px;">
+        <button id="btnRenderChart" type="button" class="primary">Genera grafico</button>
+      </div>
+      <div id="chartsStatus" class="small" style="margin-bottom:10px; color:#475467;">Nessuna pivot caricata.</div>
+      <div class="chart-canvas-wrap">
+        <canvas id="chartsCanvas" width="920" height="440"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
 
 <div id="calcFieldModal" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,.45); z-index:3000; align-items:center; justify-content:center; padding:24px;">
   <div style="width:min(760px, 96vw); max-height:90vh; overflow:auto; background:#fff; border-radius:18px; border:1px solid #d0d5dd; box-shadow:0 24px 60px rgba(15,23,42,.18);">
@@ -2390,6 +2481,264 @@ try {
   }
 }
 
+
+function parseNumberForChart(value){
+  if (value === null || value === undefined) return null;
+  const text = String(value).trim();
+  if (!text) return null;
+  const cleaned = text.replace(/\s+/g, "").replace(/€/g, "").replace(/EUR/gi, "");
+  if (!cleaned) return null;
+  let normalized = cleaned;
+  if (normalized.includes(",") && normalized.includes(".")) {
+    normalized = normalized.lastIndexOf(",") > normalized.lastIndexOf(".")
+      ? normalized.replace(/\./g, "").replace(",", ".")
+      : normalized.replace(/,/g, "");
+  } else if (normalized.includes(",")) {
+    normalized = normalized.replace(/\./g, "").replace(",", ".");
+  }
+  const n = Number(normalized);
+  return Number.isFinite(n) ? n : null;
+}
+
+function getPivotTableForCharts(){
+  return document.querySelector("#report table.pd-table") || document.querySelector("#report table");
+}
+
+function getPivotColumnsAndRows(){
+  const table = getPivotTableForCharts();
+  if (!table) return null;
+  const headRow = table.querySelector("thead tr");
+  if (!headRow) return null;
+
+  const headers = Array.from(headRow.querySelectorAll("th")).map((th, idx) => {
+    const txt = String(th.textContent || "").trim();
+    return txt || `Colonna ${idx + 1}`;
+  });
+
+  const rows = Array.from(table.querySelectorAll("tbody tr"))
+    .filter(tr => !tr.classList.contains("subtotal-row") && !tr.classList.contains("total-row"))
+    .map(tr => Array.from(tr.querySelectorAll("td")).map(td => String(td.textContent || "").trim()))
+    .filter(cells => cells.length > 0);
+
+  return { headers, rows };
+}
+
+function fillChartFieldSelects(){
+  const data = getPivotColumnsAndRows();
+  const labelSel = document.getElementById("chartLabelField");
+  const valueSel = document.getElementById("chartValueField");
+  if (!labelSel || !valueSel) return;
+
+  labelSel.innerHTML = "";
+  valueSel.innerHTML = "";
+
+  if (!data || !data.headers.length) {
+    return;
+  }
+
+  data.headers.forEach((h, idx) => {
+    const o1 = document.createElement("option");
+    o1.value = String(idx);
+    o1.textContent = h;
+    labelSel.appendChild(o1);
+
+    const o2 = document.createElement("option");
+    o2.value = String(idx);
+    o2.textContent = h;
+    valueSel.appendChild(o2);
+  });
+
+  labelSel.value = "0";
+  let numericIdx = 1;
+  for (let i = 1; i < data.headers.length; i += 1) {
+    const hasNum = data.rows.some(r => parseNumberForChart(r[i]) !== null);
+    if (hasNum) { numericIdx = i; break; }
+  }
+  valueSel.value = String(Math.min(numericIdx, data.headers.length - 1));
+}
+
+function buildChartSeries(){
+  const data = getPivotColumnsAndRows();
+  if (!data) return { ok: false, reason: "Pivot non trovata." };
+
+  const labelIdx = Number(document.getElementById("chartLabelField")?.value || 0);
+  const valueIdx = Number(document.getElementById("chartValueField")?.value || 1);
+  const topN = Math.max(1, Math.min(200, Number(document.getElementById("chartTopN")?.value || 12)));
+
+  const series = [];
+  data.rows.forEach(cells => {
+    const label = String(cells[labelIdx] || "").trim();
+    const num = parseNumberForChart(cells[valueIdx]);
+    if (!label || num === null) return;
+    series.push({ label, value: num });
+  });
+
+  series.sort((a, b) => b.value - a.value);
+  const sliced = series.slice(0, topN);
+  return sliced.length ? { ok: true, items: sliced } : { ok: false, reason: "Nessun valore numerico disponibile." };
+}
+
+function drawChartsCanvas(type, items){
+  const canvas = document.getElementById("chartsCanvas");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+
+  const W = canvas.width;
+  const H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, W, H);
+
+  const palette = ["#1d4ed8", "#0284c7", "#0f766e", "#16a34a", "#ca8a04", "#dc2626", "#9333ea", "#475569"];
+  const values = items.map(x => x.value);
+  const maxV = Math.max(...values, 1);
+
+  if (type === "pie") {
+    const total = values.reduce((a, b) => a + b, 0) || 1;
+    let start = -Math.PI / 2;
+    const cx = W * 0.33;
+    const cy = H * 0.52;
+    const radius = Math.min(W, H) * 0.28;
+
+    items.forEach((it, idx) => {
+      const frac = it.value / total;
+      const end = start + (Math.PI * 2 * frac);
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.arc(cx, cy, radius, start, end);
+      ctx.closePath();
+      ctx.fillStyle = palette[idx % palette.length];
+      ctx.fill();
+      start = end;
+    });
+
+    ctx.font = "12px sans-serif";
+    ctx.fillStyle = "#344054";
+    items.slice(0, 12).forEach((it, idx) => {
+      const y = 32 + idx * 24;
+      ctx.fillStyle = palette[idx % palette.length];
+      ctx.fillRect(W * 0.62, y - 10, 14, 14);
+      ctx.fillStyle = "#344054";
+      const pct = ((it.value / total) * 100).toFixed(1);
+      ctx.fillText(`${it.label} (${pct}%)`, W * 0.62 + 20, y + 1);
+    });
+    return;
+  }
+
+  const left = 88;
+  const right = 24;
+  const top = 28;
+  const bottom = 86;
+  const plotW = W - left - right;
+  const plotH = H - top - bottom;
+
+  ctx.strokeStyle = "#d0d5dd";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(left, top);
+  ctx.lineTo(left, top + plotH);
+  ctx.lineTo(left + plotW, top + plotH);
+  ctx.stroke();
+
+  ctx.fillStyle = "#667085";
+  ctx.font = "11px sans-serif";
+  for (let i = 0; i <= 4; i += 1) {
+    const v = (maxV / 4) * i;
+    const y = top + plotH - (plotH * i / 4);
+    ctx.fillText(v.toFixed(0), 18, y + 4);
+    ctx.strokeStyle = "#eef2f6";
+    ctx.beginPath();
+    ctx.moveTo(left, y);
+    ctx.lineTo(left + plotW, y);
+    ctx.stroke();
+  }
+
+  if (type === "bar") {
+    const slotH = plotH / items.length;
+    items.forEach((it, idx) => {
+      const y = top + idx * slotH + 4;
+      const h = Math.max(8, slotH - 8);
+      const w = (it.value / maxV) * (plotW - 20);
+      ctx.fillStyle = palette[idx % palette.length];
+      ctx.fillRect(left + 1, y, w, h);
+      ctx.fillStyle = "#344054";
+      ctx.fillText(it.label.slice(0, 24), 4, y + h / 2 + 4);
+    });
+    return;
+  }
+
+  const slotW = plotW / items.length;
+  if (type === "line") {
+    ctx.strokeStyle = "#1d4ed8";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    items.forEach((it, idx) => {
+      const x = left + (slotW * idx) + slotW / 2;
+      const y = top + plotH - ((it.value / maxV) * (plotH - 12));
+      if (idx === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+    items.forEach((it, idx) => {
+      const x = left + (slotW * idx) + slotW / 2;
+      const y = top + plotH - ((it.value / maxV) * (plotH - 12));
+      ctx.fillStyle = "#1d4ed8";
+      ctx.beginPath();
+      ctx.arc(x, y, 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.save();
+      ctx.translate(x, top + plotH + 10);
+      ctx.rotate(-0.55);
+      ctx.fillStyle = "#475467";
+      ctx.fillText(it.label.slice(0, 16), 0, 0);
+      ctx.restore();
+    });
+    return;
+  }
+
+  // default: column
+  items.forEach((it, idx) => {
+    const x = left + (slotW * idx) + 8;
+    const w = Math.max(8, slotW - 16);
+    const h = (it.value / maxV) * (plotH - 4);
+    const y = top + plotH - h;
+    ctx.fillStyle = palette[idx % palette.length];
+    ctx.fillRect(x, y, w, h);
+    ctx.save();
+    ctx.translate(x + 2, top + plotH + 12);
+    ctx.rotate(-0.65);
+    ctx.fillStyle = "#475467";
+    ctx.fillText(it.label.slice(0, 16), 0, 0);
+    ctx.restore();
+  });
+}
+
+function renderPivotChart(){
+  const type = String(document.getElementById("chartTypeSelect")?.value || "column");
+  const status = document.getElementById("chartsStatus");
+  const built = buildChartSeries();
+  if (!built.ok) {
+    if (status) status.textContent = built.reason;
+    drawChartsCanvas("column", [{ label: "N/A", value: 0 }]);
+    return;
+  }
+  drawChartsCanvas(type, built.items);
+  if (status) status.textContent = `Grafico aggiornato (${built.items.length} elementi).`;
+}
+
+function openChartsModal(){
+  fillChartFieldSelects();
+  const modal = document.getElementById("chartsModal");
+  if (modal) modal.style.display = "flex";
+  renderPivotChart();
+}
+
+function closeChartsModal(){
+  const modal = document.getElementById("chartsModal");
+  if (modal) modal.style.display = "none";
+}
+
+
 function renderColumnsPanel(){
   document.getElementById("columnsCount").innerText = CURRENT_FIELDS.length + " colonne";
   document.getElementById("columnsRaw").innerText = CURRENT_FIELDS.join("\n");
@@ -3159,6 +3508,13 @@ bindClick("btnSaveCalculatedField", () => {
   }
 });
 bindClick("btnDeleteCalculatedField", () => deleteCalculatedFieldFromModal());
+bindClick("menuOpenCharts", () => openChartsModal());
+bindClick("btnCloseChartsModal", () => closeChartsModal());
+bindClick("chartsModal", ev => { if (ev && ev.target && ev.target.id === "chartsModal") closeChartsModal(); });
+bindClick("btnRenderChart", () => renderPivotChart());
+bindInput("chartTypeSelect", "change", () => renderPivotChart());
+bindInput("chartLabelField", "change", () => renderPivotChart());
+bindInput("chartValueField", "change", () => renderPivotChart());
 bindClick("btnCloseLicenseDetails", () => closeLicenseInfo());
 bindClick("btnCheckLanStatus", async () => {
   try {
