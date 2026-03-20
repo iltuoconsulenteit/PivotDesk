@@ -14,8 +14,6 @@ from pathlib import Path
 import pystray
 from PIL import Image
 
-from main import detect_license_type, resolve_bind_host, resolve_public_lan_host
-
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
 LOG_DIR = BASE_DIR / "logs"
@@ -31,6 +29,79 @@ CONFIG_PATH = DATA_DIR / "config.json"
 _uvicorn_proc: subprocess.Popen | None = None
 _server_host: str | None = None
 _server_port: int | None = None
+
+
+def _read_json(path: Path) -> dict | None:
+    if not path.exists():
+        return None
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else None
+    except Exception:
+        return None
+
+
+def detect_license_type() -> str:
+    appdata = os.getenv("APPDATA")
+    candidates: list[Path] = []
+
+    settings_candidates = [
+        BASE_DIR / "data" / "license_settings.json",
+        BASE_DIR / "user_data" / "license_settings.json",
+    ]
+    for settings_path in settings_candidates:
+        settings_data = _read_json(settings_path) or {}
+        configured_license_file = str(settings_data.get("license_file") or "").strip()
+        if configured_license_file:
+            candidates.append(Path(configured_license_file))
+
+    if appdata:
+        candidates.append(Path(appdata) / "PivotDesk" / "license.json")
+    candidates.extend([
+        BASE_DIR / "PivotDesk" / "license.json",
+        BASE_DIR / "data" / "license.json",
+        BASE_DIR / "user_data" / "license.json",
+        BASE_DIR / "licenses" / "dev-license.json",
+        BASE_DIR / "licenses" / "demo-license.json",
+    ])
+
+    for path in candidates:
+        payload = _read_json(path)
+        if not payload:
+            continue
+        value = str(payload.get("license_type") or payload.get("edition") or "").strip().lower()
+        if value:
+            return value
+    return "demo"
+
+
+def license_allows_lan_access(license_type: str) -> bool:
+    value = str(license_type or "").strip().lower()
+    return value not in {"", "demo", "trial", "free", "community"}
+
+
+def resolve_bind_host(config_host: str, license_type: str) -> str:
+    host = str(config_host or "").strip() or "127.0.0.1"
+    if not license_allows_lan_access(license_type):
+        return "127.0.0.1"
+    if host in {"127.0.0.1", "localhost", "::1"}:
+        return "0.0.0.0"
+    return host
+
+
+def resolve_public_lan_host() -> str:
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.connect(("8.8.8.8", 80))
+            ip = s.getsockname()[0]
+            if ip:
+                return ip
+    except Exception:
+        pass
+    try:
+        return socket.gethostbyname(socket.gethostname())
+    except Exception:
+        return "127.0.0.1"
 
 
 def log(msg: str) -> None:
