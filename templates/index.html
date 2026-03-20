@@ -665,14 +665,51 @@
       .branding {
         flex-direction: column;
         align-items: flex-start;
+        gap: 14px;
       }
 
       .brand-left {
         width: 100%;
+        align-items: center;
+      }
+
+      .brand-copy {
+        padding-top: 0;
+      }
+
+      .brand-center {
+        width: 100%;
+        justify-content: flex-start;
+      }
+
+      .brand-license {
+        width: 100%;
+        min-width: 0;
+        max-width: none;
+      }
+
+      .license-pill {
+        width: 100%;
+        border-radius: 14px;
+        white-space: normal;
+        align-items: flex-start;
+        flex-wrap: wrap;
+      }
+
+      .license-pill-main {
+        width: 100%;
+        flex-wrap: wrap;
+      }
+
+      .license-pill-actions {
+        width: 100%;
+        flex-wrap: wrap;
+        justify-content: flex-start;
       }
 
       .brand-right {
-        align-self: flex-end;
+        width: 100%;
+        justify-content: flex-start;
       }
 
       .logo-main {
@@ -685,6 +722,30 @@
 
       .brand-subtitle {
         font-size: 1.05rem;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .userbar {
+        grid-template-columns: 1fr;
+        gap: 10px;
+      }
+      .userbar-left {
+        width: 100%;
+      }
+      .inline-menu {
+        width: 100%;
+      }
+      .inline-menu .menu-group {
+        flex: 1 1 100%;
+      }
+      .userbar-right {
+        width: 100%;
+        justify-content: flex-start;
+        flex-wrap: wrap;
+      }
+      .userbar-right form {
+        width: auto;
       }
     }
   
