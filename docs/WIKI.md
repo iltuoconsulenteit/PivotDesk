@@ -183,7 +183,20 @@ For eligible admin/license contexts:
 
 ---
 
-## 13) Backup and restore
+## 13) User management (admin)
+
+Admin user management is available in the dedicated page (`templates/admin_users.html`) and includes:
+
+- user creation (username, email, role, password);
+- role and activation controls;
+- password reset and delete actions;
+- admin navigation shortcuts back to main app.
+
+![User management structure example](images/screen-users.svg)
+
+---
+
+## 14) Backup and restore
 
 Endpoints:
 - `GET /admin/backup/export`
@@ -193,7 +206,7 @@ Covers main settings and pivot presets for migration/rollback scenarios.
 
 ---
 
-## 14) Internationalization
+## 15) Internationalization
 
 Language catalogs:
 - `static/languages/en.json`
@@ -203,7 +216,7 @@ Language can be switched from settings UI.
 
 ---
 
-## 15) Project map
+## 16) Project map
 
 - `app.py` → API and web routes
 - `services/pivot_engine.py` → pivot engine
@@ -215,7 +228,7 @@ Language can be switched from settings UI.
 
 ---
 
-## 16) Troubleshooting
+## 17) Troubleshooting
 
 - Port already in use → change `config.json` port or stop existing process.
 - Source load issues → validate file path/sheet/encoding.
@@ -225,7 +238,7 @@ Language can be switched from settings UI.
 
 ---
 
-## 17) Recommended operating checklist
+## 18) Recommended operating checklist
 
 1. Configure source.
 2. Build pivot preset.

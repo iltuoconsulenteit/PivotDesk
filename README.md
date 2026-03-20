@@ -95,6 +95,7 @@ The following diagrams are visual examples derived from the HTML layout structur
 ![Home/Pivot main screen](docs/images/screen-home.svg)
 ![Preset builder screen](docs/images/screen-builder.svg)
 ![Drilldown modal screen](docs/images/screen-drilldown.svg)
+![User management screen](docs/images/screen-users.svg)
 
 ---
 

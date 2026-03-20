@@ -1,9 +1,30 @@
-<svg xmlns='http://www.w3.org/2000/svg' width='980' height='520' viewBox='0 0 980 520'>
-<style>.t{font:13px Arial}.h{font:700 16px Arial}.b{fill:#fff;stroke:#cbd5e1;stroke-width:2;rx:10}</style>
-<rect x='0' y='0' width='980' height='520' fill='#f8fafc'/>
-<rect x='20' y='20' width='940' height='56' class='b'/><text x='40' y='54' class='h'>Header: logo + license + actions</text>
-<rect x='20' y='92' width='220' height='390' class='b'/><text x='36' y='120' class='h'>Sidebar</text><text x='36' y='145' class='t'>Sources / Presets / Filters</text>
-<rect x='256' y='92' width='704' height='390' class='b'/><text x='272' y='120' class='h'>Main view</text><text x='272' y='145' class='t'>Pivot table output + quick actions</text>
-<rect x='276' y='166' width='664' height='34' fill='#eef2ff' stroke='#c7d2fe'/><text x='292' y='188' class='t'>Toolbar: Print • Charts • Drilldown • Layout options</text>
-<rect x='276' y='214' width='664' height='248' fill='#ffffff' stroke='#e2e8f0'/><text x='292' y='238' class='t'>Pivot HTML table area</text>
+<svg xmlns='http://www.w3.org/2000/svg' width='1100' height='620' viewBox='0 0 1100 620'>
+<style>
+  .bg{fill:#f5f7fb}.card{fill:#fff;stroke:#d0d5dd;stroke-width:2;rx:12;ry:12}
+  .title{font:700 16px Arial;fill:#0f172a}.txt{font:13px Arial;fill:#334155}
+  .cap{font:700 13px Arial;fill:#1d4ed8}
+</style>
+<rect class='bg' width='1100' height='620'/>
+<text x='20' y='28' class='title'>Main page structure (templates/index.html)</text>
+<rect class='card' x='20' y='40' width='1060' height='86'/>
+<text x='36' y='68' class='cap'>Branding / License bar</text>
+<text x='36' y='90' class='txt'>Logo + customer logo + license status + activation/details buttons</text>
+
+<rect class='card' x='20' y='142' width='1060' height='58'/>
+<text x='36' y='176' class='cap'>Top menu actions</text>
+<text x='260' y='176' class='txt'>Pivot • Sources • Builder • Settings • Backup • Print • Charts</text>
+
+<rect class='card' x='20' y='216' width='270' height='384'/>
+<text x='36' y='244' class='cap'>Left panel</text>
+<text x='36' y='266' class='txt'>Sources selector</text>
+<text x='36' y='288' class='txt'>Preset selector</text>
+<text x='36' y='310' class='txt'>Dynamic filters list</text>
+<text x='36' y='332' class='txt'>Status / runtime messages</text>
+
+<rect class='card' x='306' y='216' width='774' height='384'/>
+<text x='322' y='244' class='cap'>Report area</text>
+<rect x='322' y='260' width='742' height='44' fill='#eef2ff' stroke='#c7d2fe'/>
+<text x='336' y='288' class='txt'>Quickbar: subtotals toggle • chart button • current options</text>
+<rect x='322' y='314' width='742' height='270' fill='#fff' stroke='#e2e8f0'/>
+<text x='336' y='342' class='txt'>Rendered pivot table (.pd-table) with totals / drilldown icons</text>
 </svg>

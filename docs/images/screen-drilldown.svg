@@ -1,10 +1,26 @@
-<svg xmlns='http://www.w3.org/2000/svg' width='980' height='520' viewBox='0 0 980 520'>
-<style>.t{font:13px Arial}.h{font:700 16px Arial}.b{fill:#fff;stroke:#cbd5e1;stroke-width:2;rx:10}</style>
-<rect width='980' height='520' fill='#eef2f7'/>
-<rect x='80' y='40' width='820' height='440' class='b'/>
-<text x='110' y='78' class='h'>Drilldown modal (structure preview)</text>
-<rect x='110' y='94' width='760' height='50' fill='#f8fafc' stroke='#e2e8f0'/><text x='126' y='124' class='t'>Header: status • Print detail • Close</text>
-<rect x='110' y='156' width='320' height='110' fill='#ffffff' stroke='#e2e8f0'/><text x='126' y='182' class='t'>Column presets</text>
-<rect x='446' y='156' width='424' height='110' fill='#ffffff' stroke='#e2e8f0'/><text x='462' y='182' class='t'>Visible columns toggles</text>
-<rect x='110' y='280' width='760' height='170' fill='#ffffff' stroke='#e2e8f0'/><text x='126' y='306' class='t'>Detail table records</text>
+<svg xmlns='http://www.w3.org/2000/svg' width='1100' height='620' viewBox='0 0 1100 620'>
+<style>
+  .bg{fill:#e2e8f0}.card{fill:#fff;stroke:#d0d5dd;stroke-width:2;rx:12;ry:12}
+  .title{font:700 16px Arial;fill:#0f172a}.txt{font:13px Arial;fill:#334155}
+  .cap{font:700 13px Arial;fill:#7c3aed}
+</style>
+<rect class='bg' width='1100' height='620'/>
+<text x='20' y='28' class='title'>Drilldown modal structure (templates/index.html)</text>
+<rect class='card' x='120' y='54' width='860' height='530'/>
+
+<rect x='150' y='86' width='800' height='62' fill='#f8fafc' stroke='#e2e8f0'/>
+<text x='166' y='112' class='cap'>Header row</text>
+<text x='166' y='132' class='txt'>Title + status + Print detail + Close</text>
+
+<rect x='150' y='164' width='340' height='132' fill='#fff' stroke='#e2e8f0'/>
+<text x='166' y='192' class='cap'>Column presets</text>
+<text x='166' y='214' class='txt'>Preset select, apply, save, delete</text>
+
+<rect x='510' y='164' width='440' height='132' fill='#fff' stroke='#e2e8f0'/>
+<text x='526' y='192' class='cap'>Visible columns</text>
+<text x='526' y='214' class='txt'>Checkbox list + show all / hide all</text>
+
+<rect x='150' y='312' width='800' height='242' fill='#fff' stroke='#e2e8f0'/>
+<text x='166' y='340' class='cap'>Drilldown table</text>
+<text x='166' y='362' class='txt'>Filtered contributing records for selected pivot value</text>
 </svg>

@@ -186,7 +186,20 @@ Per admin/licenze abilitate:
 
 ---
 
-## 13) Backup e ripristino
+## 13) Gestione utenti (admin)
+
+La gestione utenti è disponibile nella pagina dedicata (`templates/admin_users.html`) e include:
+
+- creazione utente (username, email, ruolo, password);
+- gestione ruolo e stato attivo;
+- reset password ed eliminazione utente;
+- scorciatoie di navigazione per tornare all’app principale.
+
+![Esempio struttura gestione utenti](images/screen-users.svg)
+
+---
+
+## 14) Backup e ripristino
 
 Endpoint:
 - `GET /admin/backup/export`
@@ -196,7 +209,7 @@ Coprono preset e impostazioni principali, utili per migrazione/rollback configur
 
 ---
 
-## 14) Internazionalizzazione (i18n)
+## 15) Internazionalizzazione (i18n)
 
 Cataloghi disponibili:
 - `static/languages/it.json`
@@ -206,7 +219,7 @@ Lingua selezionabile da UI impostazioni.
 
 ---
 
-## 15) Struttura progetto (riferimento rapido)
+## 16) Struttura progetto (riferimento rapido)
 
 - `app.py` → API/route principali
 - `services/pivot_engine.py` → motore pivot
@@ -218,7 +231,7 @@ Lingua selezionabile da UI impostazioni.
 
 ---
 
-## 16) Troubleshooting sintetico
+## 17) Troubleshooting sintetico
 
 - Porta occupata → cambia `config.json` o chiudi processo attivo.
 - Sorgente non valida → verifica path/foglio/encoding.
@@ -228,7 +241,7 @@ Lingua selezionabile da UI impostazioni.
 
 ---
 
-## 17) Checklist operativa consigliata
+## 18) Checklist operativa consigliata
 
 1. Configura sorgente.
 2. Crea preset pivot.
