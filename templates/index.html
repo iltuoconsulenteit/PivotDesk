@@ -339,6 +339,55 @@
       border-radius: 8px;
     }
 
+    .calc-wizard-grid {
+      display: grid;
+      grid-template-columns: minmax(200px, 1fr) minmax(0, 2fr);
+      gap: 14px;
+      margin-top: 14px;
+    }
+    .calc-wizard-panel {
+      border: 1px solid #e4e7ec;
+      border-radius: 12px;
+      background: #fcfcfd;
+      padding: 10px;
+      min-height: 200px;
+    }
+    .calc-wizard-list {
+      display: grid;
+      gap: 6px;
+      max-height: 320px;
+      overflow: auto;
+      padding-right: 4px;
+    }
+    .calc-wizard-item {
+      border: 1px solid #d0d5dd;
+      border-radius: 10px;
+      background: #fff;
+      padding: 8px 10px;
+      text-align: left;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .calc-wizard-item.active {
+      border-color: #84caff;
+      background: #eff8ff;
+    }
+    .calc-wizard-signature {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+      color: #175cd3;
+      margin-top: 4px;
+    }
+    .calc-wizard-args {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .calc-wizard-args .field {
+      margin: 0;
+    }
+
     @media (max-width: 900px) {
       .branding {
         flex-direction: column;
@@ -1102,13 +1151,28 @@ window.LICENSE_CONTEXT = {
         </div>
       </div>
 
-      <div class="card" style="margin-top:14px;">
-        <div class="section-title" style="font-size:16px;">Esempi rapidi</div>
-        <div class="small">Esempi generati dai campi disponibili nella sorgente selezionata.</div>
-        <div id="calcExamplesList" style="display:grid; gap:8px; margin-top:10px;"></div>
-        <div id="calcFieldsHint" class="small" style="margin-top:10px; color:#667085;"></div>
-        <div class="small" style="margin-top:8px;">
-          Funzioni disponibili: <code>after</code>, <code>after_last</code>, <code>before</code>, <code>before_last</code>, <code>between</code>, <code>concat</code>, <code>upper</code>, <code>lower</code>, <code>trim</code>, <code>replace</code>, <code>year</code>, <code>month</code>, <code>day</code>, <code>to_number</code>, <code>to_text</code>, <code>round</code>, <code>token_after</code> (es.: <code>token_after([Descrizione], "CRO:", false)</code> / <code>token_after([Descrizione], "Cro:", true)</code>).
+      <div class="calc-wizard-grid">
+        <div class="calc-wizard-panel">
+          <div class="section-title" style="font-size:15px; margin-bottom:8px;">Campi disponibili</div>
+          <div class="small">Click per inserire <code>[Nome Campo]</code> nella formula.</div>
+          <div id="calcFieldQuickList" class="calc-wizard-list" style="margin-top:8px;"></div>
+          <div id="calcFieldsHint" class="small" style="margin-top:10px; color:#667085;"></div>
+        </div>
+        <div class="calc-wizard-panel">
+          <div class="section-title" style="font-size:15px; margin-bottom:8px;">Assistente funzioni (stile Excel)</div>
+          <div class="builder-top" style="margin-bottom:8px;">
+            <div class="field">
+              <label for="calcFunctionSearch">Cerca funzione</label>
+              <input id="calcFunctionSearch" placeholder="es. round, token, year, if_else...">
+            </div>
+          </div>
+          <div id="calcFunctionList" class="calc-wizard-list"></div>
+          <div id="calcFunctionDetails" class="small" style="margin-top:10px; color:#475467;"></div>
+          <div id="calcFunctionArgs" class="calc-wizard-args"></div>
+          <div class="builder-actions" style="justify-content:flex-start; margin-top:10px;">
+            <button id="btnInsertCalcFunctionTemplate" type="button">Inserisci template funzione</button>
+            <button id="btnApplyCalcFunctionArgs" type="button" class="primary">Applica argomenti</button>
+          </div>
         </div>
       </div>
 
@@ -1252,6 +1316,28 @@ const BUILDER = {
 };
 
 let CALC_EDIT_INDEX = null;
+let CALC_SELECTED_FUNCTION = null;
+const CALC_FUNCTION_LIBRARY = [
+  { name: "trim", category: "Testo", args: ["valore"], description: "Rimuove spazi iniziali/finali." },
+  { name: "upper", category: "Testo", args: ["valore"], description: "Converte testo in maiuscolo." },
+  { name: "lower", category: "Testo", args: ["valore"], description: "Converte testo in minuscolo." },
+  { name: "replace", category: "Testo", args: ["testo", "vecchio", "nuovo"], description: "Sostituisce una porzione di testo." },
+  { name: "concat", category: "Testo", args: ["valore1", "valore2"], description: "Concatena più valori." },
+  { name: "after", category: "Testo", args: ["testo", "marcatore"], description: "Restituisce testo dopo marcatore." },
+  { name: "before", category: "Testo", args: ["testo", "marcatore"], description: "Restituisce testo prima marcatore." },
+  { name: "token_after", category: "Testo", args: ["testo", "marcatore", "case_sensitive"], description: "Estrae primo token dopo il marcatore." },
+  { name: "year", category: "Date", args: ["data"], description: "Estrae anno da una data." },
+  { name: "month", category: "Date", args: ["data"], description: "Estrae mese da una data." },
+  { name: "day", category: "Date", args: ["data"], description: "Estrae giorno da una data." },
+  { name: "to_number", category: "Numero", args: ["valore"], description: "Converte un testo in numero." },
+  { name: "round", category: "Numero", args: ["numero", "decimali"], description: "Arrotonda con n decimali." },
+  { name: "minutes_diff", category: "Orario", args: ["uscita", "ingresso"], description: "Differenza minuti tra due orari." },
+  { name: "hours_diff", category: "Orario", args: ["uscita", "ingresso"], description: "Differenza ore tra due orari." },
+  { name: "if_else", category: "Logica", args: ["condizione", "vero", "falso"], description: "Se condizione vera ritorna valore vero, altrimenti falso." },
+  { name: "gte", category: "Logica", args: ["a", "b"], description: "Confronto maggiore o uguale." },
+  { name: "lte", category: "Logica", args: ["a", "b"], description: "Confronto minore o uguale." },
+  { name: "eq", category: "Logica", args: ["a", "b"], description: "Confronto uguale." },
+];
 
 function setStatus(t){
   document.getElementById("status").innerText = t || "";
@@ -2784,42 +2870,19 @@ function renderCalculatedFieldsMiniList(){
 }
 
 function renderCalculatedFormulaExamples(){
-  const box = document.getElementById("calcExamplesList");
+  const box = document.getElementById("calcFieldQuickList");
   const hint = document.getElementById("calcFieldsHint");
   if (!box) return;
 
-  const available = (Array.isArray(CURRENT_FIELDS) ? CURRENT_FIELDS : []).filter(Boolean);
-  const textField = available.find(f => /descr|ragione|nome|cognome|citta|luogo|categoria|tipo|denom/i.test(f)) || available[0] || "CampoTesto";
-  const altTextField = available.find(f => f !== textField) || textField;
-  const dateField = available.find(f => /data|date|dt/i.test(f)) || textField;
-  const numberField = available.find(f => /importo|tot|saldo|prezzo|amount|valore|num/i.test(f)) || altTextField;
-
-  const examples = [
-    `trim([${textField}])`,
-    `upper([${textField}])`,
-    `replace([${textField}], "#", "")`,
-    `concat([${textField}], " - ", [${altTextField}])`,
-    `after([${textField}], "#")`,
-    `token_after([${textField}], "#")`,
-    `token_after([${textField}], "CRO:")`,
-    `token_after([${textField}], "Cro:", true)`,
-    `before([${textField}], "#")`,
-    `year([${dateField}])`,
-    `month([${dateField}])`,
-    `day([${dateField}])`,
-    `to_number([${numberField}])`,
-    `round(to_number([${numberField}]), 2)`
-  ];
-
   box.innerHTML = "";
-  examples.forEach(formula => {
+  const available = getBuilderAvailableFields().filter(Boolean);
+  available.forEach(field => {
     const btn = document.createElement("button");
     btn.type = "button";
-    btn.className = "ghost-btn";
-    btn.textContent = formula;
+    btn.className = "calc-wizard-item";
+    btn.textContent = "[" + field + "]";
     btn.addEventListener("click", () => {
-      const area = document.getElementById("calcFieldFormula");
-      if (area) area.value = formula;
+      insertFieldReferenceInFormula(field);
     });
     box.appendChild(btn);
   });
@@ -2829,6 +2892,98 @@ function renderCalculatedFormulaExamples(){
       ? ("Campi disponibili (estratto): " + available.slice(0, 8).join(", ") + (available.length > 8 ? "..." : ""))
       : "Nessun campo sorgente rilevato: seleziona una sorgente per avere esempi contestuali.";
   }
+}
+
+function buildFunctionSignature(fnItem){
+  return fnItem.name + "(" + fnItem.args.join(", ") + ")";
+}
+
+function renderCalculatedFunctionLibrary(){
+  const list = document.getElementById("calcFunctionList");
+  const search = String(document.getElementById("calcFunctionSearch")?.value || "").trim().toLowerCase();
+  if (!list) return;
+  list.innerHTML = "";
+
+  const filtered = CALC_FUNCTION_LIBRARY.filter(fn =>
+    !search ||
+    fn.name.toLowerCase().includes(search) ||
+    fn.category.toLowerCase().includes(search) ||
+    buildFunctionSignature(fn).toLowerCase().includes(search)
+  );
+
+  filtered.forEach(fn => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "calc-wizard-item" + (CALC_SELECTED_FUNCTION?.name === fn.name ? " active" : "");
+    btn.innerHTML =
+      '<strong>' + escapeHtml(fn.name) + '</strong>' +
+      '<div class="meta">' + escapeHtml(fn.category) + '</div>' +
+      '<div class="calc-wizard-signature">' + escapeHtml(buildFunctionSignature(fn)) + '</div>';
+    btn.addEventListener("click", () => {
+      CALC_SELECTED_FUNCTION = fn;
+      renderCalculatedFunctionLibrary();
+      renderSelectedFunctionDetails();
+    });
+    list.appendChild(btn);
+  });
+
+  if (!CALC_SELECTED_FUNCTION && filtered.length) {
+    CALC_SELECTED_FUNCTION = filtered[0];
+    renderSelectedFunctionDetails();
+  }
+}
+
+function renderSelectedFunctionDetails(){
+  const details = document.getElementById("calcFunctionDetails");
+  const argsWrap = document.getElementById("calcFunctionArgs");
+  if (!details || !argsWrap) return;
+
+  if (!CALC_SELECTED_FUNCTION) {
+    details.textContent = "Seleziona una funzione per visualizzare guida e argomenti.";
+    argsWrap.innerHTML = "";
+    return;
+  }
+
+  details.innerHTML =
+    '<div><strong>' + escapeHtml(CALC_SELECTED_FUNCTION.name) + '</strong></div>' +
+    '<div class="calc-wizard-signature">' + escapeHtml(buildFunctionSignature(CALC_SELECTED_FUNCTION)) + '</div>' +
+    '<div style="margin-top:4px;">' + escapeHtml(CALC_SELECTED_FUNCTION.description || "") + '</div>';
+
+  argsWrap.innerHTML = "";
+  CALC_SELECTED_FUNCTION.args.forEach((argName, idx) => {
+    const field = document.createElement("div");
+    field.className = "field";
+    const label = document.createElement("label");
+    label.textContent = "Arg " + (idx + 1) + " · " + argName;
+    const input = document.createElement("input");
+    input.id = "calcFnArg_" + idx;
+    input.placeholder = idx === 0 ? "[Campo] oppure valore" : "valore / [Campo]";
+    field.appendChild(label);
+    field.appendChild(input);
+    argsWrap.appendChild(field);
+  });
+}
+
+function insertFunctionTemplate(){
+  if (!CALC_SELECTED_FUNCTION) return;
+  const signature = CALC_SELECTED_FUNCTION.name + "(" + CALC_SELECTED_FUNCTION.args.join(", ") + ")";
+  const area = document.getElementById("calcFieldFormula");
+  if (!area) return;
+  area.value = signature;
+  area.focus();
+}
+
+function applyFunctionArgsToFormula(){
+  if (!CALC_SELECTED_FUNCTION) return;
+  const args = CALC_SELECTED_FUNCTION.args.map((arg, idx) => {
+    const raw = String(document.getElementById("calcFnArg_" + idx)?.value || "").trim();
+    return raw || arg;
+  });
+  const expr = CALC_SELECTED_FUNCTION.name + "(" + args.join(", ") + ")";
+  const area = document.getElementById("calcFieldFormula");
+  if (!area) return;
+  area.value = expr;
+  area.focus();
 }
 
 function openCalculatedFieldModal(index = null){
@@ -2841,12 +2996,15 @@ function openCalculatedFieldModal(index = null){
   document.getElementById("calcFieldName").value = item ? (item.name || "") : "";
   document.getElementById("calcFieldType").value = item ? (item.type || "string") : "string";
   document.getElementById("calcFieldFormula").value = item ? (item.formula || "") : "";
+  CALC_SELECTED_FUNCTION = CALC_FUNCTION_LIBRARY[0] || null;
   renderCalculatedFormulaExamples();
+  renderCalculatedFunctionLibrary();
+  renderSelectedFunctionDetails();
   initCalculatedFormulaDnD();
   if (status) {
     status.textContent = item
       ? "Modifica il campo calcolato esistente e salva per aggiornare il preset."
-      : "Suggerimento: usa i bottoni esempio oppure trascina i campi nella formula ([Nome Campo]).";
+      : "Suggerimento: usa assistente funzioni stile Excel, inserisci campi e completa gli argomenti.";
   }
   if (delBtn) delBtn.style.display = item ? "" : "none";
   modal.style.display = "flex";
@@ -3500,6 +3658,9 @@ bindClick("btnBuilderSave", async () => {
 
 bindClick("btnOpenCalculatedFieldModal", () => openCalculatedFieldModal());
 bindClick("btnCloseCalculatedFieldModal", () => closeCalculatedFieldModal());
+bindInput("calcFunctionSearch", "input", () => renderCalculatedFunctionLibrary());
+bindClick("btnInsertCalcFunctionTemplate", () => insertFunctionTemplate());
+bindClick("btnApplyCalcFunctionArgs", () => applyFunctionArgsToFormula());
 bindClick("btnSaveCalculatedField", () => {
   try {
     saveCalculatedFieldFromModal();
