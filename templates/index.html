@@ -737,7 +737,6 @@ window.LICENSE_CONTEXT = {
 
   <div class="card" id="reportActions" style="display:flex; gap:8px; align-items:center; justify-content:flex-end; flex-wrap:wrap;">
     <button type="button" id="btnOpenChartsNear">Grafico da pivot</button>
-    <button type="button" id="btnPrintChart" data-feature="print">Stampa grafico</button>
   </div>
 
   <div id="status" class="card"></div>
@@ -1127,6 +1126,7 @@ window.LICENSE_CONTEXT = {
       </div>
       <div class="builder-actions" style="justify-content:flex-start; margin-bottom:10px;">
         <button id="btnRenderChart" type="button" class="primary">Genera grafico</button>
+        <button id="btnPrintChartModal" type="button" data-feature="print">Stampa grafico</button>
       </div>
       <div id="chartsStatus" class="small" style="margin-bottom:10px; color:#475467;">Nessuna pivot caricata.</div>
       <div class="chart-canvas-wrap">
@@ -3799,7 +3799,7 @@ bindClick("btnOpenChartsNear", () => openChartsModal());
 bindClick("btnCloseChartsModal", () => closeChartsModal());
 bindClick("chartsModal", ev => { if (ev && ev.target && ev.target.id === "chartsModal") closeChartsModal(); });
 bindClick("btnRenderChart", () => renderPivotChart());
-bindClick("btnPrintChart", () => printChartOnly());
+bindClick("btnPrintChartModal", () => printChartOnly());
 bindInput("chartTypeSelect", "change", () => renderPivotChart());
 bindInput("chartLabelField", "change", () => renderPivotChart());
 bindInput("chartValueField", "change", () => renderPivotChart());
@@ -4195,7 +4195,7 @@ function updatePreviewLockState(){
 function applyLicenseUiGuards(){
   const bindings = [
     { id: "menuPrint", feature: "print", label: "Stampa pivot" },
-    { id: "btnPrintChart", feature: "print", label: "Stampa grafico" },
+    { id: "btnPrintChartModal", feature: "print", label: "Stampa grafico" },
     { id: "menuExportBackup", feature: "backup_restore", label: "Esporta backup" },
     { id: "menuRestoreBackup", feature: "backup_restore", label: "Ripristina backup" },
     { id: "menuToggleSubtotals", feature: "subtotals", label: "Subtotali" },
