@@ -98,6 +98,7 @@ Alla prima esecuzione viene creato un utente admin:
 - Le funzioni nell’assistente sono divise per categoria (testo, data, numero, logica, ecc.) con sezioni espandibili/comprimibili e registro estendibile lato frontend (`registerCalculatedFunctionDefinition`) per futuri inserimenti custom.
 - Nell’anteprima sorgente del builder, i campi calcolati definiti vengono mostrati come colonne aggiuntive (anteprima aggiornata al salvataggio/eliminazione campo calcolato).
 - Per sorgenti Excel è disponibile caricamento elenco fogli direttamente nella maschera sorgente (selezione guidata del foglio da elaborare per anteprima e pivot, non solo primo foglio).
+- Nei filtri colonna, quando i valori sono numerici, l’ordinamento è numerico (es. `1,2,3,...,10,11`) e non lessicografico (`1,10,11,2,...`).
 - Nel menu **Visualizza** è disponibile **Grafico da pivot**: apre un template grafico (colonne, barre, linea, torta) costruito dalla tabella pivot corrente con scelta campo etichetta/valore e Top N; lo stesso modal è richiamabile anche dalla quickbar layout pivot tramite pulsante “Grafico”. La stampa grafico è disponibile direttamente dentro il modal tramite pulsante “Stampa grafico” e stampa solo il grafico (con header/filtri e, se presente, logo cliente in testata).
 
 ## Troubleshooting veloce

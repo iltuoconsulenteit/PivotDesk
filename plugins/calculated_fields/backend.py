@@ -698,7 +698,10 @@ def evaluate_formula(formula: str, row: dict[str, Any]) -> Any:
 def cast_output(value: Any, field_type: str) -> Any:
     kind = (field_type or "string").strip().lower()
     if kind == "number":
-        return _to_number(value)
+        number = _to_number(value)
+        if number is None:
+            return None
+        return int(number) if float(number).is_integer() else number
     if kind == "date":
         d = _parse_date(value)
         return d.isoformat() if d else None

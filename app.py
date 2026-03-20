@@ -1042,6 +1042,25 @@ def normalize_text_values(series: pd.Series) -> list[str]:
     )
 
 
+def normalize_numeric_values(series: pd.Series) -> list[str] | None:
+    raw = series.fillna("").astype(str).map(str.strip).replace("", pd.NA).dropna()
+    if raw.empty:
+        return []
+    numeric = pd.to_numeric(raw, errors="coerce")
+    non_null = int(raw.notna().sum())
+    numeric_count = int(numeric.notna().sum())
+    if non_null <= 0:
+        return []
+    # Treat as numeric only when most values can be parsed as numbers.
+    if (numeric_count / non_null) < 0.8:
+        return None
+    unique_sorted = sorted(set(float(x) for x in numeric.dropna().tolist()))
+    out: list[str] = []
+    for val in unique_sorted:
+        out.append(str(int(val)) if float(val).is_integer() else format(val, "g"))
+    return out
+
+
 def normalize_source_item(item: dict[str, Any]) -> dict[str, Any] | None:
     if not isinstance(item, dict):
         return None
@@ -2848,6 +2867,10 @@ def filter_values(
         if looks_like_date_field(field):
             values = format_filter_date_values(df[field])
             return {"values": values, "field_type": "date"}
+
+        numeric_values = normalize_numeric_values(df[field])
+        if numeric_values is not None:
+            return {"values": numeric_values, "field_type": "number"}
 
         values = normalize_text_values(df[field])
         return {"values": values, "field_type": "text"}
