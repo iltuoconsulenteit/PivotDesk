@@ -1261,16 +1261,53 @@ window.LICENSE_CONTEXT = {
         <select id="srcType">
           <option value="csv">CSV</option>
           <option value="xlsx">Excel XLSX</option>
+          <option value="ods">OpenDocument (ODS)</option>
+          <option value="mysql">MySQL</option>
+          <option value="http_json">HTTP JSON (HTTPS API)</option>
+          <option value="gdrive">Google Drive / Google Sheet</option>
         </select>
       </div>
       <div class="field">
-        <label for="srcPath">Percorso file</label>
+        <label for="srcPath" id="srcPathLabel">Percorso file</label>
         <input id="srcPath" placeholder="es. C:\dati\fogliocassa.csv">
         <div style="margin-top:10px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
           <button id="btnPickSourceFile" type="button">Seleziona file locale</button>
           <button id="btnPasteSourcePath" type="button">Incolla percorso</button>
           <span id="srcPickedFileLabel" class="small">Nessun file selezionato</span>
         </div>
+      </div>
+    </div>
+
+    <div class="builder-top" id="srcMysqlFields">
+      <div class="field">
+        <label for="srcMysqlConnectionId">MySQL connection_id</label>
+        <input id="srcMysqlConnectionId" placeholder="es. mysql_main">
+      </div>
+      <div class="field">
+        <label for="srcMysqlTable">Tabella</label>
+        <input id="srcMysqlTable" placeholder="es. vendite">
+      </div>
+      <div class="field">
+        <label for="srcMysqlQuery">Query SELECT (opzionale)</label>
+        <input id="srcMysqlQuery" placeholder="SELECT * FROM vendite LIMIT 5000">
+      </div>
+    </div>
+
+    <div class="builder-top" id="srcHttpFields">
+      <div class="field">
+        <label for="srcHttpMethod">Metodo HTTP</label>
+        <select id="srcHttpMethod">
+          <option value="GET">GET</option>
+          <option value="POST">POST</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="srcHttpJsonPath">json_path</label>
+        <input id="srcHttpJsonPath" placeholder="es. data.items">
+      </div>
+      <div class="field">
+        <label for="srcHttpTimeout">Timeout sec</label>
+        <input id="srcHttpTimeout" type="number" min="1" step="1" value="15">
       </div>
     </div>
 
@@ -2404,12 +2441,31 @@ function updateSourceFormVisibility(){
   const srcType = String(document.getElementById("srcType").value || "csv").trim().toLowerCase();
   const isCsv = srcType === "csv";
   const isXlsx = srcType === "xlsx";
+  const isMysql = srcType === "mysql";
+  const isHttp = ["http_json", "api", "rest"].includes(srcType);
+  const isGdrive = ["gdrive", "google_drive", "google_sheet"].includes(srcType);
   const btnLoadSheets = document.getElementById("btnLoadExcelSheets");
+  const btnPick = document.getElementById("btnPickSourceFile");
+  const btnPaste = document.getElementById("btnPasteSourcePath");
+  const mysqlWrap = document.getElementById("srcMysqlFields");
+  const httpWrap = document.getElementById("srcHttpFields");
+  const pathLabel = document.getElementById("srcPathLabel");
 
   document.getElementById("srcDelimiter").disabled = !isCsv;
   document.getElementById("srcEncoding").disabled = !isCsv;
   document.getElementById("srcSheetName").disabled = !isXlsx;
   if (btnLoadSheets) btnLoadSheets.disabled = !isXlsx;
+  if (btnPick) btnPick.disabled = isMysql || isHttp;
+  if (btnPaste) btnPaste.disabled = isMysql;
+  if (mysqlWrap) mysqlWrap.classList.toggle("hidden", !isMysql);
+  if (httpWrap) httpWrap.classList.toggle("hidden", !isHttp);
+
+  if (pathLabel) {
+    if (isHttp) pathLabel.textContent = "URL API HTTPS";
+    else if (isGdrive) pathLabel.textContent = "URL Google Drive / Sheet";
+    else if (isMysql) pathLabel.textContent = "Percorso file (non usato per MySQL)";
+    else pathLabel.textContent = "Percorso file";
+  }
 
   if (!isCsv) {
     document.getElementById("srcDelimiter").value = "";
@@ -2483,6 +2539,22 @@ function formatResolvedSourceInfo(src){
   if (srcType === "xlsx") {
     const sheetName = src?.sheet_name ?? cfg.sheet_name ?? cfg.sheet ?? "";
     return "Excel · foglio: " + (sheetName === "" ? "primo foglio" : String(sheetName));
+  }
+
+  if (srcType === "ods") {
+    return "ODS · path: " + String(src?.path || cfg.path || "");
+  }
+
+  if (srcType === "mysql") {
+    return "MySQL · connection_id: " + String(cfg.connection_id || "-") + " · table: " + String(cfg.table || "-");
+  }
+
+  if (["http_json", "api", "rest"].includes(srcType)) {
+    return "HTTP JSON · " + String(cfg.method || "GET") + " · " + String(cfg.url || src?.path || "");
+  }
+
+  if (["gdrive", "google_drive", "google_sheet"].includes(srcType)) {
+    return "Google Drive/Sheet · " + String(cfg.url || src?.path || "");
   }
 
   return "";
@@ -2613,15 +2685,39 @@ function renderSourceFormPreview(data){
 }
 
 function collectSourceFormPayload(){
-  return {
-    id: document.getElementById("srcId").value.trim() || "preview",
-    title: document.getElementById("srcTitle").value.trim() || document.getElementById("srcId").value.trim() || "Anteprima sorgente",
-    type: document.getElementById("srcType").value.trim(),
-    path: document.getElementById("srcPath").value.trim(),
+  const srcType = String(document.getElementById("srcType").value || "csv").trim().toLowerCase();
+  const pathValue = document.getElementById("srcPath").value.trim();
+  const config = {
+    path: pathValue,
     delimiter: document.getElementById("srcDelimiter").value,
     encoding: document.getElementById("srcEncoding").value,
     sheet_name: document.getElementById("srcSheetName").value.trim(),
     skip_rows: parseInt(document.getElementById("srcSkipRows").value || "0", 10) || 0
+  };
+  if (srcType === "mysql") {
+    config.connection_id = document.getElementById("srcMysqlConnectionId").value.trim();
+    config.table = document.getElementById("srcMysqlTable").value.trim();
+    config.query = document.getElementById("srcMysqlQuery").value.trim();
+  }
+  if (["http_json", "api", "rest"].includes(srcType)) {
+    config.url = pathValue;
+    config.method = document.getElementById("srcHttpMethod").value.trim().toUpperCase() || "GET";
+    config.json_path = document.getElementById("srcHttpJsonPath").value.trim();
+    config.timeout_sec = parseInt(document.getElementById("srcHttpTimeout").value || "15", 10) || 15;
+  }
+  if (["gdrive", "google_drive", "google_sheet"].includes(srcType)) {
+    config.url = pathValue;
+  }
+  return {
+    id: document.getElementById("srcId").value.trim() || "preview",
+    title: document.getElementById("srcTitle").value.trim() || document.getElementById("srcId").value.trim() || "Anteprima sorgente",
+    type: srcType,
+    path: pathValue,
+    delimiter: config.delimiter,
+    encoding: config.encoding,
+    sheet_name: config.sheet_name,
+    skip_rows: config.skip_rows,
+    config
   };
 }
 
@@ -2629,8 +2725,12 @@ let sourceFormPreviewTimer = null;
 
 async function previewSourceFromForm(force = false){
   const payload = collectSourceFormPayload();
-  if (!payload.path) {
-    const typeLabel = payload.type === "xlsx" ? "Excel · foglio: primo foglio" : "CSV · delimitatore: auto · encoding: auto";
+  const type = String(payload.type || "").toLowerCase();
+  const needsPath = !["mysql"].includes(type);
+  if (needsPath && !payload.path) {
+    const typeLabel = payload.type === "xlsx"
+      ? "Excel · foglio: primo foglio"
+      : (payload.type === "http_json" ? "HTTP JSON · GET" : "CSV · delimitatore: auto · encoding: auto");
     const resolved = document.getElementById("srcResolvedInfo");
     if (resolved) resolved.value = typeLabel;
     clearSourceFormPreview("Compila il percorso file per visualizzare l'anteprima.");
@@ -2690,6 +2790,12 @@ function resetSourceForm(){
   setSourceSheetOptions([], "");
   document.getElementById("srcSkipRows").value = "0";
   document.getElementById("srcResolvedInfo").value = "";
+  document.getElementById("srcMysqlConnectionId").value = "";
+  document.getElementById("srcMysqlTable").value = "";
+  document.getElementById("srcMysqlQuery").value = "";
+  document.getElementById("srcHttpMethod").value = "GET";
+  document.getElementById("srcHttpJsonPath").value = "";
+  document.getElementById("srcHttpTimeout").value = "15";
   document.getElementById("srcDefault").checked = false;
   setPickedFileLabel("Nessun file selezionato");
   updateSourceFormVisibility();
@@ -2706,6 +2812,12 @@ function loadSourceIntoForm(src){
   document.getElementById("srcEncoding").value = src.encoding || src.config?.encoding || "";
   setSourceSheetOptions([], src.sheet_name ?? src.config?.sheet_name ?? src.config?.sheet ?? "");
   document.getElementById("srcSkipRows").value = String(src.skip_rows ?? src.config?.skip_rows ?? 0);
+  document.getElementById("srcMysqlConnectionId").value = src.config?.connection_id || "";
+  document.getElementById("srcMysqlTable").value = src.config?.table || "";
+  document.getElementById("srcMysqlQuery").value = src.config?.query || "";
+  document.getElementById("srcHttpMethod").value = String(src.config?.method || "GET").toUpperCase();
+  document.getElementById("srcHttpJsonPath").value = src.config?.json_path || "";
+  document.getElementById("srcHttpTimeout").value = String(src.config?.timeout_sec || 15);
   document.getElementById("srcResolvedInfo").value = formatResolvedSourceInfo(src);
   document.getElementById("srcDefault").checked = (src.id === (CURRENT_SOURCE || ""));
   setPickedFileLabel(src.path || src.config?.path || "File già salvato");
@@ -2745,19 +2857,17 @@ function renderSourcesManager(){
 }
 
 async function saveSourceFromForm(){
-  const payload = {
-    id: document.getElementById("srcId").value.trim(),
-    title: document.getElementById("srcTitle").value.trim(),
-    type: document.getElementById("srcType").value.trim(),
-    path: document.getElementById("srcPath").value.trim(),
-    delimiter: document.getElementById("srcDelimiter").value,
-    encoding: document.getElementById("srcEncoding").value,
-    sheet_name: document.getElementById("srcSheetName").value.trim(),
-    skip_rows: parseInt(document.getElementById("srcSkipRows").value || "0", 10) || 0,
-    make_default: document.getElementById("srcDefault").checked
-  };
+  const payload = collectSourceFormPayload();
+  payload.id = document.getElementById("srcId").value.trim();
+  payload.title = document.getElementById("srcTitle").value.trim();
+  payload.make_default = document.getElementById("srcDefault").checked;
   if (!payload.id) throw new Error("ID sorgente obbligatorio");
-  if (!payload.path) throw new Error("Percorso file obbligatorio");
+  if (payload.type === "mysql") {
+    if (!payload.config?.connection_id) throw new Error("connection_id MySQL obbligatorio");
+    if (!payload.config?.table && !payload.config?.query) throw new Error("Per MySQL indica table oppure query");
+  } else if (!payload.path) {
+    throw new Error("Percorso/URL sorgente obbligatorio");
+  }
 
   const res = await api("/sources/save", {
     method: "POST",

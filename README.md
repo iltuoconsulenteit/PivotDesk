@@ -75,7 +75,7 @@ Change this password immediately in shared environments.
 
 ## Quick feature overview
 
-- Source ingestion: CSV, Excel (sheet selection), ODS, MySQL, HTTP JSON adapter.
+- Source ingestion: CSV, Excel (sheet selection), ODS, MySQL, HTTP JSON/HTTPS API, Google Drive/Google Sheet links.
 - Pivot builder with saved presets.
 - Calculated fields (server-side formula engine + UI assistant).
 - Numeric-safe filtering and optional subtotals/totals.

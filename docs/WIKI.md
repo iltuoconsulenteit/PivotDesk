@@ -12,7 +12,7 @@ This guide provides a single operational reference for PivotDesk features (user 
 
 PivotDesk is a FastAPI + Pandas web app (with desktop launcher/tray) used to:
 
-- load data from multiple source types (CSV, Excel, ODS, MySQL, HTTP JSON);
+- load data from multiple source types (CSV, Excel, ODS, MySQL, HTTP JSON, Google Drive/Sheets);
 - build and save pivot presets;
 - define row-level calculated fields;
 - filter/sort and manage totals/subtotals;
@@ -50,6 +50,7 @@ Supported source types:
 - ODS
 - MySQL
 - HTTP JSON (`http_json`, `api`, `rest`)
+- Google Drive / Google Sheet (`gdrive`, `google_drive`, `google_sheet`)
 
 Notes:
 - CSV ingestion uses tolerant parsing for real-world files.

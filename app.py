@@ -1707,6 +1707,8 @@ def dataframe_preview_payload(source_id: str, limit: int = 20) -> dict[str, Any]
 
 def build_source_from_payload(payload: dict[str, Any]) -> dict[str, Any]:
     src_type = str(payload.get("type", "csv") or "csv").strip().lower() or "csv"
+    if src_type in {"google_drive", "google_sheet"}:
+        src_type = "gdrive"
     path = str(payload.get("path", "") or "").strip()
     delimiter = str(payload.get("delimiter", "") or "").strip()
     encoding = str(payload.get("encoding", "") or "").strip()
@@ -1716,6 +1718,18 @@ def build_source_from_payload(payload: dict[str, Any]) -> dict[str, Any]:
         skip_rows = max(int(skip_rows or 0), 0)
     except Exception:
         skip_rows = 0
+    cfg_payload = payload.get("config") if isinstance(payload.get("config"), dict) else {}
+    config = {
+        "path": path,
+        "delimiter": delimiter,
+        "encoding": encoding,
+        "sheet_name": sheet_name,
+        "skip_rows": skip_rows,
+    }
+    for key in ("url", "method", "json_path", "timeout_sec", "connection_id", "table", "query"):
+        if key in cfg_payload and cfg_payload.get(key) not in (None, ""):
+            config[key] = cfg_payload.get(key)
+
     source = {
         "id": normalize_source_id(payload.get("id") or "preview") or "preview",
         "title": str(payload.get("title") or payload.get("id") or "Anteprima sorgente").strip() or "Anteprima sorgente",
@@ -1725,13 +1739,7 @@ def build_source_from_payload(payload: dict[str, Any]) -> dict[str, Any]:
         "encoding": encoding,
         "sheet_name": sheet_name,
         "skip_rows": skip_rows,
-        "config": {
-            "path": path,
-            "delimiter": delimiter,
-            "encoding": encoding,
-            "sheet_name": sheet_name,
-            "skip_rows": skip_rows,
-        },
+        "config": config,
     }
     return normalize_source_item(source) or source
 
@@ -2471,6 +2479,8 @@ async def sources_save(request: Request):
         src_id = normalize_source_id(payload.get("id"))
         title = str(payload.get("title", "")).strip() or src_id
         src_type = str(payload.get("type", "csv")).strip().lower() or "csv"
+        if src_type in {"google_drive", "google_sheet"}:
+            src_type = "gdrive"
         path = str(payload.get("path", "")).strip()
         make_default = bool(payload.get("make_default", False))
         config = payload.get("config") if isinstance(payload.get("config"), dict) else {}
@@ -2861,8 +2871,10 @@ async def source_preview_from_form(request: Request, limit: int = Query(20)):
     try:
         payload = await request.json()
         source = build_source_from_payload(payload if isinstance(payload, dict) else {})
+        src_type = str(source.get("type", "")).strip().lower()
         path = str(source.get("path") or source.get("config", {}).get("path") or "").strip()
-        if not path:
+        requires_path = src_type not in {"mysql"}
+        if requires_path and not path:
             return JSONResponse({"error": "Percorso file obbligatorio per l'anteprima."}, status_code=400)
         df = load_dataframe_from_source_with_fallback(source)
         calculated_fields = sanitize_calculated_fields(

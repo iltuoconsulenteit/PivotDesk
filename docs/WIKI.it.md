@@ -10,7 +10,7 @@ Questa guida raccoglie in un unico documento le funzionalità principali di Pivo
 
 PivotDesk è un’applicazione web (FastAPI + Pandas) con launcher desktop/tray per:
 
-- importare dati da sorgenti (CSV, Excel, ODS, MySQL, HTTP JSON);
+- importare dati da sorgenti (CSV, Excel, ODS, MySQL, HTTP JSON, Google Drive/Sheets);
 - creare e salvare pivot configurabili;
 - usare campi calcolati riga per riga;
 - filtrare, ordinare, visualizzare subtotali/totali;
@@ -48,6 +48,7 @@ Credenziali iniziali: `admin / admin` (da cambiare subito).
 - ODS
 - MySQL
 - HTTP JSON (`http_json`, `api`, `rest`)
+- Google Drive / Google Sheet (`gdrive`, `google_drive`, `google_sheet`)
 
 ## Note operative
 - CSV usa un parser tollerante (encoding/delimiter/quoting).
