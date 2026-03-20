@@ -372,6 +372,15 @@
       border-color: #84caff;
       background: #eff8ff;
     }
+    .calc-wizard-category {
+      font-size: 12px;
+      font-weight: 700;
+      color: #475467;
+      margin-top: 8px;
+      margin-bottom: 2px;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
     .calc-wizard-signature {
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       font-size: 12px;
@@ -386,6 +395,11 @@
     }
     .calc-wizard-args .field {
       margin: 0;
+    }
+    .calc-arg-drop-active {
+      outline: 2px dashed #84caff;
+      outline-offset: 2px;
+      background: #eff8ff;
     }
 
     @media (max-width: 900px) {
@@ -1343,6 +1357,21 @@ const CALC_FUNCTION_LIBRARY = [
   { name: "lte", category: "Logica", args: ["a", "b"], description: "Confronto minore o uguale." },
   { name: "eq", category: "Logica", args: ["a", "b"], description: "Confronto uguale." },
 ];
+
+function registerCalculatedFunctionDefinition(definition){
+  if (!definition || !definition.name) return;
+  const normalized = {
+    name: String(definition.name || "").trim(),
+    category: String(definition.category || "Custom").trim() || "Custom",
+    args: Array.isArray(definition.args) ? definition.args.map(x => String(x || "").trim()).filter(Boolean) : [],
+    description: String(definition.description || "").trim(),
+  };
+  if (!normalized.name) return;
+  const existing = CALC_FUNCTION_LIBRARY.findIndex(x => x.name.toLowerCase() === normalized.name.toLowerCase());
+  if (existing >= 0) CALC_FUNCTION_LIBRARY[existing] = normalized;
+  else CALC_FUNCTION_LIBRARY.push(normalized);
+}
+window.registerCalculatedFunctionDefinition = registerCalculatedFunctionDefinition;
 
 function setStatus(t){
   document.getElementById("status").innerText = t || "";
@@ -2938,8 +2967,15 @@ function renderCalculatedFormulaExamples(){
     btn.type = "button";
     btn.className = "calc-wizard-item";
     btn.textContent = "[" + field + "]";
+    btn.draggable = true;
     btn.addEventListener("click", () => {
       insertFieldReferenceInFormula(field);
+    });
+    btn.addEventListener("dragstart", ev => {
+      ev.dataTransfer.setData("text/plain", JSON.stringify({
+        field,
+        source: "calc_field_quick_list"
+      }));
     });
     box.appendChild(btn);
   });
@@ -2968,20 +3004,34 @@ function renderCalculatedFunctionLibrary(){
     buildFunctionSignature(fn).toLowerCase().includes(search)
   );
 
+  const grouped = {};
   filtered.forEach(fn => {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "calc-wizard-item" + (CALC_SELECTED_FUNCTION?.name === fn.name ? " active" : "");
-    btn.innerHTML =
-      '<strong>' + escapeHtml(fn.name) + '</strong>' +
-      '<div class="meta">' + escapeHtml(fn.category) + '</div>' +
-      '<div class="calc-wizard-signature">' + escapeHtml(buildFunctionSignature(fn)) + '</div>';
-    btn.addEventListener("click", () => {
-      CALC_SELECTED_FUNCTION = fn;
-      renderCalculatedFunctionLibrary();
-      renderSelectedFunctionDetails();
+    const key = fn.category || "Altro";
+    if (!grouped[key]) grouped[key] = [];
+    grouped[key].push(fn);
+  });
+
+  Object.keys(grouped).sort((a, b) => a.localeCompare(b)).forEach(category => {
+    const head = document.createElement("div");
+    head.className = "calc-wizard-category";
+    head.textContent = category;
+    list.appendChild(head);
+
+    grouped[category].forEach(fn => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "calc-wizard-item" + (CALC_SELECTED_FUNCTION?.name === fn.name ? " active" : "");
+      btn.innerHTML =
+        '<strong>' + escapeHtml(fn.name) + '</strong>' +
+        '<div class="meta">' + escapeHtml(fn.category) + '</div>' +
+        '<div class="calc-wizard-signature">' + escapeHtml(buildFunctionSignature(fn)) + '</div>';
+      btn.addEventListener("click", () => {
+        CALC_SELECTED_FUNCTION = fn;
+        renderCalculatedFunctionLibrary();
+        renderSelectedFunctionDetails();
+      });
+      list.appendChild(btn);
     });
-    list.appendChild(btn);
   });
 
   if (!CALC_SELECTED_FUNCTION && filtered.length) {
@@ -3015,6 +3065,24 @@ function renderSelectedFunctionDetails(){
     const input = document.createElement("input");
     input.id = "calcFnArg_" + idx;
     input.placeholder = idx === 0 ? "[Campo] oppure valore" : "valore / [Campo]";
+    input.addEventListener("dragover", ev => {
+      if (!ev || !ev.dataTransfer) return;
+      ev.preventDefault();
+      input.classList.add("calc-arg-drop-active");
+    });
+    input.addEventListener("dragleave", () => {
+      input.classList.remove("calc-arg-drop-active");
+    });
+    input.addEventListener("drop", ev => {
+      ev.preventDefault();
+      input.classList.remove("calc-arg-drop-active");
+      try {
+        const payload = JSON.parse(ev.dataTransfer.getData("text/plain") || "{}");
+        const field = String(payload.field || "").trim();
+        if (!field) return;
+        input.value = "[" + field + "]";
+      } catch (_) {}
+    });
     field.appendChild(label);
     field.appendChild(input);
     argsWrap.appendChild(field);
