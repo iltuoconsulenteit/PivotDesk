@@ -1006,7 +1006,12 @@ window.LICENSE_CONTEXT = {
     <div class="builder-top">
       <div class="field">
         <label for="srcSheetName">Foglio Excel</label>
-        <input id="srcSheetName" placeholder="Vuoto = primo foglio">
+        <select id="srcSheetName">
+          <option value="">Primo foglio (automatico)</option>
+        </select>
+        <div style="margin-top:8px;">
+          <button id="btnLoadExcelSheets" type="button">Carica elenco fogli</button>
+        </div>
       </div>
       <div class="field">
         <label for="srcSkipRows">Righe iniziali da saltare</label>
@@ -1997,10 +2002,12 @@ function updateSourceFormVisibility(){
   const srcType = String(document.getElementById("srcType").value || "csv").trim().toLowerCase();
   const isCsv = srcType === "csv";
   const isXlsx = srcType === "xlsx";
+  const btnLoadSheets = document.getElementById("btnLoadExcelSheets");
 
   document.getElementById("srcDelimiter").disabled = !isCsv;
   document.getElementById("srcEncoding").disabled = !isCsv;
   document.getElementById("srcSheetName").disabled = !isXlsx;
+  if (btnLoadSheets) btnLoadSheets.disabled = !isXlsx;
 
   if (!isCsv) {
     document.getElementById("srcDelimiter").value = "";
@@ -2008,6 +2015,48 @@ function updateSourceFormVisibility(){
   }
   if (!isXlsx) {
     document.getElementById("srcSheetName").value = "";
+  }
+}
+
+function setSourceSheetOptions(sheets, selectedValue = ""){
+  const sel = document.getElementById("srcSheetName");
+  if (!sel) return;
+  const current = String(selectedValue || sel.value || "").trim();
+  const items = Array.isArray(sheets) ? sheets.map(x => String(x || "").trim()).filter(Boolean) : [];
+  sel.innerHTML = "";
+  const first = document.createElement("option");
+  first.value = "";
+  first.textContent = "Primo foglio (automatico)";
+  sel.appendChild(first);
+  items.forEach(name => {
+    const opt = document.createElement("option");
+    opt.value = name;
+    opt.textContent = name;
+    sel.appendChild(opt);
+  });
+  sel.value = items.includes(current) ? current : "";
+}
+
+async function loadExcelSheetsForForm(){
+  const payload = collectSourceFormPayload();
+  if (String(payload.type || "").toLowerCase() !== "xlsx") return;
+  if (!payload.path) {
+    setStatus("Seleziona prima un file Excel per leggere i fogli.");
+    return;
+  }
+  try {
+    const data = await api("/source-sheets/form", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
+    setSourceSheetOptions(data.sheets || [], payload.sheet_name || "");
+    if (!payload.sheet_name && Array.isArray(data.sheets) && data.sheets.length) {
+      document.getElementById("srcSheetName").value = data.sheets[0];
+    }
+    setStatus("Elenco fogli Excel aggiornato.");
+  } catch (err) {
+    setSourceSheetOptions([], payload.sheet_name || "");
+    setStatus("ERRORE caricamento fogli Excel: " + (err?.message || err));
   }
 }
 
@@ -2230,7 +2279,7 @@ function resetSourceForm(){
   document.getElementById("srcPath").value = "";
   document.getElementById("srcDelimiter").value = "";
   document.getElementById("srcEncoding").value = "";
-  document.getElementById("srcSheetName").value = "";
+  setSourceSheetOptions([], "");
   document.getElementById("srcSkipRows").value = "0";
   document.getElementById("srcResolvedInfo").value = "";
   document.getElementById("srcDefault").checked = false;
@@ -2247,12 +2296,15 @@ function loadSourceIntoForm(src){
   document.getElementById("srcPath").value = src.path || src.config?.path || "";
   document.getElementById("srcDelimiter").value = src.delimiter || src.config?.delimiter || "";
   document.getElementById("srcEncoding").value = src.encoding || src.config?.encoding || "";
-  document.getElementById("srcSheetName").value = src.sheet_name ?? src.config?.sheet_name ?? src.config?.sheet ?? "";
+  setSourceSheetOptions([], src.sheet_name ?? src.config?.sheet_name ?? src.config?.sheet ?? "");
   document.getElementById("srcSkipRows").value = String(src.skip_rows ?? src.config?.skip_rows ?? 0);
   document.getElementById("srcResolvedInfo").value = formatResolvedSourceInfo(src);
   document.getElementById("srcDefault").checked = (src.id === (CURRENT_SOURCE || ""));
   setPickedFileLabel(src.path || src.config?.path || "File già salvato");
   updateSourceFormVisibility();
+  if (String(src.type || "").toLowerCase() === "xlsx") {
+    loadExcelSheetsForForm().catch(() => {});
+  }
   previewSourceFromForm(true).catch(() => {});
 }
 
@@ -3716,6 +3768,11 @@ function bindSourceUiButtons(){
         document.getElementById("srcType").value = info.source_type || "csv";
         document.getElementById("srcResolvedInfo").value = info.resolved_info || "";
         updateSourceFormVisibility();
+        if (String(info.source_type || "").toLowerCase() === "xlsx") {
+          await loadExcelSheetsForForm().catch(() => {});
+        } else {
+          setSourceSheetOptions([], "");
+        }
         setPickedFileLabel(info.filename || "File selezionato");
         await previewSourceFromForm(true).catch(() => {});
         setStatus("Percorso file collegato senza copia locale.");
@@ -3747,6 +3804,11 @@ function bindSourceUiButtons(){
       document.getElementById("srcPath").value = path;
       document.getElementById("srcType").value = sourceType;
       updateSourceFormVisibility();
+      if (sourceType === "xlsx") {
+        await loadExcelSheetsForForm().catch(() => {});
+      } else {
+        setSourceSheetOptions([], "");
+      }
       setPickedFileLabel(path.split(/[\\\\/]/).pop() || "Percorso incollato");
 
       try {
@@ -3917,6 +3979,11 @@ bindClick("btnSourceDelete", async () => {
 
 bindInput("srcType", "change", async () => {
   updateSourceFormVisibility();
+  if (String(document.getElementById("srcType").value || "").toLowerCase() === "xlsx") {
+    await loadExcelSheetsForForm().catch(() => {});
+  } else {
+    setSourceSheetOptions([], "");
+  }
   try { await previewSourceFromForm(); } catch (_) {}
 });
 bindInput("srcDelimiter", "change", async () => {
@@ -3925,14 +3992,21 @@ bindInput("srcDelimiter", "change", async () => {
 bindInput("srcEncoding", "change", async () => {
   try { await previewSourceFromForm(); } catch (_) {}
 });
-bindInput("srcSheetName", "input", async () => {
-  try { await previewSourceFromForm(); } catch (_) {}
-});
 bindInput("srcSkipRows", "input", async () => {
   try { await previewSourceFromForm(); } catch (_) {}
 });
 bindInput("srcPath", "input", async () => {
+  if (String(document.getElementById("srcType").value || "").toLowerCase() === "xlsx") {
+    await loadExcelSheetsForForm().catch(() => {});
+  }
   try { await previewSourceFromForm(); } catch (_) {}
+});
+bindInput("srcSheetName", "change", async () => {
+  try { await previewSourceFromForm(true); } catch (_) {}
+});
+bindClick("btnLoadExcelSheets", async () => {
+  await loadExcelSheetsForForm();
+  try { await previewSourceFromForm(true); } catch (_) {}
 });
 
 bindClick("btnCloseSettings", () => closeSettingsScreen());

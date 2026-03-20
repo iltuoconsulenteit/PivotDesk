@@ -1698,6 +1698,11 @@ def build_source_from_payload(payload: dict[str, Any]) -> dict[str, Any]:
     }
     return normalize_source_item(source) or source
 
+
+def list_excel_sheet_names(path: str) -> list[str]:
+    with pd.ExcelFile(path) as workbook:
+        return [str(name) for name in (workbook.sheet_names or [])]
+
 plugin_manager = PluginManager(
     BASE_DIR / "plugins",
     enabled_map=load_plugins_enabled_map(),
@@ -2745,6 +2750,45 @@ def source_preview(
 @app.post("/source-preview-form")
 async def source_preview_from_form_alias(request: Request, limit: int = Query(20)):
     return await source_preview_from_form(request, limit)
+
+
+@app.get("/source-sheets")
+def source_sheets(request: Request, source_id: str = Query(...)):
+    current_user = require_login(request)
+    if not current_user:
+        return JSONResponse({"error": "Non autenticato"}, status_code=401)
+    try:
+        src = get_source_by_id(source_id)
+        src_type = str(src.get("type", "")).strip().lower()
+        if src_type not in {"xlsx", "xls", "xlsm", "excel"}:
+            return JSONResponse({"error": "La sorgente selezionata non è Excel."}, status_code=400)
+        path = str(src.get("path") or src.get("config", {}).get("path") or "").strip()
+        if not path:
+            return JSONResponse({"error": "Percorso file non configurato."}, status_code=400)
+        sheets = list_excel_sheet_names(path)
+        return {"ok": True, "source_id": source_id, "sheets": sheets}
+    except Exception as exc:
+        return JSONResponse({"error": str(exc)}, status_code=500)
+
+
+@app.post("/source-sheets/form")
+async def source_sheets_from_form(request: Request):
+    current_user = require_login(request)
+    if not current_user:
+        return JSONResponse({"error": "Non autenticato"}, status_code=401)
+    try:
+        payload = await request.json()
+        source = build_source_from_payload(payload if isinstance(payload, dict) else {})
+        src_type = str(source.get("type", "")).strip().lower()
+        if src_type not in {"xlsx", "xls", "xlsm", "excel"}:
+            return JSONResponse({"error": "Seleziona tipo sorgente Excel per leggere i fogli."}, status_code=400)
+        path = str(source.get("path") or source.get("config", {}).get("path") or "").strip()
+        if not path:
+            return JSONResponse({"error": "Percorso file obbligatorio."}, status_code=400)
+        sheets = list_excel_sheet_names(path)
+        return {"ok": True, "sheets": sheets}
+    except Exception as exc:
+        return JSONResponse({"error": str(exc)}, status_code=500)
 
 
 @app.post("/source-preview/form")
