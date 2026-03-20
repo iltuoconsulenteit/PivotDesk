@@ -2,6 +2,8 @@
 
 PivotDesk is a FastAPI + Pandas web application used to import business data, build dynamic pivots, and explore results in an interactive UI.
 
+![PivotDesk app logo](static/img/pivotdesk-logo.png)
+
 ## Language docs
 
 - **Primary docs (EN):** this file + [`docs/WIKI.md`](docs/WIKI.md)
@@ -85,6 +87,14 @@ Change this password immediately in shared environments.
 - Backup/restore endpoints for presets/settings.
 - UI localization (English/Italian).
 
+## UI structure previews
+
+The following diagrams are visual examples derived from the HTML layout structure, useful for onboarding and user documentation:
+
+![Home/Pivot main screen](docs/images/screen-home.svg)
+![Preset builder screen](docs/images/screen-builder.svg)
+![Drilldown modal screen](docs/images/screen-drilldown.svg)
+
 ---
 
 ## Licensing notes (important)
@@ -113,4 +123,3 @@ Change this password immediately in shared environments.
 - Port already in use: update `config.json` or stop the running process.
 - Missing templates/static assets: verify repository structure is intact.
 - LAN issues: check `/lan/status`, run probe endpoints, and verify firewall state.
-

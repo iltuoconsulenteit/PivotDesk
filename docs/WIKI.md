@@ -4,6 +4,8 @@ This guide provides a single operational reference for PivotDesk features (user 
 
 > Italian translation: see [`WIKI.it.md`](./WIKI.it.md).
 
+![PivotDesk app logo](../static/img/pivotdesk-logo.png)
+
 ---
 
 ## 1) Product overview
@@ -20,6 +22,7 @@ PivotDesk is a FastAPI + Pandas web app (with desktop launcher/tray) used to:
 - manage licensing, LAN behavior, branding, and backup/restore.
 
 ![PivotDesk workflow](images/pivot-workflow.svg)
+![Home screen structure example](images/screen-home.svg)
 
 ---
 
@@ -67,6 +70,8 @@ Core actions:
 - source preview;
 - preset save/load (JSON);
 - backup/export and restore workflows.
+
+![Builder screen structure example](images/screen-builder.svg)
 
 ---
 
@@ -121,6 +126,7 @@ Detail modal features:
 Drilldown is a premium feature and is license-gated.
 
 ![Drilldown and print flow](images/drilldown-print.svg)
+![Drilldown modal structure example](images/screen-drilldown.svg)
 
 ---
 

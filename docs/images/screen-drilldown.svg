@@ -1,0 +1,10 @@
+<svg xmlns='http://www.w3.org/2000/svg' width='980' height='520' viewBox='0 0 980 520'>
+<style>.t{font:13px Arial}.h{font:700 16px Arial}.b{fill:#fff;stroke:#cbd5e1;stroke-width:2;rx:10}</style>
+<rect width='980' height='520' fill='#eef2f7'/>
+<rect x='80' y='40' width='820' height='440' class='b'/>
+<text x='110' y='78' class='h'>Drilldown modal (structure preview)</text>
+<rect x='110' y='94' width='760' height='50' fill='#f8fafc' stroke='#e2e8f0'/><text x='126' y='124' class='t'>Header: status • Print detail • Close</text>
+<rect x='110' y='156' width='320' height='110' fill='#ffffff' stroke='#e2e8f0'/><text x='126' y='182' class='t'>Column presets</text>
+<rect x='446' y='156' width='424' height='110' fill='#ffffff' stroke='#e2e8f0'/><text x='462' y='182' class='t'>Visible columns toggles</text>
+<rect x='110' y='280' width='760' height='170' fill='#ffffff' stroke='#e2e8f0'/><text x='126' y='306' class='t'>Detail table records</text>
+</svg>

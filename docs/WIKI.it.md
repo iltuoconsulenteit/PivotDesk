@@ -2,6 +2,8 @@
 
 Questa guida raccoglie in un unico documento le funzionalità principali di PivotDesk (utente + amministrazione).
 
+![Logo app PivotDesk](../static/img/pivotdesk-logo.png)
+
 ---
 
 ## 1) Panoramica
@@ -18,6 +20,7 @@ PivotDesk è un’applicazione web (FastAPI + Pandas) con launcher desktop/tray 
 - gestire licenze, LAN, branding e backup/ripristino.
 
 ![Workflow PivotDesk](images/pivot-workflow.svg)
+![Esempio struttura schermata principale](images/screen-home.svg)
 
 ---
 
@@ -68,6 +71,8 @@ Un preset salva:
 - anteprima sorgente;
 - caricamento/salvataggio JSON preset;
 - import/export via backup amministrativo.
+
+![Esempio struttura schermata builder](images/screen-builder.svg)
 
 ---
 
@@ -124,6 +129,7 @@ Dalla tabella pivot è disponibile icona lista vicino ai valori per aprire il de
 - Drilldown è funzione premium (bloccata in Free/demo se non abilitata).
 
 ![Flusso drilldown e stampa](images/drilldown-print.svg)
+![Esempio struttura modal drilldown](images/screen-drilldown.svg)
 
 ---
 

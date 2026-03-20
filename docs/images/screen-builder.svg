@@ -1,0 +1,9 @@
+<svg xmlns='http://www.w3.org/2000/svg' width='980' height='520' viewBox='0 0 980 520'>
+<style>.t{font:13px Arial}.h{font:700 16px Arial}.b{fill:#fff;stroke:#cbd5e1;stroke-width:2;rx:10}</style>
+<rect width='980' height='520' fill='#f8fafc'/>
+<text x='20' y='30' class='h'>Preset Builder screen (structure preview)</text>
+<rect x='20' y='44' width='300' height='458' class='b'/><text x='36' y='72' class='h'>Fields palette</text><text x='36' y='96' class='t'>Drag fields / calculated fields</text>
+<rect x='336' y='44' width='304' height='220' class='b'/><text x='352' y='72' class='h'>Rows / Columns</text>
+<rect x='336' y='282' width='304' height='220' class='b'/><text x='352' y='310' class='h'>Values / Filters</text>
+<rect x='656' y='44' width='304' height='458' class='b'/><text x='672' y='72' class='h'>Source Preview</text><text x='672' y='96' class='t'>Shows data + calculated columns</text>
+</svg>
