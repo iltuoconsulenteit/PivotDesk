@@ -106,6 +106,7 @@ Alla prima esecuzione viene creato un utente admin:
 - Nel modal **Dettaglio** (totali/subtotali) è disponibile **Stampa dettaglio**, selezione colonne visibili (mostra/nascondi) e gestione preset locali di colonne per ridurre la complessità su dataset con molte colonne.
 - Il pulsante dettaglio (icona lista) è disponibile anche su celle di **totali riga/colonna** della pivot (non solo totale generale), con filtri contestuali applicati prima dell’apertura lista.
 - Il pulsante dettaglio è propagato su **tutte le righe pivot** (oltre ai totali), così puoi aprire rapidamente la lista record contributiva per ogni riga visualizzata.
+- L’icona dettaglio è posizionata accanto ai **valori** (non sul campo di raggruppamento a sinistra) e la stampa dettaglio include i loghi come nelle altre stampe, se abilitati nelle impostazioni.
 
 ## Troubleshooting veloce
 
