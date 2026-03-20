@@ -235,6 +235,7 @@ Each panel has a **Show/Hide** toggle so users can collapse less-used sections a
 On wide screens, the user context bar and top action menu are aligned on one row to avoid wasting vertical space before the pivot result.
 On tablet/smartphone breakpoints, menu groups reflow and dropdown entries open inline so submenu items remain visible and usable.
 The layout quickbar also shows the active view summary on the same row and includes a **Wiki** button that opens a slide-out side panel.
+The duplicate lower layout-status line has been removed; when a pivot run succeeds, summary remains in quickbar only. The wiki panel embeds scrollable WIKI content and can be resized (width slider) without blocking the main frontend.
 
 ---
 

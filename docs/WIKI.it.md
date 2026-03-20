@@ -238,6 +238,7 @@ Ogni pannello include il toggle **Mostra/Nascondi** per comprimere le sezioni me
 Su schermi larghi, barra utente e menu principale sono allineati sulla stessa riga così da recuperare ulteriore spazio verticale prima del risultato pivot.
 Su tablet/smartphone i gruppi menu vanno a capo e le sottovoci si aprono inline, evitando che restino nascoste o tagliate.
 La quickbar layout mostra anche il riepilogo vista sulla stessa riga e include un pulsante **Wiki** che apre una barra laterale a comparsa.
+La riga inferiore duplicata dello stato layout è stata rimossa: dopo il calcolo pivot il riepilogo resta nella quickbar. La barra Wiki visualizza direttamente il contenuto WIKI scorrevole ed è ridimensionabile senza bloccare l’uso del frontend.
 
 ---
 

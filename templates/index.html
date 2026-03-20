@@ -160,21 +160,32 @@
       font-size:12px;
       white-space:nowrap;
     }
+    :root{
+      --wiki-drawer-width: 420px;
+    }
+    #mainView{
+      transition:margin-right .25s ease;
+    }
+    body.wiki-open #mainView{
+      margin-right:var(--wiki-drawer-width);
+    }
     .wiki-drawer{
       position:fixed;
-      inset:0;
-      background:rgba(15,23,42,.42);
-      display:none;
-      z-index:1200;
-    }
-    .wiki-drawer.active{
-      display:block;
-    }
-    .wiki-drawer-panel{
-      position:absolute;
       top:0;
       right:0;
-      width:min(420px, 92vw);
+      width:var(--wiki-drawer-width);
+      height:100vh;
+      z-index:1200;
+      transform:translateX(100%);
+      transition:transform .25s ease;
+      pointer-events:none;
+    }
+    .wiki-drawer.active{
+      transform:translateX(0);
+      pointer-events:auto;
+    }
+    .wiki-drawer-panel{
+      width:100%;
       height:100%;
       background:#fff;
       box-shadow:-12px 0 32px rgba(15,23,42,.25);
@@ -191,26 +202,38 @@
       background:#f8fafc;
     }
     .wiki-drawer-body{
-      padding:14px 16px;
-      overflow:auto;
-      display:grid;
-      gap:14px;
+      padding:0;
+      overflow:hidden;
+      display:flex;
+      flex-direction:column;
+      height:100%;
     }
-    .wiki-card{
-      border:1px solid #eaecf0;
-      border-radius:12px;
-      padding:12px;
+    .wiki-toolbar{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      padding:10px 12px;
+      border-bottom:1px solid #eaecf0;
       background:#fff;
     }
-    .wiki-card h4{
-      margin:0 0 6px;
-      font-size:14px;
+    .wiki-toolbar label{
+      font-size:12px;
+      color:#667085;
+      white-space:nowrap;
     }
-    .wiki-card p{
-      margin:0;
-      color:#475467;
-      font-size:13px;
-      line-height:1.35;
+    .wiki-frame{
+      width:100%;
+      height:100%;
+      border:0;
+      background:#fff;
+    }
+    @media (max-width: 1024px){
+      :root{
+        --wiki-drawer-width: 92vw;
+      }
+      body.wiki-open #mainView{
+        margin-right:0;
+      }
     }
     @media (min-width: 1024px){
       .compact-pivot-layout .compact-col.source{ grid-column:span 4; }
@@ -974,32 +997,23 @@ window.LICENSE_CONTEXT = {
   <div class="footer">PivotDesk v0.2.1 · powered by IlTuoConsulenteIT</div>
 </div>
 
-<div id="wikiDrawer" class="wiki-drawer" aria-hidden="true">
+<aside id="wikiDrawer" class="wiki-drawer" aria-hidden="true">
   <div class="wiki-drawer-panel">
     <div class="wiki-drawer-head">
       <strong>Wiki rapida PivotDesk</strong>
       <button type="button" id="btnCloseWikiDrawer" class="ghost-btn">Chiudi</button>
     </div>
     <div class="wiki-drawer-body">
-      <div class="wiki-card">
-        <h4>Flusso consigliato</h4>
-        <p>1) Seleziona sorgente, 2) scegli preset, 3) imposta layout/totali, 4) applica filtri pagina, 5) esegui pivot e salva la vista.</p>
+      <div class="wiki-toolbar">
+        <label for="wikiWidthRange">Larghezza</label>
+        <input id="wikiWidthRange" type="range" min="320" max="760" step="20" value="420" style="flex:1;">
+        <button type="button" id="btnWikiIt" class="ghost-btn">IT</button>
+        <button type="button" id="btnWikiEn" class="ghost-btn">EN</button>
       </div>
-      <div class="wiki-card">
-        <h4>Suggerimento UX</h4>
-        <p>Usa i pulsanti Nascondi/Mostra dei pannelli per tenere la tabella pivot più in alto e ridurre lo scrolling.</p>
-      </div>
-      <div class="wiki-card">
-        <h4>Documentazione completa</h4>
-        <p>
-          <a href="/docs/WIKI.it.md" target="_blank" rel="noopener noreferrer">Apri WIKI IT</a><br>
-          <a href="/docs/WIKI.md" target="_blank" rel="noopener noreferrer">Open WIKI EN</a><br>
-          <a href="/README.md" target="_blank" rel="noopener noreferrer">Apri README</a>
-        </p>
-      </div>
+      <iframe id="wikiFrame" class="wiki-frame" src="/docs/WIKI.it.md" title="Wiki PivotDesk"></iframe>
     </div>
   </div>
-</div>
+</aside>
 
 <div id="builderScreen" class="builder-screen">
   <div class="card">
@@ -1693,7 +1707,11 @@ function registerCalculatedFunctionDefinition(definition){
 window.registerCalculatedFunctionDefinition = registerCalculatedFunctionDefinition;
 
 function setStatus(t){
-  document.getElementById("status").innerText = t || "";
+  const el = document.getElementById("status");
+  if (!el) return;
+  const text = String(t || "").trim();
+  el.innerText = text;
+  el.classList.toggle("hidden", !text);
 }
 window.setStatus = setStatus;
 
@@ -3083,13 +3101,7 @@ try {
   console.warn("Sorting non attivato:", err);
 }
 
-    setStatus(
-      "OK\n" +
-      "layout=" + String(opts.measures_layout || "-") +
-      " | row_totals=" + String(opts.show_row_totals) +
-      " | col_totals=" + String(opts.show_col_totals) +
-      " | subtotals=" + String(opts.show_subtotals)
-    );
+    setStatus("");
   } catch (e) {
     document.getElementById("report").innerHTML = "<p>Errore nel caricamento della pivot.</p>";
     setStatus("ERRORE: " + e.message);
@@ -4650,9 +4662,9 @@ bindClick("menuOpenCharts", () => openChartsModal());
 bindClick("btnOpenChartsNear", () => openChartsModal());
 bindClick("btnOpenWikiDrawer", () => openWikiDrawer());
 bindClick("btnCloseWikiDrawer", () => closeWikiDrawer());
-bindClick("wikiDrawer", ev => {
-  if (ev && ev.target && ev.target.id === "wikiDrawer") closeWikiDrawer();
-});
+bindClick("btnWikiIt", () => setWikiLocale("it"));
+bindClick("btnWikiEn", () => setWikiLocale("en"));
+bindInput("wikiWidthRange", "input", ev => setWikiWidth(ev && ev.target ? ev.target.value : ""));
 bindClick("btnCloseChartsModal", () => closeChartsModal());
 bindClick("chartsModal", ev => { if (ev && ev.target && ev.target.id === "chartsModal") closeChartsModal(); });
 bindClick("btnRenderChart", () => renderPivotChart());
@@ -4830,6 +4842,7 @@ setBuilderMode("new");
 initDropZones();
 initQuickbar();
 initCompactPanels();
+setWikiWidth(document.getElementById("wikiWidthRange")?.value || 420);
 
 
 function parseSortableValue(text) {
@@ -5315,6 +5328,7 @@ function openWikiDrawer(){
   if (!box) return;
   box.classList.add("active");
   box.setAttribute("aria-hidden", "false");
+  document.body.classList.add("wiki-open");
 }
 
 function closeWikiDrawer(){
@@ -5322,6 +5336,21 @@ function closeWikiDrawer(){
   if (!box) return;
   box.classList.remove("active");
   box.setAttribute("aria-hidden", "true");
+  document.body.classList.remove("wiki-open");
+}
+
+function setWikiLocale(locale){
+  const frame = document.getElementById("wikiFrame");
+  if (!frame) return;
+  const lang = String(locale || "it").toLowerCase();
+  frame.src = (lang === "en") ? "/docs/WIKI.md" : "/docs/WIKI.it.md";
+}
+
+function setWikiWidth(value){
+  const n = Number(value);
+  if (!Number.isFinite(n)) return;
+  const clamped = Math.max(320, Math.min(760, Math.round(n)));
+  document.documentElement.style.setProperty("--wiki-drawer-width", clamped + "px");
 }
 
 async function activateLicenseFromModal(){
