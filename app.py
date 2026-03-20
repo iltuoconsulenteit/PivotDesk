@@ -786,6 +786,16 @@ def resolve_public_lan_host() -> str:
     return "127.0.0.1"
 
 
+def can_connect_to_host_port(host: str, port: int, timeout: float = 0.8) -> bool:
+    try:
+        import socket
+
+        with socket.create_connection((host, int(port)), timeout=timeout):
+            return True
+    except Exception:
+        return False
+
+
 def resolve_lan_bind_info(configured_host: str, configured_port: int, lan_by_license: bool) -> tuple[str, int, str]:
     runtime_host = str(os.environ.get("PIVOTDESK_RUNTIME_BIND_HOST", "") or "").strip()
     runtime_port_raw = str(os.environ.get("PIVOTDESK_RUNTIME_BIND_PORT", "") or "").strip()
@@ -1644,9 +1654,20 @@ def lan_status(request: Request):
 
     lan_host = resolve_public_lan_host() if effective_bind_host == "0.0.0.0" else effective_bind_host
     lan_enabled = effective_bind_host in {"0.0.0.0", "::"}
+    loopback_reachable = can_connect_to_host_port("127.0.0.1", port)
+    lan_reachable_from_host = can_connect_to_host_port(lan_host, port)
     firewall_hint = "Se lan_enabled=true ma non raggiungibile da altri PC, verificare firewall/antivirus/router (client isolation)."
     if bind_source != "runtime":
         firewall_hint += " Nota: bind effettivo inferito da licenza/config; se il processo è partito con host diverso (es. 127.0.0.1) la LAN resterà non raggiungibile."
+    if lan_enabled and loopback_reachable and not lan_reachable_from_host:
+        firewall_hint += " Diagnostica locale: 127.0.0.1 risponde ma IP LAN rifiuta la connessione; probabile avvio server su host locale-only (127.0.0.1)."
+
+    startup_hint = ""
+    if lan_enabled and loopback_reachable and not lan_reachable_from_host:
+        startup_hint = (
+            "Avvia PivotDesk con bind LAN esplicito (es. variabile PIVOTDESK_HOST=0.0.0.0 "
+            "oppure uvicorn con --host 0.0.0.0)."
+        )
 
     return {
         "ok": True,
@@ -1658,9 +1679,12 @@ def lan_status(request: Request):
         "bind_source": bind_source,
         "port": port,
         "lan_enabled": lan_enabled,
+        "loopback_reachable": loopback_reachable,
+        "lan_reachable_from_host": lan_reachable_from_host,
         "loopback_url": f"http://127.0.0.1:{port}/",
         "lan_url": f"http://{lan_host}:{port}/",
         "firewall_hint": firewall_hint,
+        "startup_hint": startup_hint,
     }
 
 

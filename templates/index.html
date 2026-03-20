@@ -3525,9 +3525,16 @@ async function loadLanStatusIntoModal(){
       infoRows.push("<div>Origine bind: " + escapeHtml(String(data.bind_source)) + "</div>");
     }
     infoRows.push("<div>LAN abilitata: " + ((data.lan_enabled === true) ? "Sì" : "No") + "</div>");
+    if (typeof data.loopback_reachable === "boolean") {
+      infoRows.push("<div>Test locale 127.0.0.1: " + (data.loopback_reachable ? "OK" : "KO") + "</div>");
+    }
+    if (typeof data.lan_reachable_from_host === "boolean") {
+      infoRows.push("<div>Test locale IP LAN: " + (data.lan_reachable_from_host ? "OK" : "KO") + "</div>");
+    }
     infoRows.push("<div>URL locale: " + escapeHtml(String(data.loopback_url || "-")) + "</div>");
     infoRows.push("<div>URL LAN: " + escapeHtml(String(data.lan_url || "-")) + "</div>");
     if (data.firewall_hint) infoRows.push("<div>" + escapeHtml(String(data.firewall_hint)) + "</div>");
+    if (data.startup_hint) infoRows.push('<div style="margin-top:6px; color:#b42318; font-weight:600;">' + escapeHtml(String(data.startup_hint)) + "</div>");
 
     const lanUrl = String(data.lan_url || "").trim();
     if (data.lan_enabled === true && lanUrl) {
