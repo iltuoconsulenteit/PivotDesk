@@ -125,12 +125,27 @@ def _parse_time(value: Any) -> time | None:
     text = _normalize_spaces(_to_text(value))
     if not text:
         return None
+    text = text.strip("'\"")
+
+    # Excel-like fractional day (e.g. 0.5 -> 12:00:00)
+    numeric = _to_number(value)
+    if numeric is not None and 0 <= numeric < 1:
+        total_seconds = int(round(numeric * 24 * 60 * 60))
+        total_seconds = total_seconds % (24 * 60 * 60)
+        hh = total_seconds // 3600
+        mm = (total_seconds % 3600) // 60
+        ss = total_seconds % 60
+        return time(hour=hh, minute=mm, second=ss)
 
     known_formats = (
         "%H:%M",
         "%H:%M:%S",
+        "%H:%M:%S.%f",
+        "%H:%M:%S,%f",
         "%H.%M",
         "%H.%M.%S",
+        "%I:%M %p",
+        "%I:%M:%S %p",
     )
     for fmt in known_formats:
         try:
@@ -142,7 +157,20 @@ def _parse_time(value: Any) -> time | None:
     try:
         return datetime.fromisoformat(text.replace("Z", "+00:00")).time()
     except ValueError:
-        return None
+        pass
+
+    # Fallback: extract first time-like token from longer text.
+    token_match = re.search(r"(\d{1,2}[:.]\d{2}(?::\d{2}(?:[.,]\d{1,6})?)?(?:\s*[APap][Mm])?)", text)
+    if token_match:
+        token = token_match.group(1).strip().replace(".", ":")
+        token_formats = ("%H:%M", "%H:%M:%S", "%H:%M:%S.%f", "%I:%M %p", "%I:%M:%S %p")
+        for fmt in token_formats:
+            try:
+                return datetime.strptime(token, fmt).time()
+            except ValueError:
+                pass
+
+    return None
 
 
 def _to_number(value: Any) -> float | None:
