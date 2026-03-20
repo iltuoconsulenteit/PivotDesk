@@ -185,6 +185,11 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 
+@app.on_event("startup")
+async def _pivotdesk_startup_enforce_lan_bind():
+    maybe_force_lan_rebind_on_startup()
+
+
 def read_json(path: Path, fallback: Any) -> Any:
     try:
         if not path.exists():
@@ -832,6 +837,50 @@ def detect_process_bind_host_for_port(port: int) -> str:
     except Exception:
         return ""
     return ""
+
+
+def maybe_force_lan_rebind_on_startup() -> None:
+    # Evita loop in caso di rilancio automatico.
+    if os.environ.get("PIVOTDESK_AUTO_REBOUND", "") == "1":
+        return
+    if os.environ.get("PIVOTDESK_DISABLE_AUTO_LAN_REBIND", "") in {"1", "true", "True"}:
+        return
+
+    try:
+        ctx = get_license_context(prefer_online=False)
+        status = str(ctx.get("license_status", "demo")).strip().lower() or "demo"
+        if not license_allows_lan_access(status):
+            return
+
+        cfg = load_config()
+        port = int(cfg.get("port", 8091))
+        detected_host = detect_process_bind_host_for_port(port)
+        if detected_host in {"", "0.0.0.0", "::"}:
+            return
+
+        low_host = str(detected_host).strip().lower()
+        if low_host not in {"127.0.0.1", "::1", "localhost"}:
+            return
+
+        cmd = [
+            sys.executable,
+            "-m",
+            "uvicorn",
+            "app:app",
+            "--host",
+            "0.0.0.0",
+            "--port",
+            str(port),
+        ]
+        child_env = os.environ.copy()
+        child_env["PIVOTDESK_AUTO_REBOUND"] = "1"
+        child_env["PIVOTDESK_RUNTIME_BIND_HOST"] = "0.0.0.0"
+        child_env["PIVOTDESK_RUNTIME_BIND_PORT"] = str(port)
+        subprocess.Popen(cmd, cwd=str(BASE_DIR), env=child_env)
+        time.sleep(0.6)
+        os._exit(0)
+    except Exception:
+        return
 
 
 def resolve_lan_bind_info(configured_host: str, configured_port: int, lan_by_license: bool) -> tuple[str, int, str]:

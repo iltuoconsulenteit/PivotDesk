@@ -79,6 +79,7 @@ Alla prima esecuzione viene creato un utente admin:
 - Nella barra licenza è disponibile il pulsante “Attiva licenza” con scelta provider (`developer`, `gumroad`, `lemonsqueezy`, `custom` secondo configurazione). La selezione può essere preimpostata anche da URL (`?provider=gumroad`).
 - Con licenza non-demo il launcher può bindare automaticamente su `0.0.0.0` (LAN). In output/log viene mostrato anche URL LAN suggerito; se non raggiungibile da altri PC verificare firewall/porta in ingresso.
 - Con licenza demo/trial/community il launcher forza bind locale su `127.0.0.1` (LAN disabilitata di default).
+- In startup app è attivo un controllo automatico: se la licenza abilita LAN ma il processo risulta in ascolto su `127.0.0.1`, PivotDesk rilancia uvicorn su `0.0.0.0` (override interno, indipendente dal batch di avvio).
 - Il launcher ora rileva il tipo licenza anche dal percorso configurato in `data/license_settings.json` (chiave `license_file`), riducendo casi in cui restava in bind locale `127.0.0.1` nonostante licenza attiva.
 - Endpoint diagnostico `GET /lan/status` disponibile per utenti autenticati: riporta host configurato, bind effettivo, URL loopback/LAN e suggerimento firewall.
 - `GET /lan/status` espone anche `bind_source` (`runtime`, `socket` o `inferred`): se `inferred`, il bind mostrato è dedotto da config/licenza e può differire dal processo realmente avviato (es. avvio manuale su `127.0.0.1`).
