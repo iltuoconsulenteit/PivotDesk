@@ -851,7 +851,9 @@ def resolve_lan_bind_info(configured_host: str, configured_port: int, lan_by_lic
     if detected_host:
         return detected_host, configured_port, "socket"
 
-    if configured_host in {"127.0.0.1", "localhost", "::1"} and lan_by_license:
+    if not lan_by_license:
+        return "127.0.0.1", configured_port, "inferred"
+    if configured_host in {"127.0.0.1", "localhost", "::1"}:
         return "0.0.0.0", configured_port, "inferred"
     return configured_host, configured_port, "inferred"
 
@@ -1750,6 +1752,15 @@ def lan_probe_new(request: Request):
         configured_port=configured_port,
         lan_by_license=lan_by_license,
     )
+    if effective_bind_host not in {"0.0.0.0", "::"}:
+        return JSONResponse(
+            {
+                "ok": False,
+                "error": "LAN non attiva su questo avvio.",
+                "manual_hint": "Riavvia l'app tramite launcher (`python run_pivotdesk.py`) oppure avvia uvicorn con `--host 0.0.0.0`.",
+            },
+            status_code=400,
+        )
 
     lan_host = resolve_public_lan_host() if effective_bind_host == "0.0.0.0" else effective_bind_host
     probe_id = uuid.uuid4().hex

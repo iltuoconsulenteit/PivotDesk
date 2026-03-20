@@ -78,12 +78,14 @@ Alla prima esecuzione viene creato un utente admin:
 - Nel frontend il backup/restore è disponibile sia dal menu principale “Backup” sia dal riquadro “Backup & Restore” in Impostazioni; lato UI la funzione risulta attiva per licenze non demo (oltre al flag feature esplicito).
 - Nella barra licenza è disponibile il pulsante “Attiva licenza” con scelta provider (`developer`, `gumroad`, `lemonsqueezy`, `custom` secondo configurazione). La selezione può essere preimpostata anche da URL (`?provider=gumroad`).
 - Con licenza non-demo il launcher può bindare automaticamente su `0.0.0.0` (LAN). In output/log viene mostrato anche URL LAN suggerito; se non raggiungibile da altri PC verificare firewall/porta in ingresso.
+- Con licenza demo/trial/community il launcher forza bind locale su `127.0.0.1` (LAN disabilitata di default).
 - Il launcher ora rileva il tipo licenza anche dal percorso configurato in `data/license_settings.json` (chiave `license_file`), riducendo casi in cui restava in bind locale `127.0.0.1` nonostante licenza attiva.
 - Endpoint diagnostico `GET /lan/status` disponibile per utenti autenticati: riporta host configurato, bind effettivo, URL loopback/LAN e suggerimento firewall.
 - `GET /lan/status` espone anche `bind_source` (`runtime`, `socket` o `inferred`): se `inferred`, il bind mostrato è dedotto da config/licenza e può differire dal processo realmente avviato (es. avvio manuale su `127.0.0.1`).
 - `GET /lan/status` include anche test socket locali (`loopback_reachable`, `lan_reachable_from_host`) e `startup_hint` per segnalare quando il server risponde su `127.0.0.1` ma rifiuta sull'IP LAN (tipico avvio localhost-only).
 - Nel frontend (modale “Dettagli licenza”) è disponibile il pulsante “Diagnostica LAN” che mostra lo stato letto da `GET /lan/status`.
 - Per verifica pratica firewall/LAN: `POST /lan/probe/new` (autenticato) genera una URL test, `GET /lan/probe/{id}` registra il passaggio dal client remoto e `GET /lan/probe/result` (o `GET /lan/probe/status`, autenticato) mostra se la sonda è stata raggiunta.
+- Se `POST /lan/probe/new` risponde `LAN non attiva su questo avvio`, riavviare con launcher (`python run_pivotdesk.py`) oppure con uvicorn `--host 0.0.0.0`.
 - Endpoint admin `POST /lan/firewall/open` tenta apertura automatica della porta app nel firewall locale (Windows via `netsh`, Linux via `ufw` se disponibile).
 - Su Windows `POST /lan/firewall/open` prova anche ad avviare `netsh` con elevazione (`RunAs`): l’utente deve confermare il prompt UAC per completare la regola firewall.
 - Nei campi calcolati è disponibile `token_after(testo, marcatore, case_sensitive?)` per estrarre il primo token dopo stringhe come `#` o `CRO:` (utile su descrizioni bancarie/libere). Il terzo parametro è opzionale (`false` default).

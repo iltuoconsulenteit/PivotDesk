@@ -142,7 +142,9 @@ def resolve_public_lan_host() -> str:
 
 def resolve_bind_host(config_host: str, license_type: str) -> str:
     host = str(config_host or "").strip() or "127.0.0.1"
-    if host in {"127.0.0.1", "localhost", "::1"} and license_allows_lan_access(license_type):
+    if not license_allows_lan_access(license_type):
+        return "127.0.0.1"
+    if host in {"127.0.0.1", "localhost", "::1"}:
         return "0.0.0.0"
     return host
 

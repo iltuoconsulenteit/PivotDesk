@@ -103,9 +103,12 @@ def resolve_public_lan_host() -> str:
 
 def resolve_host() -> str:
     cfg = load_config()
+    license_type = detect_license_type()
     configured = os.environ.get("PIVOTDESK_HOST", cfg.get("host", "127.0.0.1"))
     configured = str(configured or "").strip() or "127.0.0.1"
-    if configured in {"127.0.0.1", "localhost", "::1"} and license_allows_lan_access(detect_license_type()):
+    if not license_allows_lan_access(license_type):
+        return "127.0.0.1"
+    if configured in {"127.0.0.1", "localhost", "::1"}:
         return "0.0.0.0"
     return configured
 
