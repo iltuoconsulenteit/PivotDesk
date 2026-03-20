@@ -2034,7 +2034,13 @@ function setSourceSheetOptions(sheets, selectedValue = ""){
     opt.textContent = name;
     sel.appendChild(opt);
   });
-  sel.value = items.includes(current) ? current : "";
+  if (current && !items.includes(current)) {
+    const optCurrent = document.createElement("option");
+    optCurrent.value = current;
+    optCurrent.textContent = current + " (salvato)";
+    sel.appendChild(optCurrent);
+  }
+  sel.value = current || "";
 }
 
 async function loadExcelSheetsForForm(){
