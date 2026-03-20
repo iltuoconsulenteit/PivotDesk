@@ -3521,6 +3521,9 @@ async function loadLanStatusIntoModal(){
     infoRows.push("<div>Licenza: " + escapeHtml(String(data.license_label || data.license_status || "N/D")) + "</div>");
     infoRows.push("<div>Host configurato: " + escapeHtml(String(data.configured_host || "-")) + "</div>");
     infoRows.push("<div>Bind effettivo: " + escapeHtml(String(data.effective_bind_host || "-")) + "</div>");
+    if (data.bind_source) {
+      infoRows.push("<div>Origine bind: " + escapeHtml(String(data.bind_source)) + "</div>");
+    }
     infoRows.push("<div>LAN abilitata: " + ((data.lan_enabled === true) ? "Sì" : "No") + "</div>");
     infoRows.push("<div>URL locale: " + escapeHtml(String(data.loopback_url || "-")) + "</div>");
     infoRows.push("<div>URL LAN: " + escapeHtml(String(data.lan_url || "-")) + "</div>");

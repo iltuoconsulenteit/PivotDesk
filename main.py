@@ -181,6 +181,9 @@ def run_server() -> None:
     try:
         from app import app as fastapi_app
 
+        os.environ["PIVOTDESK_RUNTIME_BIND_HOST"] = str(APP_HOST)
+        os.environ["PIVOTDESK_RUNTIME_BIND_PORT"] = str(APP_PORT)
+
         uvicorn.run(
             fastapi_app,
             host=APP_HOST,

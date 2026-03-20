@@ -786,6 +786,24 @@ def resolve_public_lan_host() -> str:
     return "127.0.0.1"
 
 
+def resolve_lan_bind_info(configured_host: str, configured_port: int, lan_by_license: bool) -> tuple[str, int, str]:
+    runtime_host = str(os.environ.get("PIVOTDESK_RUNTIME_BIND_HOST", "") or "").strip()
+    runtime_port_raw = str(os.environ.get("PIVOTDESK_RUNTIME_BIND_PORT", "") or "").strip()
+    runtime_port = configured_port
+    if runtime_port_raw:
+        try:
+            runtime_port = int(runtime_port_raw)
+        except Exception:
+            runtime_port = configured_port
+
+    if runtime_host:
+        return runtime_host, runtime_port, "runtime"
+
+    if configured_host in {"127.0.0.1", "localhost", "::1"} and lan_by_license:
+        return "0.0.0.0", configured_port, "inferred"
+    return configured_host, configured_port, "inferred"
+
+
 def cleanup_lan_probes(max_age_seconds: int = 600) -> None:
     now = datetime.utcnow().timestamp()
     expired: list[str] = []
@@ -1613,29 +1631,36 @@ def lan_status(request: Request):
     ctx = get_license_context(prefer_online=False)
     cfg = load_config()
     configured_host = str(cfg.get("host", "127.0.0.1") or "127.0.0.1").strip() or "127.0.0.1"
-    port = int(cfg.get("port", 8091))
+    configured_port = int(cfg.get("port", 8091))
 
     status = str(ctx.get("license_status", "demo")).strip().lower() or "demo"
     lan_by_license = license_allows_lan_access(status)
 
-    if configured_host in {"127.0.0.1", "localhost", "::1"} and lan_by_license:
-        effective_bind_host = "0.0.0.0"
-    else:
-        effective_bind_host = configured_host
+    effective_bind_host, port, bind_source = resolve_lan_bind_info(
+        configured_host=configured_host,
+        configured_port=configured_port,
+        lan_by_license=lan_by_license,
+    )
 
     lan_host = resolve_public_lan_host() if effective_bind_host == "0.0.0.0" else effective_bind_host
+    lan_enabled = effective_bind_host in {"0.0.0.0", "::"}
+    firewall_hint = "Se lan_enabled=true ma non raggiungibile da altri PC, verificare firewall/antivirus/router (client isolation)."
+    if bind_source != "runtime":
+        firewall_hint += " Nota: bind effettivo inferito da licenza/config; se il processo è partito con host diverso (es. 127.0.0.1) la LAN resterà non raggiungibile."
 
     return {
         "ok": True,
         "license_status": status,
         "license_label": ctx.get("license_label", "N/D"),
         "configured_host": configured_host,
+        "configured_port": configured_port,
         "effective_bind_host": effective_bind_host,
+        "bind_source": bind_source,
         "port": port,
-        "lan_enabled": effective_bind_host == "0.0.0.0",
+        "lan_enabled": lan_enabled,
         "loopback_url": f"http://127.0.0.1:{port}/",
         "lan_url": f"http://{lan_host}:{port}/",
-        "firewall_hint": "Se lan_enabled=true ma non raggiungibile da altri PC, verificare firewall/antivirus/router (client isolation).",
+        "firewall_hint": firewall_hint,
     }
 
 
@@ -1650,14 +1675,15 @@ def lan_probe_new(request: Request):
     ctx = get_license_context(prefer_online=False)
     cfg = load_config()
     configured_host = str(cfg.get("host", "127.0.0.1") or "127.0.0.1").strip() or "127.0.0.1"
-    port = int(cfg.get("port", 8091))
+    configured_port = int(cfg.get("port", 8091))
     status = str(ctx.get("license_status", "demo")).strip().lower() or "demo"
     lan_by_license = license_allows_lan_access(status)
 
-    if configured_host in {"127.0.0.1", "localhost", "::1"} and lan_by_license:
-        effective_bind_host = "0.0.0.0"
-    else:
-        effective_bind_host = configured_host
+    effective_bind_host, port, _ = resolve_lan_bind_info(
+        configured_host=configured_host,
+        configured_port=configured_port,
+        lan_by_license=lan_by_license,
+    )
 
     lan_host = resolve_public_lan_host() if effective_bind_host == "0.0.0.0" else effective_bind_host
     probe_id = uuid.uuid4().hex

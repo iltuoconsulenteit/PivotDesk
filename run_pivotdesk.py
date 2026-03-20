@@ -194,7 +194,11 @@ def run_uvicorn() -> int:
     print("Comando:", " ".join(cmd))
     open_browser_when_ready(HOST, PORT)
 
-    proc = subprocess.Popen(cmd, cwd=str(BASE_DIR))
+    child_env = os.environ.copy()
+    child_env["PIVOTDESK_RUNTIME_BIND_HOST"] = str(HOST)
+    child_env["PIVOTDESK_RUNTIME_BIND_PORT"] = str(PORT)
+
+    proc = subprocess.Popen(cmd, cwd=str(BASE_DIR), env=child_env)
     try:
         return proc.wait()
     except KeyboardInterrupt:

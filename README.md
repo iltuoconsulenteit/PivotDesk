@@ -80,6 +80,7 @@ Alla prima esecuzione viene creato un utente admin:
 - Con licenza non-demo il launcher può bindare automaticamente su `0.0.0.0` (LAN). In output/log viene mostrato anche URL LAN suggerito; se non raggiungibile da altri PC verificare firewall/porta in ingresso.
 - Il launcher ora rileva il tipo licenza anche dal percorso configurato in `data/license_settings.json` (chiave `license_file`), riducendo casi in cui restava in bind locale `127.0.0.1` nonostante licenza attiva.
 - Endpoint diagnostico `GET /lan/status` disponibile per utenti autenticati: riporta host configurato, bind effettivo, URL loopback/LAN e suggerimento firewall.
+- `GET /lan/status` espone anche `bind_source` (`runtime` o `inferred`): se `inferred`, il bind mostrato è dedotto da config/licenza e può differire dal processo realmente avviato (es. avvio manuale su `127.0.0.1`).
 - Nel frontend (modale “Dettagli licenza”) è disponibile il pulsante “Diagnostica LAN” che mostra lo stato letto da `GET /lan/status`.
 - Per verifica pratica firewall/LAN: `POST /lan/probe/new` (autenticato) genera una URL test, `GET /lan/probe/{id}` registra il passaggio dal client remoto e `GET /lan/probe/result` (o `GET /lan/probe/status`, autenticato) mostra se la sonda è stata raggiunta.
 - Endpoint admin `POST /lan/firewall/open` tenta apertura automatica della porta app nel firewall locale (Windows via `netsh`, Linux via `ufw` se disponibile).
