@@ -3517,15 +3517,27 @@ async function loadLanStatusIntoModal(){
   box.textContent = "Verifica raggiungibilità LAN in corso...";
   try {
     const data = await api("/lan/status");
-    const lines = [];
-    lines.push("Licenza: " + String(data.license_label || data.license_status || "N/D"));
-    lines.push("Host configurato: " + String(data.configured_host || "-"));
-    lines.push("Bind effettivo: " + String(data.effective_bind_host || "-"));
-    lines.push("LAN abilitata: " + ((data.lan_enabled === true) ? "Sì" : "No"));
-    lines.push("URL locale: " + String(data.loopback_url || "-"));
-    lines.push("URL LAN: " + String(data.lan_url || "-"));
-    if (data.firewall_hint) lines.push(String(data.firewall_hint));
-    box.innerHTML = lines.map(x => "<div>" + escapeHtml(x) + "</div>").join("");
+    const infoRows = [];
+    infoRows.push("<div>Licenza: " + escapeHtml(String(data.license_label || data.license_status || "N/D")) + "</div>");
+    infoRows.push("<div>Host configurato: " + escapeHtml(String(data.configured_host || "-")) + "</div>");
+    infoRows.push("<div>Bind effettivo: " + escapeHtml(String(data.effective_bind_host || "-")) + "</div>");
+    infoRows.push("<div>LAN abilitata: " + ((data.lan_enabled === true) ? "Sì" : "No") + "</div>");
+    infoRows.push("<div>URL locale: " + escapeHtml(String(data.loopback_url || "-")) + "</div>");
+    infoRows.push("<div>URL LAN: " + escapeHtml(String(data.lan_url || "-")) + "</div>");
+    if (data.firewall_hint) infoRows.push("<div>" + escapeHtml(String(data.firewall_hint)) + "</div>");
+
+    const lanUrl = String(data.lan_url || "").trim();
+    if (data.lan_enabled === true && lanUrl) {
+      const safeLanUrl = escapeHtml(lanUrl);
+      infoRows.push(
+        '<div style="margin-top:8px;">' +
+          '<strong>Link condivisione LAN:</strong> ' +
+          '<a href="' + safeLanUrl + '" target="_blank" rel="noopener noreferrer">' + safeLanUrl + "</a>" +
+        "</div>"
+      );
+    }
+
+    box.innerHTML = infoRows.join("");
   } catch (e) {
     box.textContent = "Impossibile ottenere stato LAN: " + (e && e.message ? e.message : e);
   }
