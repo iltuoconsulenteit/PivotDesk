@@ -42,23 +42,39 @@ python -m pip install -r requirements-desktop.txt
 
 ---
 
-## Run
+## Run / startup modes
 
-Recommended for development:
+### Source mode (repository / development)
 
-```bash
-python run_pivotdesk.py
-```
-
-Alternative launcher:
+Canonical server bootstrap is `main.py`:
 
 ```bash
-python main.py
+python main.py [--host 127.0.0.1] [--port 8091] [--no-browser]
 ```
+
+Desktop companion launcher:
+
+```bash
+python tray.py
+```
+
+Batch shortcuts in source mode:
+
+- `PivotDesk.bat` → starts `tray.py`
+- `start.bat` → DEV/VENV launcher for `main.py`
+- `setup_runtime.bat` → prepares local source/runtime environment (not needed for compiled EXE builds)
+
+### Compiled mode (PyInstaller one-dir)
+
+- `PivotDesk.exe` is the canonical packaged server/bootstrap executable.
+- `PivotDeskTray.exe` is a companion desktop launcher that starts `PivotDesk.exe --host ... --port ... --no-browser`.
+- `start_compiled.bat` can be used for local compiled-bundle checks (prefers tray exe, then server exe).
 
 Default URL:
 
 - `http://127.0.0.1:8091`
+
+Packaging note: **PyInstaller one-dir** is the recommended first packaging target.
 
 ---
 

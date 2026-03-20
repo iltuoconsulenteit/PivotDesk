@@ -14,19 +14,50 @@ from pathlib import Path
 import pystray
 from PIL import Image
 
-BASE_DIR = Path(__file__).resolve().parent
-DATA_DIR = BASE_DIR / "data"
-LOG_DIR = BASE_DIR / "logs"
-LOG_DIR.mkdir(exist_ok=True)
+def is_frozen() -> bool:
+    return getattr(sys, "frozen", False)
+
+
+def base_dir() -> Path:
+    if is_frozen():
+        return Path(sys.executable).resolve().parent
+    return Path(__file__).resolve().parent
+
+
+BASE_DIR = base_dir()
+
+
+def appdata_dir() -> Path:
+    roaming = os.getenv("APPDATA")
+    if roaming:
+        path = Path(roaming) / "PivotDesk"
+    else:
+        path = BASE_DIR / "user_data"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def local_log_dir() -> Path:
+    local = os.getenv("LOCALAPPDATA")
+    if local:
+        path = Path(local) / "PivotDesk" / "logs"
+    else:
+        path = BASE_DIR / "logs"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+DATA_DIR = appdata_dir()
+LOG_DIR = local_log_dir()
 
 TRAY_LOG = LOG_DIR / "tray.log"
-UVICORN_STDOUT = LOG_DIR / "uvicorn_stdout.log"
-UVICORN_STDERR = LOG_DIR / "uvicorn_stderr.log"
+SERVER_STDOUT = LOG_DIR / "server_stdout.log"
+SERVER_STDERR = LOG_DIR / "server_stderr.log"
 TRAY_PID_FILE = LOG_DIR / "tray.pid"
 SERVER_PID_FILE = LOG_DIR / "server.pid"
 CONFIG_PATH = DATA_DIR / "config.json"
 
-_uvicorn_proc: subprocess.Popen | None = None
+_server_proc: subprocess.Popen | None = None
 _server_host: str | None = None
 _server_port: int | None = None
 
@@ -42,12 +73,11 @@ def _read_json(path: Path) -> dict | None:
 
 
 def detect_license_type() -> str:
-    appdata = os.getenv("APPDATA")
     candidates: list[Path] = []
 
     settings_candidates = [
         BASE_DIR / "data" / "license_settings.json",
-        BASE_DIR / "user_data" / "license_settings.json",
+        appdata_dir() / "license_settings.json",
     ]
     for settings_path in settings_candidates:
         settings_data = _read_json(settings_path) or {}
@@ -55,9 +85,8 @@ def detect_license_type() -> str:
         if configured_license_file:
             candidates.append(Path(configured_license_file))
 
-    if appdata:
-        candidates.append(Path(appdata) / "PivotDesk" / "license.json")
     candidates.extend([
+        appdata_dir() / "license.json",
         BASE_DIR / "PivotDesk" / "license.json",
         BASE_DIR / "data" / "license.json",
         BASE_DIR / "user_data" / "license.json",
@@ -122,11 +151,16 @@ def remove_pid_file(path: Path) -> None:
 
 
 def load_config() -> dict:
-    try:
-        if CONFIG_PATH.exists():
-            return json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
-    except Exception as e:
-        log(f"Errore lettura config: {e}")
+    cfg_paths = [
+        BASE_DIR / "config.json",
+        CONFIG_PATH,
+    ]
+    for cfg_file in cfg_paths:
+        try:
+            if cfg_file.exists():
+                return json.loads(cfg_file.read_text(encoding="utf-8"))
+        except Exception as e:
+            log(f"Errore lettura config {cfg_file}: {e}")
     return {}
 
 
@@ -188,26 +222,29 @@ def wait_http_health(host: str, port: int, timeout: int = 30) -> bool:
     return False
 
 
+def build_server_command(host: str, port: int) -> list[str] | None:
+    if is_frozen():
+        exe_candidate = Path(sys.executable).resolve().parent / "PivotDesk.exe"
+        if not exe_candidate.exists():
+            log(f"ERRORE: eseguibile server non trovato in modalità frozen: {exe_candidate}")
+            return None
+        return [str(exe_candidate), "--host", host, "--port", str(port), "--no-browser"]
+    return [sys.executable, str(BASE_DIR / "main.py"), "--host", host, "--port", str(port), "--no-browser"]
+
+
 def start_server() -> None:
-    global _uvicorn_proc, _server_host, _server_port
+    global _server_proc, _server_host, _server_port
 
     host = get_runtime_host()
     port = get_runtime_port()
 
-    if _uvicorn_proc and _uvicorn_proc.poll() is None:
+    if _server_proc and _server_proc.poll() is None:
         log("Server già in esecuzione.")
         return
 
-    cmd = [
-        sys.executable,
-        "-m",
-        "uvicorn",
-        "app:app",
-        "--host",
-        host,
-        "--port",
-        str(port),
-    ]
+    cmd = build_server_command(host, port)
+    if not cmd:
+        return
 
     log(f"Avvio server: {' '.join(cmd)}")
     log(f"cwd={BASE_DIR}")
@@ -219,14 +256,14 @@ def start_server() -> None:
 
     creationflags = subprocess.CREATE_NO_WINDOW if sys.platform.startswith("win") else 0
 
-    stdout_f = UVICORN_STDOUT.open("a", encoding="utf-8")
-    stderr_f = UVICORN_STDERR.open("a", encoding="utf-8")
+    stdout_f = SERVER_STDOUT.open("a", encoding="utf-8")
+    stderr_f = SERVER_STDERR.open("a", encoding="utf-8")
 
     env = os.environ.copy()
     env["PIVOTDESK_PORT"] = str(port)
     env["PIVOTDESK_HOST"] = host
 
-    _uvicorn_proc = subprocess.Popen(
+    _server_proc = subprocess.Popen(
         cmd,
         cwd=str(BASE_DIR),
         stdout=stdout_f,
@@ -235,12 +272,12 @@ def start_server() -> None:
         env=env,
     )
 
-    write_pid_file(SERVER_PID_FILE, _uvicorn_proc.pid)
+    write_pid_file(SERVER_PID_FILE, _server_proc.pid)
     _server_host = host
     _server_port = port
 
-    if _uvicorn_proc.poll() is not None:
-        log(f"Server terminato subito. Return code={_uvicorn_proc.returncode}")
+    if _server_proc.poll() is not None:
+        log(f"Server terminato subito. Return code={_server_proc.returncode}")
         remove_pid_file(SERVER_PID_FILE)
         return
 
@@ -256,18 +293,18 @@ def start_server() -> None:
 
 
 def stop_server() -> None:
-    global _uvicorn_proc, _server_host, _server_port
+    global _server_proc, _server_host, _server_port
 
-    if _uvicorn_proc and _uvicorn_proc.poll() is None:
+    if _server_proc and _server_proc.poll() is None:
         log("Arresto server...")
-        _uvicorn_proc.terminate()
+        _server_proc.terminate()
         try:
-            _uvicorn_proc.wait(timeout=5)
+            _server_proc.wait(timeout=5)
         except subprocess.TimeoutExpired:
             log("Timeout arresto server, kill forzato.")
-            _uvicorn_proc.kill()
+            _server_proc.kill()
 
-    _uvicorn_proc = None
+    _server_proc = None
     _server_host = None
     _server_port = None
     remove_pid_file(SERVER_PID_FILE)
@@ -303,17 +340,17 @@ def quit_app(icon: pystray.Icon, item=None) -> None:
 
 
 def _health_watchdog(icon: pystray.Icon) -> None:
-    global _uvicorn_proc, _server_host, _server_port
+    global _server_proc, _server_host, _server_port
 
     while True:
         if not icon.visible:
             break
 
-        if _uvicorn_proc and _uvicorn_proc.poll() is not None:
-            log(f"Watchdog: server chiuso con code={_uvicorn_proc.returncode}, riavvio...")
+        if _server_proc and _server_proc.poll() is not None:
+            log(f"Watchdog: server chiuso con code={_server_proc.returncode}, riavvio...")
             remove_pid_file(SERVER_PID_FILE)
             start_server()
-        elif _uvicorn_proc and _uvicorn_proc.poll() is None:
+        elif _server_proc and _server_proc.poll() is None:
             desired_host = get_runtime_host()
             desired_port = get_runtime_port()
             if desired_host != _server_host or desired_port != _server_port:

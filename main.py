@@ -6,6 +6,7 @@ import sys
 import threading
 import time
 import webbrowser
+import argparse
 from pathlib import Path
 
 import uvicorn
@@ -149,13 +150,11 @@ def resolve_bind_host(config_host: str, license_type: str) -> str:
     return host
 
 
-cfg = load_config()
-LICENSE_TYPE = detect_license_type()
-
-APP_HOST = resolve_bind_host(cfg.get("host", "127.0.0.1"), LICENSE_TYPE)
-APP_PORT = int(cfg.get("port", 8091))
-APP_PUBLIC_HOST = "127.0.0.1" if APP_HOST == "0.0.0.0" else APP_HOST
-APP_URL = f"http://{APP_PUBLIC_HOST}:{APP_PORT}"
+APP_HOST = "127.0.0.1"
+APP_PORT = 8091
+APP_PUBLIC_HOST = "127.0.0.1"
+APP_URL = "http://127.0.0.1:8091"
+LICENSE_TYPE = "demo"
 
 
 def port_is_open(host: str, port: int, timeout: float = 0.5) -> bool:
@@ -200,10 +199,32 @@ def run_server() -> None:
 
 
 def main() -> None:
+    global APP_HOST, APP_PORT, APP_PUBLIC_HOST, APP_URL, LICENSE_TYPE
+
+    parser = argparse.ArgumentParser(description="PivotDesk server launcher")
+    parser.add_argument("--host", dest="host", default=None, help="Override bind host")
+    parser.add_argument("--port", dest="port", type=int, default=None, help="Override bind port")
+    parser.add_argument("--no-browser", dest="no_browser", action="store_true", help="Do not open browser automatically")
+    args = parser.parse_args()
+
+    cfg = load_config()
+    LICENSE_TYPE = detect_license_type()
+    config_host = cfg.get("host", "127.0.0.1")
+    if args.host:
+        config_host = args.host
+    APP_HOST = resolve_bind_host(config_host, LICENSE_TYPE)
+    if args.port is not None:
+        APP_PORT = int(args.port)
+    else:
+        APP_PORT = int(cfg.get("port", 8091))
+    APP_PUBLIC_HOST = "127.0.0.1" if APP_HOST == "0.0.0.0" else APP_HOST
+    APP_URL = f"http://{APP_PUBLIC_HOST}:{APP_PORT}"
+
     write_log("=== PivotDesk START ===")
     write_log(f"Frozen: {is_frozen()}")
     write_log(f"Base dir: {BASE_DIR}")
     write_log(f"AppData dir: {appdata_dir()}")
+    write_log(f"CLI args: host={args.host!r} port={args.port!r} no_browser={args.no_browser!r}")
     write_log(f"Licenza rilevata: {LICENSE_TYPE}")
     write_log(f"Host bind: {APP_HOST}")
     write_log(f"Host browser: {APP_PUBLIC_HOST}")
@@ -217,11 +238,14 @@ def main() -> None:
 
     if wait_for_server(APP_PUBLIC_HOST, APP_PORT, timeout=30):
         write_log(f"Server raggiungibile su {APP_URL}")
-        try:
-            webbrowser.open(APP_URL)
-            write_log("Browser aperto")
-        except Exception as exc:
-            write_log(f"Errore apertura browser: {exc!r}")
+        if args.no_browser:
+            write_log("Apertura browser disabilitata da --no-browser")
+        else:
+            try:
+                webbrowser.open(APP_URL)
+                write_log("Browser aperto")
+            except Exception as exc:
+                write_log(f"Errore apertura browser: {exc!r}")
     else:
         write_log("Server non raggiungibile entro il timeout")
         return
