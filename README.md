@@ -2,17 +2,18 @@
 
 PivotDesk è una piattaforma web (FastAPI + Pandas) per importare dati aziendali da file o sorgenti configurate, analizzarli con pivot dinamiche e visualizzare risultati in tabella HTML.
 
-## Documentazione completa (Wiki interna)
+## Full documentation (Internal Wiki)
 
-Per una guida completa operativa e funzionale consulta:
+Primary documentation is now maintained in English:
 
-- **Wiki interna:** [`docs/WIKI.md`](docs/WIKI.md)
+- **Wiki (English):** [`docs/WIKI.md`](docs/WIKI.md)
+- **Wiki (Italian):** [`docs/WIKI.it.md`](docs/WIKI.it.md)
 
-La wiki contiene:
-- panoramica funzionale completa;
-- guida utente (sorgenti, pivot, filtri, grafici, drilldown);
-- guida amministrativa (licenze, LAN, backup/restore, branding);
-- troubleshooting e checklist di verifica.
+The wiki includes:
+- full feature overview;
+- user guide (sources, pivots, filters, charts, drilldown);
+- admin guide (licenses, LAN, backup/restore, branding);
+- troubleshooting and operational checklist.
 
 ## Stato del progetto
 

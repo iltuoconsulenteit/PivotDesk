@@ -1607,6 +1607,26 @@ function escapeHtml(value){
     .replace(/'/g, "&#39;");
 }
 
+function printWindowAndAutoClose(win){
+  if (!win) return;
+  try {
+    let closed = false;
+    const closeIfOpen = () => {
+      if (closed) return;
+      closed = true;
+      try { win.close(); } catch (_) {}
+    };
+    win.onafterprint = closeIfOpen;
+    win.focus();
+    setTimeout(() => {
+      try { win.print(); } catch (_) {}
+      setTimeout(closeIfOpen, 1200);
+    }, 350);
+  } catch (_) {
+    try { win.print(); } catch (_) {}
+  }
+}
+
 function buildPrintHtml(){
   const p = PRESETS.find(x => x.id === CURRENT);
   CURRENT_HEADER_FILTERS = CURRENT_HEADER_FILTERS || {};
@@ -1644,8 +1664,7 @@ function printPivotOnly(){
   w.document.open();
   w.document.write(printHtml);
   w.document.close();
-  w.focus();
-  setTimeout(() => { w.print(); }, 400);
+  printWindowAndAutoClose(w);
 }
 window.printPivotOnly = printPivotOnly;
 
@@ -1698,8 +1717,7 @@ function printChartOnly(){
     w.document.open();
     w.document.write(printHtml);
     w.document.close();
-    w.focus();
-    setTimeout(() => { w.print(); }, 400);
+    printWindowAndAutoClose(w);
   } catch (e) {
     setStatus("ERRORE: " + (e?.message || e));
   }
@@ -3153,8 +3171,7 @@ function printDrilldownOnly(){
     win.document.open();
     win.document.write(html);
     win.document.close();
-    win.focus();
-    setTimeout(() => win.print(), 200);
+    printWindowAndAutoClose(win);
   } catch (err) {
     alert("Stampa dettaglio non disponibile: " + (err?.message || err));
   }
