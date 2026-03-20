@@ -133,6 +133,8 @@ DEFAULT_LICENSE_FEATURES = {
     "preview": False,
     "print": False,
     "backup_restore": False,
+    "charts": False,
+    "drilldown": False,
 }
 
 DEFAULT_DEV_FEATURES = {
@@ -140,6 +142,8 @@ DEFAULT_DEV_FEATURES = {
     "preview": True,
     "print": True,
     "backup_restore": True,
+    "charts": True,
+    "drilldown": True,
 }
 
 
@@ -769,12 +773,18 @@ def has_license_feature(feature_name: str) -> bool:
     if bool(features.get(feature_name)):
         return True
 
-    # fallback: qualsiasi licenza non demo abilita backup/restore anche se il flag non è esplicito
-    if feature_name == "backup_restore":
+    # fallback: licenze a pagamento abilitano alcune feature premium anche senza flag esplicito
+    if feature_name in {"backup_restore", "print", "charts", "drilldown"}:
         status = str(ctx.get("license_status", "")).strip().lower()
-        return status not in {"", "demo"}
+        return status not in {"", "demo", "free", "community", "trial"}
 
     return False
+
+
+def is_free_license() -> bool:
+    ctx = get_license_context(prefer_online=False)
+    status = str(ctx.get("license_status", "")).strip().lower()
+    return status in {"free"}
 
 
 def license_allows_lan_access(status: str) -> bool:
@@ -1205,6 +1215,10 @@ def load_source_df(source_id: str | None) -> tuple[dict[str, Any], pd.DataFrame]
     src = get_source_by_id(source_id)
     if not src:
         raise FileNotFoundError(f"Sorgente non trovata: {source_id}")
+    if is_free_license():
+        source_type = str(src.get("type", "")).strip().lower()
+        if source_type != "csv":
+            raise PermissionError("Licenza Free: sono consentite solo sorgenti CSV per la pivot a video.")
 
     df = load_dataframe_from_source_with_fallback(src)
 
@@ -1220,6 +1234,10 @@ def load_source_df(source_id: str | None) -> tuple[dict[str, Any], pd.DataFrame]
 
 
 def load_dataframe_for_plugin(source: dict[str, Any]) -> pd.DataFrame:
+    if is_free_license():
+        source_type = str(source.get("type", "")).strip().lower()
+        if source_type != "csv":
+            raise PermissionError("Licenza Free: i plugin dati remoti sono disponibili solo nelle versioni a pagamento.")
     df = load_dataframe_from_source(source)
 
     if df is None:
@@ -3002,6 +3020,11 @@ def pivot_drilldown(
     limit: int = Query(300, ge=1, le=2000),
 ):
     try:
+        if not has_license_feature("drilldown"):
+            return JSONResponse(
+                {"error": "Funzione dettaglio disponibile solo nelle licenze a pagamento."},
+                status_code=403,
+            )
         sid = normalize_source_id(source_id)
         preset = find_preset_by_id(pivot_id, source_id=sid)
         if not preset:

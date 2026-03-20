@@ -2880,6 +2880,7 @@ function extractColumnFiltersFromHeader(headerText, preset){
 }
 
 function addDrillButtonToCell(cell, label, rowFilters, columnFilters){
+  if (!hasFeature("drilldown")) return;
   if (!cell || cell.querySelector(".pivot-total-drill-btn")) return;
   const btn = document.createElement("button");
   btn.type = "button";
@@ -3442,6 +3443,10 @@ function renderPivotChart(){
 }
 
 function openChartsModal(){
+  if (!hasFeature("charts")) {
+    showLockedFeature("Grafico da pivot", "charts");
+    return;
+  }
   fillChartFieldSelects();
   const modal = document.getElementById("chartsModal");
   if (modal) modal.style.display = "flex";
@@ -4756,10 +4761,11 @@ function enableRenderedTableSortingAndFilters(preset, runtimeOptions) {
 function hasFeature(name){
   const ctx = window.LICENSE_CONTEXT || {};
   const features = (ctx && ctx.features) || {};
+  const status = String(ctx.status || "").toLowerCase();
+  const isPaid = status && !["demo", "free", "community", "trial"].includes(status);
   if (features["*"] === true) return true;
-  if (name === "backup_restore") {
-    const status = String(ctx.status || "").toLowerCase();
-    if (status && status !== "demo") return true;
+  if (["backup_restore", "print", "charts", "drilldown"].includes(name)) {
+    if (isPaid) return true;
   }
   return !!features[name];
 }
@@ -4803,7 +4809,9 @@ function updatePreviewLockState(){
 function applyLicenseUiGuards(){
   const bindings = [
     { id: "menuPrint", feature: "print", label: "Stampa pivot" },
+    { id: "menuOpenCharts", feature: "charts", label: "Grafico da pivot" },
     { id: "btnPrintChartModal", feature: "print", label: "Stampa grafico" },
+    { id: "btnPrintDrilldownModal", feature: "print", label: "Stampa dettaglio" },
     { id: "menuExportBackup", feature: "backup_restore", label: "Esporta backup" },
     { id: "menuRestoreBackup", feature: "backup_restore", label: "Ripristina backup" },
     { id: "menuToggleSubtotals", feature: "subtotals", label: "Subtotali" },
