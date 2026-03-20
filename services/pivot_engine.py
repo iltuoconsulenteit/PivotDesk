@@ -85,6 +85,15 @@ def apply_filters(df: pd.DataFrame, filters: dict[str, Any] | None = None) -> pd
                 out = out[series_dt.dt.strftime("%Y-%m-%d") == target_dt.strftime("%Y-%m-%d")]
                 continue
 
+        # Numeric-safe filtering: if filter value is numeric and column can be parsed
+        # as numeric, compare numerically to avoid mismatches like "1" vs "1.0".
+        target_num = pd.to_numeric(pd.Series([value_str]), errors="coerce").iloc[0]
+        if pd.notna(target_num):
+            series_num = pd.to_numeric(out[field], errors="coerce")
+            if series_num.notna().any():
+                out = out[series_num == float(target_num)]
+                continue
+
         out = out[out[field].astype(str).str.strip() == value_str]
 
     return out
