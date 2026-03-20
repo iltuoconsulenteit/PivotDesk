@@ -13,7 +13,6 @@ from pathlib import Path
 from typing import Optional
 
 APP_IMPORT = os.environ.get("PIVOTDESK_APP", "app:app")
-PORT = int(os.environ.get("PIVOTDESK_PORT", "8091"))
 OPEN_BROWSER = os.environ.get("PIVOTDESK_OPEN_BROWSER", "1") not in {"0", "false", "False"}
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -31,6 +30,18 @@ def _read_json(path: Path) -> dict | None:
             return data if isinstance(data, dict) else None
     except Exception:
         return None
+
+
+def load_config() -> dict:
+    cfg_paths = [
+        BASE_DIR / "config.json",
+        BASE_DIR / "user_data" / "config.json",
+    ]
+    for cfg_file in cfg_paths:
+        payload = _read_json(cfg_file)
+        if isinstance(payload, dict):
+            return payload
+    return {}
 
 
 def detect_license_type() -> str:
@@ -91,14 +102,25 @@ def resolve_public_lan_host() -> str:
 
 
 def resolve_host() -> str:
-    configured = os.environ.get("PIVOTDESK_HOST", "127.0.0.1")
+    cfg = load_config()
+    configured = os.environ.get("PIVOTDESK_HOST", cfg.get("host", "127.0.0.1"))
     configured = str(configured or "").strip() or "127.0.0.1"
     if configured in {"127.0.0.1", "localhost", "::1"} and license_allows_lan_access(detect_license_type()):
         return "0.0.0.0"
     return configured
 
 
+def resolve_port() -> int:
+    cfg = load_config()
+    value = os.environ.get("PIVOTDESK_PORT", cfg.get("port", 8091))
+    try:
+        return int(value)
+    except Exception:
+        return 8091
+
+
 HOST = resolve_host()
+PORT = resolve_port()
 PUBLIC_HOST = "127.0.0.1" if HOST == "0.0.0.0" else HOST
 
 
