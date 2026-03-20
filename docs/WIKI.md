@@ -237,7 +237,7 @@ On tablet/smartphone breakpoints, menu groups reflow and dropdown entries open i
 The layout quickbar also shows the active view summary on the same row and includes a **Wiki** button that opens a slide-out side panel.
 The duplicate lower layout-status line has been removed; when a pivot run succeeds, summary remains in quickbar only. The wiki panel embeds scrollable WIKI content and can be resized (width slider) without blocking the main frontend.
 Wiki panel content is loaded from `GET /wiki/content?lang=it|en`; panel width can also be changed by dragging its left border.
-Wiki open action is available in top menu (Settings → Open Wiki); markdown images are rendered in-panel including docs/static assets.
+Wiki open action is available as a visible top-bar help button (**❓ Aiuto**); markdown images are rendered in-panel including docs/static assets.
 
 ---
 
