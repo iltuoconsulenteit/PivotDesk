@@ -149,6 +149,69 @@
     .compact-body .field{
       margin:0;
     }
+    .quickbar-info{
+      display:inline-flex;
+      align-items:center;
+      padding:6px 10px;
+      border:1px solid #d0d5dd;
+      border-radius:999px;
+      background:#f8fafc;
+      color:#344054;
+      font-size:12px;
+      white-space:nowrap;
+    }
+    .wiki-drawer{
+      position:fixed;
+      inset:0;
+      background:rgba(15,23,42,.42);
+      display:none;
+      z-index:1200;
+    }
+    .wiki-drawer.active{
+      display:block;
+    }
+    .wiki-drawer-panel{
+      position:absolute;
+      top:0;
+      right:0;
+      width:min(420px, 92vw);
+      height:100%;
+      background:#fff;
+      box-shadow:-12px 0 32px rgba(15,23,42,.25);
+      display:flex;
+      flex-direction:column;
+    }
+    .wiki-drawer-head{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding:14px 16px;
+      border-bottom:1px solid #eaecf0;
+      background:#f8fafc;
+    }
+    .wiki-drawer-body{
+      padding:14px 16px;
+      overflow:auto;
+      display:grid;
+      gap:14px;
+    }
+    .wiki-card{
+      border:1px solid #eaecf0;
+      border-radius:12px;
+      padding:12px;
+      background:#fff;
+    }
+    .wiki-card h4{
+      margin:0 0 6px;
+      font-size:14px;
+    }
+    .wiki-card p{
+      margin:0;
+      color:#475467;
+      font-size:13px;
+      line-height:1.35;
+    }
     @media (min-width: 1024px){
       .compact-pivot-layout .compact-col.source{ grid-column:span 4; }
       .compact-pivot-layout .compact-col.preset{ grid-column:span 4; }
@@ -865,6 +928,7 @@ window.LICENSE_CONTEXT = {
             <button type="button" id="btnLayoutHorizontal" class="quick-toggle" title="Layout orizzontale" data-i18n-title="layout_horizontal_title">
               ↔ Orizzontale
             </button>
+            <span id="quickbarInfo" class="quickbar-info">layout=vertical | row_totals=on | col_totals=on | subtotals=off</span>
           </div>
 
           <div class="pivot-quickbar-right">
@@ -887,6 +951,10 @@ window.LICENSE_CONTEXT = {
               Grafico
             </button>
 
+            <button type="button" id="btnOpenWikiDrawer" class="quick-toggle" aria-label="Apri wiki rapida">
+              Wiki
+            </button>
+
             <button type="button" id="btnApplyPivotView" class="primary" data-i18n="save_view">Salva vista</button>
           </div>
         </div>
@@ -904,6 +972,33 @@ window.LICENSE_CONTEXT = {
   <div id="report" class="card report-card"></div>
 
   <div class="footer">PivotDesk v0.2.1 · powered by IlTuoConsulenteIT</div>
+</div>
+
+<div id="wikiDrawer" class="wiki-drawer" aria-hidden="true">
+  <div class="wiki-drawer-panel">
+    <div class="wiki-drawer-head">
+      <strong>Wiki rapida PivotDesk</strong>
+      <button type="button" id="btnCloseWikiDrawer" class="ghost-btn">Chiudi</button>
+    </div>
+    <div class="wiki-drawer-body">
+      <div class="wiki-card">
+        <h4>Flusso consigliato</h4>
+        <p>1) Seleziona sorgente, 2) scegli preset, 3) imposta layout/totali, 4) applica filtri pagina, 5) esegui pivot e salva la vista.</p>
+      </div>
+      <div class="wiki-card">
+        <h4>Suggerimento UX</h4>
+        <p>Usa i pulsanti Nascondi/Mostra dei pannelli per tenere la tabella pivot più in alto e ridurre lo scrolling.</p>
+      </div>
+      <div class="wiki-card">
+        <h4>Documentazione completa</h4>
+        <p>
+          <a href="/docs/WIKI.it.md" target="_blank" rel="noopener noreferrer">Apri WIKI IT</a><br>
+          <a href="/docs/WIKI.md" target="_blank" rel="noopener noreferrer">Open WIKI EN</a><br>
+          <a href="/README.md" target="_blank" rel="noopener noreferrer">Apri README</a>
+        </p>
+      </div>
+    </div>
+  </div>
 </div>
 
 <div id="builderScreen" class="builder-screen">
@@ -2014,6 +2109,13 @@ function refreshQuickbarFromPreset(){
   chkR.checked = !!opts.show_row_totals;
   chkC.checked = !!opts.show_col_totals;
   if (chkS) chkS.checked = !!opts.show_subtotals;
+  const info = document.getElementById("quickbarInfo");
+  if (info) {
+    info.textContent = "layout=" + String(opts.measures_layout || "vertical")
+      + " | row_totals=" + (opts.show_row_totals ? "on" : "off")
+      + " | col_totals=" + (opts.show_col_totals ? "on" : "off")
+      + " | subtotals=" + (opts.show_subtotals ? "on" : "off");
+  }
 }
 
 async function applyCurrentViewOptions(){
@@ -4546,6 +4648,11 @@ bindClick("btnSaveCalculatedField", () => {
 bindClick("btnDeleteCalculatedField", () => deleteCalculatedFieldFromModal());
 bindClick("menuOpenCharts", () => openChartsModal());
 bindClick("btnOpenChartsNear", () => openChartsModal());
+bindClick("btnOpenWikiDrawer", () => openWikiDrawer());
+bindClick("btnCloseWikiDrawer", () => closeWikiDrawer());
+bindClick("wikiDrawer", ev => {
+  if (ev && ev.target && ev.target.id === "wikiDrawer") closeWikiDrawer();
+});
 bindClick("btnCloseChartsModal", () => closeChartsModal());
 bindClick("chartsModal", ev => { if (ev && ev.target && ev.target.id === "chartsModal") closeChartsModal(); });
 bindClick("btnRenderChart", () => renderPivotChart());
@@ -5201,6 +5308,20 @@ async function openLicenseActivationModal(){
 function closeLicenseActivationModal(){
   const modal = document.getElementById("licenseActivationModal");
   if (modal) modal.classList.remove("active");
+}
+
+function openWikiDrawer(){
+  const box = document.getElementById("wikiDrawer");
+  if (!box) return;
+  box.classList.add("active");
+  box.setAttribute("aria-hidden", "false");
+}
+
+function closeWikiDrawer(){
+  const box = document.getElementById("wikiDrawer");
+  if (!box) return;
+  box.classList.remove("active");
+  box.setAttribute("aria-hidden", "true");
 }
 
 async function activateLicenseFromModal(){

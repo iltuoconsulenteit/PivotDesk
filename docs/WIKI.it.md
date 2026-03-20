@@ -237,6 +237,7 @@ Nella dashboard principale (`templates/index.html`) i controlli sono stati conce
 Ogni pannello include il toggle **Mostra/Nascondi** per comprimere le sezioni meno usate e mantenere la pivot più in alto, riducendo lo scrolling.
 Su schermi larghi, barra utente e menu principale sono allineati sulla stessa riga così da recuperare ulteriore spazio verticale prima del risultato pivot.
 Su tablet/smartphone i gruppi menu vanno a capo e le sottovoci si aprono inline, evitando che restino nascoste o tagliate.
+La quickbar layout mostra anche il riepilogo vista sulla stessa riga e include un pulsante **Wiki** che apre una barra laterale a comparsa.
 
 ---
 

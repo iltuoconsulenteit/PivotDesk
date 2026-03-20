@@ -86,6 +86,7 @@ Change this password immediately in shared environments.
 - Compact home layout with collapsible Source/Preset/Filters/Layout panels to keep the pivot table visible higher on screen.
 - User bar and primary menu are aligned on a single row on wide screens to reduce vertical space in the header area.
 - Responsive menu adaptation for tablet/smartphone: top menu buttons reflow and their submenus open inline (not clipped).
+- Layout quickbar now includes an inline view summary plus a **Wiki** button that opens a slide-out side panel with quick guidance links.
 - License-aware feature gating (including Free tier policy).
 - LAN diagnostics/probe/firewall helper endpoints.
 - Customer branding (logo upload + rendering in UI/print contexts).
