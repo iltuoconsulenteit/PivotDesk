@@ -796,6 +796,44 @@ def can_connect_to_host_port(host: str, port: int, timeout: float = 0.8) -> bool
         return False
 
 
+def detect_process_bind_host_for_port(port: int) -> str:
+    system_name = platform.system().lower()
+    pid = str(os.getpid())
+    port_text = f":{int(port)}"
+
+    try:
+        if system_name == "windows":
+            proc = subprocess.run(
+                ["netstat", "-ano", "-p", "tcp"],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            rows = (proc.stdout or "").splitlines()
+            for row in rows:
+                text = " ".join(row.split())
+                if not text.lower().startswith("tcp "):
+                    continue
+                parts = text.split(" ")
+                if len(parts) < 5:
+                    continue
+                local_addr = parts[1]
+                state = parts[3].upper()
+                row_pid = parts[4]
+                if state != "LISTENING" or row_pid != pid:
+                    continue
+                if port_text not in local_addr:
+                    continue
+                if local_addr.startswith("["):
+                    host = local_addr.split("]:", 1)[0].lstrip("[")
+                else:
+                    host = local_addr.rsplit(":", 1)[0]
+                return host.strip()
+    except Exception:
+        return ""
+    return ""
+
+
 def resolve_lan_bind_info(configured_host: str, configured_port: int, lan_by_license: bool) -> tuple[str, int, str]:
     runtime_host = str(os.environ.get("PIVOTDESK_RUNTIME_BIND_HOST", "") or "").strip()
     runtime_port_raw = str(os.environ.get("PIVOTDESK_RUNTIME_BIND_PORT", "") or "").strip()
@@ -808,6 +846,10 @@ def resolve_lan_bind_info(configured_host: str, configured_port: int, lan_by_lic
 
     if runtime_host:
         return runtime_host, runtime_port, "runtime"
+
+    detected_host = detect_process_bind_host_for_port(configured_port)
+    if detected_host:
+        return detected_host, configured_port, "socket"
 
     if configured_host in {"127.0.0.1", "localhost", "::1"} and lan_by_license:
         return "0.0.0.0", configured_port, "inferred"
@@ -1657,7 +1699,7 @@ def lan_status(request: Request):
     loopback_reachable = can_connect_to_host_port("127.0.0.1", port)
     lan_reachable_from_host = can_connect_to_host_port(lan_host, port)
     firewall_hint = "Se lan_enabled=true ma non raggiungibile da altri PC, verificare firewall/antivirus/router (client isolation)."
-    if bind_source != "runtime":
+    if bind_source == "inferred":
         firewall_hint += " Nota: bind effettivo inferito da licenza/config; se il processo è partito con host diverso (es. 127.0.0.1) la LAN resterà non raggiungibile."
     if lan_enabled and loopback_reachable and not lan_reachable_from_host:
         firewall_hint += " Diagnostica locale: 127.0.0.1 risponde ma IP LAN rifiuta la connessione; probabile avvio server su host locale-only (127.0.0.1)."
