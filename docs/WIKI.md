@@ -111,6 +111,12 @@ From the pivot UI you can generate:
 
 Dedicated chart printing is available (license-dependent).
 
+Recommended usage by chart type:
+- **Column:** compare absolute values across categories.
+- **Bar:** same as column, better when labels are long.
+- **Line:** show progression/trend over ordered categories.
+- **Pie:** show part-to-whole share for limited category counts.
+
 ---
 
 ## 8) Drilldown (detail view)

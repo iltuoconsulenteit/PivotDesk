@@ -113,6 +113,12 @@ Dalla pivot puoi aprire il modal grafico e scegliere:
 
 Supportata stampa grafico dedicata, con metadati e (se licenza attiva) logo cliente in testata.
 
+Uso consigliato per tipo grafico:
+- **Colonne:** confronto valori assoluti tra categorie.
+- **Barre:** come colonne, ma più leggibile con etichette lunghe.
+- **Linea:** andamento/trend su categorie ordinate.
+- **Torta:** quota parte-su-totale con numero categorie contenuto.
+
 ---
 
 ## 8) Drilldown (dettaglio record)

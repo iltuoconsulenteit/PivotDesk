@@ -80,6 +80,7 @@ Change this password immediately in shared environments.
 - Calculated fields (server-side formula engine + UI assistant).
 - Numeric-safe filtering and optional subtotals/totals.
 - Chart modal (column/bar/line/pie) with print support.
+- Chart extraction ignores interactive cell controls/icons so numeric values are detected correctly.
 - Drilldown/detail modal with column visibility presets.
 - Pivot print output excludes interactive UI controls (e.g., drilldown buttons) for clean report exports.
 - License-aware feature gating (including Free tier policy).

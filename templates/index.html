@@ -3209,6 +3209,13 @@ function getPivotTableForCharts(){
   return document.querySelector("#report table.pd-table") || document.querySelector("#report table");
 }
 
+function getCellPlainText(cell){
+  if (!cell) return "";
+  const clone = cell.cloneNode(true);
+  clone.querySelectorAll("button, .pivot-total-drill-btn, input, select").forEach(el => el.remove());
+  return String(clone.textContent || "").trim();
+}
+
 function getPivotColumnsAndRows(){
   const table = getPivotTableForCharts();
   if (!table) return null;
@@ -3216,13 +3223,13 @@ function getPivotColumnsAndRows(){
   if (!headRow) return null;
 
   const headers = Array.from(headRow.querySelectorAll("th")).map((th, idx) => {
-    const txt = String(th.textContent || "").trim();
+    const txt = getCellPlainText(th);
     return txt || `Colonna ${idx + 1}`;
   });
 
   const rows = Array.from(table.querySelectorAll("tbody tr"))
     .filter(tr => !tr.classList.contains("subtotal-row") && !tr.classList.contains("total-row"))
-    .map(tr => Array.from(tr.querySelectorAll("td")).map(td => String(td.textContent || "").trim()))
+    .map(tr => Array.from(tr.querySelectorAll("td")).map(td => getCellPlainText(td)))
     .filter(cells => cells.length > 0);
 
   return { headers, rows };
