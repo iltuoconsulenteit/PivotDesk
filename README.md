@@ -133,3 +133,12 @@ The following diagrams are visual examples derived from the HTML layout structur
 - Port already in use: update `config.json` or stop the running process.
 - Missing templates/static assets: verify repository structure is intact.
 - LAN issues: check `/lan/status`, run probe endpoints, and verify firewall state.
+
+## License
+
+PivotDesk source code is publicly available under the Business Source License 1.1.
+
+Official commercial builds, activation licenses, support services and authorized distribution are provided exclusively by IlTuoConsulenteIT.
+
+The internal runtime licensing system implemented in the software is part of the product architecture and is not affected by this repository license change.
+
