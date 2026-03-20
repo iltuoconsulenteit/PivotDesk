@@ -16,7 +16,7 @@ from typing import Any
 
 import pandas as pd
 from fastapi import FastAPI, Query, Request, Form, UploadFile, File
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
@@ -67,6 +67,8 @@ SETTINGS_PATH = DATA_DIR / "settings.json"
 SOURCES_PATH = DATA_DIR / "sources.json"
 USERS_PATH = DATA_DIR / "users.json"
 LICENSE_SETTINGS_PATH = DATA_DIR / "license_settings.json"
+BRANDING_DIR = DATA_DIR / "branding"
+CUSTOMER_LOGO_PATH = BRANDING_DIR / "customer_logo.png"
 
 LICENSES_DIR = BASE_DIR / "licenses"
 APPDATA_LICENSE_DIR = Path(os.getenv("APPDATA", str(BASE_DIR))) / "PivotDesk"
@@ -789,6 +791,16 @@ def resolve_public_lan_host() -> str:
     except Exception:
         pass
     return "127.0.0.1"
+
+
+def get_customer_logo_url() -> str:
+    if CUSTOMER_LOGO_PATH.exists():
+        try:
+            version = int(CUSTOMER_LOGO_PATH.stat().st_mtime)
+        except Exception:
+            version = int(time.time())
+        return f"/branding/customer-logo?v={version}"
+    return "/static/img/pivotdesk-logo.png"
 
 
 def can_connect_to_host_port(host: str, port: int, timeout: float = 0.8) -> bool:
@@ -1697,9 +1709,41 @@ def index(request: Request):
     ctx = {
         "request": request,
         "current_user": get_current_user_from_session(request),
+        "branding_logo_url": get_customer_logo_url(),
         **get_license_context(),
     }
     return templates.TemplateResponse("index.html", ctx)
+
+
+@app.get("/branding/customer-logo")
+def branding_customer_logo():
+    if not CUSTOMER_LOGO_PATH.exists():
+        return RedirectResponse("/static/img/pivotdesk-logo.png", status_code=307)
+    return FileResponse(CUSTOMER_LOGO_PATH)
+
+
+@app.post("/admin/branding/customer-logo")
+async def admin_upload_customer_logo(request: Request, file: UploadFile = File(...)):
+    current_user = require_admin(request)
+    if not current_user:
+        return JSONResponse({"error": "Non autorizzato"}, status_code=403)
+
+    ctx = get_license_context(prefer_online=False)
+    status = str(ctx.get("license_status", "demo")).strip().lower() or "demo"
+    if not license_allows_lan_access(status):
+        return JSONResponse({"error": "Upload logo cliente disponibile solo con licenza attiva."}, status_code=403)
+
+    content_type = str(file.content_type or "").lower()
+    if not content_type.startswith("image/"):
+        return JSONResponse({"error": "Formato non valido. Carica un file immagine."}, status_code=400)
+
+    payload = await file.read()
+    if not payload or len(payload) > (2 * 1024 * 1024):
+        return JSONResponse({"error": "File assente o troppo grande (max 2MB)."}, status_code=400)
+
+    BRANDING_DIR.mkdir(parents=True, exist_ok=True)
+    CUSTOMER_LOGO_PATH.write_bytes(payload)
+    return {"ok": True, "logo_url": get_customer_logo_url()}
 
 
 @app.get("/license/status")
@@ -2112,7 +2156,10 @@ def login_page(request: Request, error: str | None = None):
     user = get_current_user_from_session(request)
     if user:
         return RedirectResponse("/", status_code=303)
-    return templates.TemplateResponse("login.html", {"request": request, "error": error})
+    return templates.TemplateResponse(
+        "login.html",
+        {"request": request, "error": error, "branding_logo_url": get_customer_logo_url()},
+    )
 
 
 @app.post("/login")

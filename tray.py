@@ -288,11 +288,11 @@ def open_dashboard(icon=None, item=None) -> None:
     log("Richiesta apertura dashboard.")
 
     if wait_http_health(browser_host, port, timeout=20):
-        webbrowser.open(f"http://{browser_host}:{port}/")
-        log(f"Dashboard aperta su http://{browser_host}:{port}/")
+        webbrowser.open(f"http://{browser_host}:{port}/login")
+        log(f"Dashboard aperta su http://{browser_host}:{port}/login")
     else:
-        log(f"Dashboard non pronta entro timeout, apertura forzata su http://{browser_host}:{port}/")
-        webbrowser.open(f"http://{browser_host}:{port}/")
+        log(f"Dashboard non pronta entro timeout, apertura forzata su http://{browser_host}:{port}/login")
+        webbrowser.open(f"http://{browser_host}:{port}/login")
 
 
 def quit_app(icon: pystray.Icon, item=None) -> None:

@@ -90,6 +90,7 @@ Alla prima esecuzione viene creato un utente admin:
 - Se `POST /lan/probe/new` risponde `LAN non attiva su questo avvio`, riavviare con launcher (`python run_pivotdesk.py`) oppure con uvicorn `--host 0.0.0.0`.
 - Endpoint admin `POST /lan/firewall/open` tenta apertura automatica della porta app nel firewall locale (Windows via `netsh`, Linux via `ufw` se disponibile).
 - Su Windows `POST /lan/firewall/open` prova anche ad avviare `netsh` con elevazione (`RunAs`): l’utente deve confermare il prompt UAC per completare la regola firewall.
+- Con licenza attiva (non demo) è disponibile upload logo cliente (`POST /admin/branding/customer-logo`), mostrato su login e header principale.
 - Nei campi calcolati è disponibile `token_after(testo, marcatore, case_sensitive?)` per estrarre il primo token dopo stringhe come `#` o `CRO:` (utile su descrizioni bancarie/libere). Il terzo parametro è opzionale (`false` default).
 - Nel modal dei campi calcolati puoi trascinare i campi dalla sidebar direttamente dentro la formula (`[Nome Campo]`).
 - Nell’anteprima sorgente del builder, i campi calcolati definiti vengono mostrati come colonne aggiuntive (anteprima aggiornata al salvataggio/eliminazione campo calcolato).
