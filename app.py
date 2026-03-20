@@ -1706,10 +1706,11 @@ plugin_manager.load_all(app, plugin_api)
 
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request):
+    customer_logo_url = get_customer_logo_url() if CUSTOMER_LOGO_PATH.exists() else ""
     ctx = {
         "request": request,
         "current_user": get_current_user_from_session(request),
-        "branding_logo_url": get_customer_logo_url(),
+        "customer_logo_url": customer_logo_url,
         **get_license_context(),
     }
     return templates.TemplateResponse("index.html", ctx)
@@ -2156,10 +2157,7 @@ def login_page(request: Request, error: str | None = None):
     user = get_current_user_from_session(request)
     if user:
         return RedirectResponse("/", status_code=303)
-    return templates.TemplateResponse(
-        "login.html",
-        {"request": request, "error": error, "branding_logo_url": get_customer_logo_url()},
-    )
+    return templates.TemplateResponse("login.html", {"request": request, "error": error})
 
 
 @app.post("/login")

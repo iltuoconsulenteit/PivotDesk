@@ -185,6 +185,20 @@
       padding-top: 8px;
     }
 
+    .brand-center {
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .logo-customer {
+      max-width: 180px;
+      max-height: 72px;
+      object-fit: contain;
+      display: block;
+    }
+
     .brand-title {
       display: none;
     }
@@ -432,12 +446,18 @@ window.LICENSE_CONTEXT = {
     <div class="branding">
       <div class="brand-left">
         <div class="logo-main-wrap">
-          <img id="brandMainLogo" src="{{ branding_logo_url or '/static/img/pivotdesk-logo.png' }}" alt="PivotDesk" class="logo-main">
+          <img id="brandMainLogo" src="/static/img/pivotdesk-logo.png" alt="PivotDesk" class="logo-main">
         </div>
         <div class="brand-copy">
           <div class="brand-subtitle" data-i18n="brand_subtitle">Viewer CSV e pivot server-side multi-misura</div>
         </div>
       </div>
+
+      {% if customer_logo_url %}
+      <div class="brand-center">
+        <img id="brandCustomerLogo" src="{{ customer_logo_url }}" alt="Logo cliente" class="logo-customer">
+      </div>
+      {% endif %}
 
       <div class="brand-license">
         <div class="license-pill" title="Licenza {{ license_label or 'N/D' }}">
@@ -3197,11 +3217,10 @@ bindClick("btnUploadCustomerLogo", async () => {
   try {
     const form = new FormData();
     form.append("file", file);
-    const data = await api("/admin/branding/customer-logo", { method: "POST", body: form });
-    const logo = document.getElementById("brandMainLogo");
-    if (logo && data && data.logo_url) logo.src = data.logo_url;
+    await api("/admin/branding/customer-logo", { method: "POST", body: form });
     setStatus("Logo cliente aggiornato.");
     input.value = "";
+    window.location.reload();
   } catch (e) {
     setStatus("ERRORE: " + e.message);
   }
