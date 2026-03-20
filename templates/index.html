@@ -2912,8 +2912,9 @@ function decoratePivotTotalsWithDrillButtons(preset){
       const isTotalColumn = /^totale$/i.test(header) || /^totale\s*\|/i.test(header) || /\|\s*totale$/i.test(header);
       const isFirstCell = idx === 0;
       const shouldAttach =
-        (isSubRow || isTotRow) ||
-        (!isSubRow && !isTotRow && isTotalColumn && !isFirstCell);
+        isFirstCell ||           // dettaglio disponibile su tutte le righe
+        isTotalColumn ||         // e su eventuali colonne totale
+        isSubRow || isTotRow;    // include subtotal/total rows
       if (!shouldAttach) return;
 
       const colFilters = extractColumnFiltersFromHeader(header, preset);
