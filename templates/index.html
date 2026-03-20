@@ -2864,26 +2864,63 @@ function extractRowFiltersFromPivotRow(rowEl, preset){
   return out;
 }
 
+function extractColumnFiltersFromHeader(headerText, preset){
+  const colFields = Array.isArray(preset?.cols) ? preset.cols : [];
+  if (!colFields.length) return {};
+  const text = String(headerText || "").trim();
+  if (!text || /^totale$/i.test(text)) return {};
+  const parts = text.split("|").map(x => String(x || "").trim()).filter(Boolean);
+  const out = {};
+  for (let i = 0; i < colFields.length && i < parts.length; i += 1) {
+    const part = parts[i];
+    if (!part || /^totale$/i.test(part)) continue;
+    out[colFields[i]] = part;
+  }
+  return out;
+}
+
+function addDrillButtonToCell(cell, label, rowFilters, columnFilters){
+  if (!cell || cell.querySelector(".pivot-total-drill-btn")) return;
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "pivot-total-drill-btn";
+  btn.textContent = "📋";
+  btn.title = "Apri dettaglio record";
+  btn.setAttribute("aria-label", "Apri dettaglio record");
+  btn.addEventListener("click", ev => {
+    ev.preventDefault();
+    ev.stopPropagation();
+    const effective = { ...(rowFilters || {}), ...(columnFilters || {}) };
+    openPivotDrilldown(label, effective);
+  });
+  cell.appendChild(btn);
+}
+
 function decoratePivotTotalsWithDrillButtons(preset){
   const table = document.querySelector("#report table.pd-table");
   if (!table) return;
-  Array.from(table.querySelectorAll("tbody tr.subtotal-row, tbody tr.total-row")).forEach(row => {
-    const firstCell = row.querySelector("td");
-    if (!firstCell || firstCell.querySelector(".pivot-total-drill-btn")) return;
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "pivot-total-drill-btn";
-    btn.textContent = "Dettaglio";
-    btn.addEventListener("click", ev => {
-      ev.preventDefault();
-      ev.stopPropagation();
-      const rowFilters = row.classList.contains("subtotal-row")
-        ? extractRowFiltersFromPivotRow(row, preset)
-        : {};
-      const label = String(firstCell.textContent || "").trim() || (row.classList.contains("subtotal-row") ? "Subtotale" : "Totale");
-      openPivotDrilldown(label, rowFilters);
+  const headers = Array.from(table.querySelectorAll("thead tr th")).map(th => String(th.textContent || "").trim());
+
+  Array.from(table.querySelectorAll("tbody tr")).forEach(row => {
+    const isSubRow = row.classList.contains("subtotal-row");
+    const isTotRow = row.classList.contains("total-row");
+    const rowCells = Array.from(row.querySelectorAll("td"));
+    const rowFilters = isTotRow ? {} : extractRowFiltersFromPivotRow(row, preset);
+
+    rowCells.forEach((cell, idx) => {
+      const header = String(headers[idx] || "").trim();
+      const isTotalColumn = /^totale$/i.test(header) || /^totale\s*\|/i.test(header) || /\|\s*totale$/i.test(header);
+      const isFirstCell = idx === 0;
+      const shouldAttach =
+        (isSubRow || isTotRow) ||
+        (!isSubRow && !isTotRow && isTotalColumn && !isFirstCell);
+      if (!shouldAttach) return;
+
+      const colFilters = extractColumnFiltersFromHeader(header, preset);
+      const rowLabel = String(rowCells[0]?.textContent || "").trim() || (isSubRow ? "Subtotale" : (isTotRow ? "Totale" : "Riga"));
+      const label = header && !isFirstCell ? `${rowLabel} · ${header}` : rowLabel;
+      addDrillButtonToCell(cell, label, rowFilters, colFilters);
     });
-    firstCell.appendChild(btn);
   });
 }
 
@@ -3081,7 +3118,7 @@ function deleteSelectedDrilldownPreset(){
 
 function printDrilldownOnly(){
   try {
-    if (!canUseFeature("print")) {
+    if (!hasFeature("print")) {
       showLockedFeature("Stampa dettaglio", "print");
       return;
     }
