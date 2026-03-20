@@ -184,6 +184,15 @@
       transform:translateX(0);
       pointer-events:auto;
     }
+    .wiki-resizer{
+      position:absolute;
+      left:0;
+      top:0;
+      width:8px;
+      height:100%;
+      cursor:ew-resize;
+      background:transparent;
+    }
     .wiki-drawer-panel{
       width:100%;
       height:100%;
@@ -226,6 +235,25 @@
       height:100%;
       border:0;
       background:#fff;
+    }
+    .wiki-content{
+      flex:1;
+      overflow:auto;
+      padding:14px 16px 20px;
+      font-size:14px;
+      line-height:1.45;
+      color:#1f2937;
+      background:#fff;
+    }
+    .wiki-content h1, .wiki-content h2, .wiki-content h3{
+      margin:12px 0 8px;
+      line-height:1.25;
+    }
+    .wiki-content ul{
+      margin:6px 0 10px 18px;
+    }
+    .wiki-content p{
+      margin:0 0 8px;
     }
     @media (max-width: 1024px){
       :root{
@@ -998,6 +1026,7 @@ window.LICENSE_CONTEXT = {
 </div>
 
 <aside id="wikiDrawer" class="wiki-drawer" aria-hidden="true">
+  <div id="wikiResizer" class="wiki-resizer" title="Trascina per ridimensionare"></div>
   <div class="wiki-drawer-panel">
     <div class="wiki-drawer-head">
       <strong>Wiki rapida PivotDesk</strong>
@@ -1010,7 +1039,7 @@ window.LICENSE_CONTEXT = {
         <button type="button" id="btnWikiIt" class="ghost-btn">IT</button>
         <button type="button" id="btnWikiEn" class="ghost-btn">EN</button>
       </div>
-      <iframe id="wikiFrame" class="wiki-frame" src="/docs/WIKI.it.md" title="Wiki PivotDesk"></iframe>
+      <div id="wikiContent" class="wiki-content">Caricamento wiki...</div>
     </div>
   </div>
 </aside>
@@ -4843,6 +4872,8 @@ initDropZones();
 initQuickbar();
 initCompactPanels();
 setWikiWidth(document.getElementById("wikiWidthRange")?.value || 420);
+initWikiResizer();
+setWikiLocale("it");
 
 
 function parseSortableValue(text) {
@@ -5339,11 +5370,55 @@ function closeWikiDrawer(){
   document.body.classList.remove("wiki-open");
 }
 
-function setWikiLocale(locale){
-  const frame = document.getElementById("wikiFrame");
-  if (!frame) return;
-  const lang = String(locale || "it").toLowerCase();
-  frame.src = (lang === "en") ? "/docs/WIKI.md" : "/docs/WIKI.it.md";
+function renderWikiMarkdown(text){
+  const safe = String(text || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+
+  const lines = safe.split(/\r?\n/);
+  let html = "";
+  let inList = false;
+  lines.forEach(line => {
+    if (/^\s*[-*]\s+/.test(line)) {
+      if (!inList) {
+        html += "<ul>";
+        inList = true;
+      }
+      html += "<li>" + line.replace(/^\s*[-*]\s+/, "") + "</li>";
+      return;
+    }
+    if (inList) {
+      html += "</ul>";
+      inList = false;
+    }
+    if (/^###\s+/.test(line)) {
+      html += "<h3>" + line.replace(/^###\s+/, "") + "</h3>";
+    } else if (/^##\s+/.test(line)) {
+      html += "<h2>" + line.replace(/^##\s+/, "") + "</h2>";
+    } else if (/^#\s+/.test(line)) {
+      html += "<h1>" + line.replace(/^#\s+/, "") + "</h1>";
+    } else if (!String(line || "").trim()) {
+      html += "<p></p>";
+    } else {
+      html += "<p>" + line + "</p>";
+    }
+  });
+  if (inList) html += "</ul>";
+  return html;
+}
+
+async function setWikiLocale(locale){
+  const box = document.getElementById("wikiContent");
+  if (!box) return;
+  const lang = String(locale || "it").toLowerCase() === "en" ? "en" : "it";
+  box.textContent = "Caricamento wiki " + lang.toUpperCase() + "...";
+  try {
+    const data = await api("/wiki/content?lang=" + encodeURIComponent(lang));
+    box.innerHTML = renderWikiMarkdown(data && data.content ? data.content : "");
+  } catch (e) {
+    box.textContent = "Impossibile caricare la wiki: " + (e && e.message ? e.message : e);
+  }
 }
 
 function setWikiWidth(value){
@@ -5351,6 +5426,27 @@ function setWikiWidth(value){
   if (!Number.isFinite(n)) return;
   const clamped = Math.max(320, Math.min(760, Math.round(n)));
   document.documentElement.style.setProperty("--wiki-drawer-width", clamped + "px");
+}
+
+function initWikiResizer(){
+  const handle = document.getElementById("wikiResizer");
+  if (!handle || handle.dataset.bound === "1") return;
+  handle.dataset.bound = "1";
+  handle.addEventListener("mousedown", ev => {
+    ev.preventDefault();
+    const move = event => {
+      const width = window.innerWidth - Number(event.clientX || 0);
+      setWikiWidth(width);
+      const range = document.getElementById("wikiWidthRange");
+      if (range) range.value = String(Math.max(320, Math.min(760, Math.round(width))));
+    };
+    const up = () => {
+      window.removeEventListener("mousemove", move);
+      window.removeEventListener("mouseup", up);
+    };
+    window.addEventListener("mousemove", move);
+    window.addEventListener("mouseup", up);
+  });
 }
 
 async function activateLicenseFromModal(){

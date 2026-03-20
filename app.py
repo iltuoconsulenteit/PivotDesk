@@ -2358,6 +2358,19 @@ def health():
     }
 
 
+@app.get("/wiki/content")
+def wiki_content(lang: str = Query("it")):
+    code = str(lang or "it").strip().lower()
+    target = BASE_DIR / "docs" / ("WIKI.md" if code == "en" else "WIKI.it.md")
+    if not target.exists():
+        return JSONResponse({"error": "Wiki file not found"}, status_code=404)
+    return {
+        "ok": True,
+        "lang": "en" if code == "en" else "it",
+        "content": target.read_text(encoding="utf-8", errors="ignore"),
+    }
+
+
 @app.get("/plugins")
 def plugins_registry():
     return plugin_manager.get_frontend_registry()
