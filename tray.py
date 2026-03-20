@@ -14,6 +14,8 @@ from pathlib import Path
 import pystray
 from PIL import Image
 
+from main import detect_license_type, resolve_bind_host, resolve_public_lan_host
+
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
 LOG_DIR = BASE_DIR / "logs"
@@ -27,6 +29,8 @@ SERVER_PID_FILE = LOG_DIR / "server.pid"
 CONFIG_PATH = DATA_DIR / "config.json"
 
 _uvicorn_proc: subprocess.Popen | None = None
+_server_host: str | None = None
+_server_port: int | None = None
 
 
 def log(msg: str) -> None:
@@ -61,7 +65,8 @@ def get_runtime_host() -> str:
         return env_host
 
     cfg = load_config()
-    return str(cfg.get("host", "127.0.0.1")).strip() or "127.0.0.1"
+    config_host = str(cfg.get("host", "127.0.0.1")).strip() or "127.0.0.1"
+    return resolve_bind_host(config_host, detect_license_type())
 
 
 def get_runtime_port(default_port: int = 8091) -> int:
@@ -113,7 +118,7 @@ def wait_http_health(host: str, port: int, timeout: int = 30) -> bool:
 
 
 def start_server() -> None:
-    global _uvicorn_proc
+    global _uvicorn_proc, _server_host, _server_port
 
     host = get_runtime_host()
     port = get_runtime_port()
@@ -136,6 +141,10 @@ def start_server() -> None:
     log(f"Avvio server: {' '.join(cmd)}")
     log(f"cwd={BASE_DIR}")
     log(f"host={host} port={port}")
+    if host == "0.0.0.0":
+        lan_host = resolve_public_lan_host()
+        log(f"URL locale: http://127.0.0.1:{port}/")
+        log(f"URL LAN: http://{lan_host}:{port}/")
 
     creationflags = subprocess.CREATE_NO_WINDOW if sys.platform.startswith("win") else 0
 
@@ -156,6 +165,8 @@ def start_server() -> None:
     )
 
     write_pid_file(SERVER_PID_FILE, _uvicorn_proc.pid)
+    _server_host = host
+    _server_port = port
 
     if _uvicorn_proc.poll() is not None:
         log(f"Server terminato subito. Return code={_uvicorn_proc.returncode}")
@@ -174,7 +185,7 @@ def start_server() -> None:
 
 
 def stop_server() -> None:
-    global _uvicorn_proc
+    global _uvicorn_proc, _server_host, _server_port
 
     if _uvicorn_proc and _uvicorn_proc.poll() is None:
         log("Arresto server...")
@@ -186,6 +197,8 @@ def stop_server() -> None:
             _uvicorn_proc.kill()
 
     _uvicorn_proc = None
+    _server_host = None
+    _server_port = None
     remove_pid_file(SERVER_PID_FILE)
 
 
@@ -199,15 +212,16 @@ def restart_server(icon=None, item=None) -> None:
 def open_dashboard(icon=None, item=None) -> None:
     host = get_runtime_host()
     port = get_runtime_port()
+    browser_host = "127.0.0.1" if host == "0.0.0.0" else host
 
     log("Richiesta apertura dashboard.")
 
-    if wait_http_health(host, port, timeout=20):
-        webbrowser.open(f"http://{host}:{port}/")
-        log(f"Dashboard aperta su http://{host}:{port}/")
+    if wait_http_health(browser_host, port, timeout=20):
+        webbrowser.open(f"http://{browser_host}:{port}/")
+        log(f"Dashboard aperta su http://{browser_host}:{port}/")
     else:
-        log(f"Dashboard non pronta entro timeout, apertura forzata su http://{host}:{port}/")
-        webbrowser.open(f"http://{host}:{port}/")
+        log(f"Dashboard non pronta entro timeout, apertura forzata su http://{browser_host}:{port}/")
+        webbrowser.open(f"http://{browser_host}:{port}/")
 
 
 def quit_app(icon: pystray.Icon, item=None) -> None:
@@ -218,7 +232,7 @@ def quit_app(icon: pystray.Icon, item=None) -> None:
 
 
 def _health_watchdog(icon: pystray.Icon) -> None:
-    global _uvicorn_proc
+    global _uvicorn_proc, _server_host, _server_port
 
     while True:
         if not icon.visible:
@@ -228,6 +242,15 @@ def _health_watchdog(icon: pystray.Icon) -> None:
             log(f"Watchdog: server chiuso con code={_uvicorn_proc.returncode}, riavvio...")
             remove_pid_file(SERVER_PID_FILE)
             start_server()
+        elif _uvicorn_proc and _uvicorn_proc.poll() is None:
+            desired_host = get_runtime_host()
+            desired_port = get_runtime_port()
+            if desired_host != _server_host or desired_port != _server_port:
+                log(
+                    "Watchdog: rilevata variazione configurazione LAN/bind "
+                    f"({_server_host}:{_server_port} -> {desired_host}:{desired_port}), riavvio..."
+                )
+                restart_server()
 
         time.sleep(2)
 
