@@ -58,17 +58,13 @@ Desktop companion launcher:
 python tray.py
 ```
 
-Batch shortcuts in source mode:
-
-- `PivotDesk.bat` → starts `tray.py`
-- `start.bat` → DEV/VENV launcher for `main.py`
-- `setup_runtime.bat` → prepares local source/runtime environment (not needed for compiled EXE builds)
+Developer note: keep local launcher scripts outside the public repository when needed for internal workflow.
 
 ### Compiled mode (PyInstaller one-dir)
 
 - `PivotDesk.exe` is the canonical packaged server/bootstrap executable.
 - `PivotDeskTray.exe` is a companion desktop launcher that starts `PivotDesk.exe --host ... --port ... --no-browser`.
-- `start_compiled.bat` can be used for local compiled-bundle checks (prefers tray exe, then server exe).
+- Compiled executables are distributed via official sales channels; do not commit public batch wrappers for end users in this repository.
 
 Default URL:
 
