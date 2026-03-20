@@ -1696,18 +1696,26 @@ def lan_status(request: Request):
         lan_by_license=lan_by_license,
     )
 
-    lan_host = resolve_public_lan_host() if effective_bind_host == "0.0.0.0" else effective_bind_host
+    public_lan_host = resolve_public_lan_host()
+    lan_host = public_lan_host
     lan_enabled = effective_bind_host in {"0.0.0.0", "::"}
     loopback_reachable = can_connect_to_host_port("127.0.0.1", port)
     lan_reachable_from_host = can_connect_to_host_port(lan_host, port)
     firewall_hint = "Se lan_enabled=true ma non raggiungibile da altri PC, verificare firewall/antivirus/router (client isolation)."
     if bind_source == "inferred":
         firewall_hint += " Nota: bind effettivo inferito da licenza/config; se il processo è partito con host diverso (es. 127.0.0.1) la LAN resterà non raggiungibile."
+    if lan_by_license and not lan_enabled:
+        firewall_hint += " Licenza LAN attiva ma processo in ascolto locale-only: riavvio richiesto con host 0.0.0.0."
     if lan_enabled and loopback_reachable and not lan_reachable_from_host:
         firewall_hint += " Diagnostica locale: 127.0.0.1 risponde ma IP LAN rifiuta la connessione; probabile avvio server su host locale-only (127.0.0.1)."
 
     startup_hint = ""
-    if lan_enabled and loopback_reachable and not lan_reachable_from_host:
+    if lan_by_license and not lan_enabled:
+        startup_hint = (
+            "Licenza abilita LAN ma il processo corrente è su localhost. "
+            "Riavvia da launcher (`python run_pivotdesk.py`) o con uvicorn `--host 0.0.0.0`."
+        )
+    elif lan_enabled and loopback_reachable and not lan_reachable_from_host:
         startup_hint = (
             "Avvia PivotDesk con bind LAN esplicito (es. variabile PIVOTDESK_HOST=0.0.0.0 "
             "oppure uvicorn con --host 0.0.0.0)."
@@ -1722,6 +1730,7 @@ def lan_status(request: Request):
         "effective_bind_host": effective_bind_host,
         "bind_source": bind_source,
         "port": port,
+        "lan_expected_by_license": lan_by_license,
         "lan_enabled": lan_enabled,
         "loopback_reachable": loopback_reachable,
         "lan_reachable_from_host": lan_reachable_from_host,

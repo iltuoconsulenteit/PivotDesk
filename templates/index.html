@@ -3524,6 +3524,9 @@ async function loadLanStatusIntoModal(){
     if (data.bind_source) {
       infoRows.push("<div>Origine bind: " + escapeHtml(String(data.bind_source)) + "</div>");
     }
+    if (typeof data.lan_expected_by_license === "boolean") {
+      infoRows.push("<div>LAN prevista da licenza: " + (data.lan_expected_by_license ? "Sì" : "No") + "</div>");
+    }
     infoRows.push("<div>LAN abilitata: " + ((data.lan_enabled === true) ? "Sì" : "No") + "</div>");
     if (typeof data.loopback_reachable === "boolean") {
       infoRows.push("<div>Test locale 127.0.0.1: " + (data.loopback_reachable ? "OK" : "KO") + "</div>");
