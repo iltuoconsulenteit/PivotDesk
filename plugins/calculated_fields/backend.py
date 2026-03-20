@@ -42,6 +42,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, datetime, time
+from functools import lru_cache
 import math
 import re
 from typing import Any, Callable
@@ -647,25 +648,47 @@ def _parse_func(expr: str) -> tuple[str, list[str]] | None:
     return name, args
 
 
-def evaluate_formula(formula: str, row: dict[str, Any]) -> Any:
-    expr = _strip_outer_parens((formula or "").strip())
-    if not expr:
-        raise FormulaError("Formula vuota.")
-
+def _compile_expr(expr: str) -> tuple[str, Any]:
+    expr = _strip_outer_parens(expr)
     field_match = FIELD_REF_RE.fullmatch(expr)
     if field_match:
         field_name = field_match.group(1).strip()
-        return row.get(field_name)
+        return ("field", field_name)
 
     literal = _parse_literal(expr)
     if literal is not None or expr.lower() == "null":
-        return literal
+        return ("literal", literal)
 
     binary = _split_binary(expr, (">=", "<=", "==", "!=", ">", "<"))
     if binary:
         left_expr, op, right_expr = binary
-        left = evaluate_formula(left_expr, row)
-        right = evaluate_formula(right_expr, row)
+        return ("binary", op, _compile_expr(left_expr), _compile_expr(right_expr))
+
+    func = _parse_func(expr)
+    if func:
+        name, arg_exprs = func
+        fn = SAFE_FUNCTIONS.get(name.lower())
+        if fn is None:
+            raise FormulaError(f"Funzione non consentita: {name}")
+        compiled_args = tuple(_compile_expr(arg_expr) for arg_expr in arg_exprs)
+        return ("func", name, fn, compiled_args)
+
+    raise FormulaError(f"Sintassi formula non riconosciuta: {expr}")
+
+
+def _eval_compiled(compiled: tuple[str, Any], row: dict[str, Any]) -> Any:
+    kind = compiled[0]
+
+    if kind == "field":
+        return row.get(compiled[1])
+
+    if kind == "literal":
+        return compiled[1]
+
+    if kind == "binary":
+        _, op, left_compiled, right_compiled = compiled
+        left = _eval_compiled(left_compiled, row)
+        right = _eval_compiled(right_compiled, row)
         if op == ">=":
             return fn_gte(left, right)
         if op == "<=":
@@ -678,13 +701,9 @@ def evaluate_formula(formula: str, row: dict[str, Any]) -> Any:
             return fn_gt(left, right)
         return fn_lt(left, right)
 
-    func = _parse_func(expr)
-    if func:
-        name, arg_exprs = func
-        fn = SAFE_FUNCTIONS.get(name.lower())
-        if fn is None:
-            raise FormulaError(f"Funzione non consentita: {name}")
-        args = [evaluate_formula(arg_expr, row) for arg_expr in arg_exprs]
+    if kind == "func":
+        _, name, fn, arg_nodes = compiled
+        args = [_eval_compiled(arg_node, row) for arg_node in arg_nodes]
         try:
             return fn(*args)
         except TypeError as exc:
@@ -692,7 +711,20 @@ def evaluate_formula(formula: str, row: dict[str, Any]) -> Any:
         except Exception as exc:  # pragma: no cover - defensive
             raise FormulaError(f"Errore in {name}: {exc}") from exc
 
-    raise FormulaError(f"Sintassi formula non riconosciuta: {expr}")
+    raise FormulaError("Nodo formula non supportato.")
+
+
+@lru_cache(maxsize=512)
+def _compile_formula(formula: str) -> tuple[str, Any]:
+    expr = _strip_outer_parens((formula or "").strip())
+    if not expr:
+        raise FormulaError("Formula vuota.")
+    return _compile_expr(expr)
+
+
+def evaluate_formula(formula: str, row: dict[str, Any]) -> Any:
+    compiled = _compile_formula(formula or "")
+    return _eval_compiled(compiled, row)
 
 
 def cast_output(value: Any, field_type: str) -> Any:

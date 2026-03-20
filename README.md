@@ -93,6 +93,7 @@ Alla prima esecuzione viene creato un utente admin:
 - Con licenza attiva (non demo) è disponibile upload logo cliente (`POST /admin/branding/customer-logo`), mostrato su login e header principale.
 - Nei campi calcolati è disponibile `token_after(testo, marcatore, case_sensitive?)` per estrarre il primo token dopo stringhe come `#` o `CRO:` (utile su descrizioni bancarie/libere). Il terzo parametro è opzionale (`false` default).
 - Nei campi calcolati sono disponibili anche `minutes_diff(uscita, ingresso)` e `hours_diff(uscita, ingresso)` (input orari `HH:MM`, `HH:MM:SS`, varianti AM/PM e frazioni giorno Excel `0.x`) più `if_else(condizione, valore_true, valore_false)` con operatori di confronto (`>=`, `<=`, `==`, `!=`, `>`, `<`). Esempio: `if_else(hours_diff([Uscita], [Ingresso]) >= 8, 1, 0)`.
+- Le formule dei campi calcolati vengono compilate e riusate durante l’elaborazione righe (meno parsing ripetuto), migliorando la reattività su dataset grandi con più campi calcolati.
 - Nel modal dei campi calcolati puoi trascinare i campi dalla sidebar direttamente dentro la formula (`[Nome Campo]`).
 - Il modal campi calcolati include un assistente funzioni stile Excel: ricerca funzione, firma argomenti e composizione guidata della formula; i campi sono trascinabili direttamente negli argomenti funzione.
 - Le funzioni nell’assistente sono divise per categoria (testo, data, numero, logica, ecc.) con sezioni espandibili/comprimibili e registro estendibile lato frontend (`registerCalculatedFunctionDefinition`) per futuri inserimenti custom.
