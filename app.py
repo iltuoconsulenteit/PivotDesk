@@ -2049,8 +2049,6 @@ def dev_license_delete():
         return JSONResponse({"error": str(exc)}, status_code=500)
 
 
-
-
 @app.get("/login", response_class=HTMLResponse)
 def login_page(request: Request, error: str | None = None):
     user = get_current_user_from_session(request)
