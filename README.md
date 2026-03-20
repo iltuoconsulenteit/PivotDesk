@@ -96,7 +96,7 @@ Alla prima esecuzione viene creato un utente admin:
 - Nel modal dei campi calcolati puoi trascinare i campi dalla sidebar direttamente dentro la formula (`[Nome Campo]`).
 - Il modal campi calcolati include un assistente funzioni stile Excel: ricerca funzione, firma argomenti e composizione guidata della formula.
 - Nell’anteprima sorgente del builder, i campi calcolati definiti vengono mostrati come colonne aggiuntive (anteprima aggiornata al salvataggio/eliminazione campo calcolato).
-- Nel menu **Visualizza** è disponibile **Grafico da pivot**: apre un template grafico (colonne, barre, linea, torta) costruito dalla tabella pivot corrente con scelta campo etichetta/valore e Top N.
+- Nel menu **Visualizza** è disponibile **Grafico da pivot**: apre un template grafico (colonne, barre, linea, torta) costruito dalla tabella pivot corrente con scelta campo etichetta/valore e Top N; lo stesso modal è richiamabile anche dal pulsante vicino al report pivot, con stampa grafico nello stesso layout di stampa pivot.
 
 ## Troubleshooting veloce
 
