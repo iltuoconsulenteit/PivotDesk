@@ -452,8 +452,9 @@
     }
 
     .dev-logo {
-      height: 62px;
-      width: auto;
+      width: min(220px, 26vw);
+      max-width: 100%;
+      height: auto;
       display: block;
       object-fit: contain;
       opacity: 0.96;
@@ -710,10 +711,15 @@
       .brand-right {
         width: 100%;
         justify-content: flex-start;
+        flex-wrap: wrap;
       }
 
       .logo-main {
         height: 82px;
+      }
+
+      .dev-logo {
+        width: min(200px, 54vw);
       }
 
       .brand-title {
@@ -746,6 +752,10 @@
       }
       .userbar-right form {
         width: auto;
+      }
+
+      .dev-logo {
+        width: min(180px, 62vw);
       }
     }
   

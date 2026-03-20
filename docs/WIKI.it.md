@@ -239,6 +239,7 @@ Ogni pannello include il toggle **Mostra/Nascondi** per comprimere le sezioni me
 Su schermi larghi, barra utente e menu principale sono allineati sulla stessa riga così da recuperare ulteriore spazio verticale prima del risultato pivot.
 Su tablet/smartphone i gruppi menu vanno a capo e le sottovoci si aprono inline, evitando che restino nascoste o tagliate.
 Anche header branding e pillola licenza passano a layout verticale full-width, evitando tagli e mantenendo sempre accessibili le azioni licenza.
+Anche il logo “sviluppato da” in header ora si ridimensiona in modo responsivo al ridursi della viewport, in linea con il comportamento del logo app.
 La quickbar layout mostra anche il riepilogo vista sulla stessa riga e include un pulsante **Wiki** che apre una barra laterale a comparsa.
 La riga inferiore duplicata dello stato layout è stata rimossa: dopo il calcolo pivot il riepilogo resta nella quickbar. La barra Wiki visualizza direttamente il contenuto WIKI scorrevole ed è ridimensionabile senza bloccare l’uso del frontend.
 Il contenuto Wiki viene caricato dall’endpoint `GET /wiki/content?lang=it|en`; la larghezza può essere modificata anche trascinando il bordo sinistro della barra.

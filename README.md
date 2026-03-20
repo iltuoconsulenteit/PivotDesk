@@ -87,6 +87,7 @@ Change this password immediately in shared environments.
 - User bar and primary menu are aligned on a single row on wide screens to reduce vertical space in the header area.
 - Responsive menu adaptation for tablet/smartphone: top menu buttons reflow and their submenus open inline (not clipped).
 - On smartphone layouts, the branding header and license area stack into a compact vertical flow (full-width license card + wrapped actions) to avoid overflow/cropping.
+- Developer logo in the header now scales responsively on smaller screens (same adaptive behavior style as the app logo).
 - Layout quickbar now includes an inline view summary plus a **Wiki** button that opens a slide-out side panel with quick guidance links.
 - Pivot success summary is now shown directly in the quickbar (duplicate lower status row removed); the Wiki panel embeds scrollable WIKI content with adjustable width while keeping the main UI usable.
 - Wiki side panel content is served in-app via `GET /wiki/content?lang=it|en`, with draggable edge resize support.
