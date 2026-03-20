@@ -17,6 +17,8 @@ PivotDesk è un’applicazione web (FastAPI + Pandas) con launcher desktop/tray 
 - stampare pivot/grafici/dettagli;
 - gestire licenze, LAN, branding e backup/ripristino.
 
+![Workflow PivotDesk](images/pivot-workflow.svg)
+
 ---
 
 ## 2) Avvio rapido
@@ -121,6 +123,8 @@ Dalla tabella pivot è disponibile icona lista vicino ai valori per aprire il de
 ## Note licenza
 - Drilldown è funzione premium (bloccata in Free/demo se non abilitata).
 
+![Flusso drilldown e stampa](images/drilldown-print.svg)
+
 ---
 
 ## 9) Stampa
@@ -145,6 +149,8 @@ Con impostazione `print_show_logos` attiva, nelle stampe vengono inclusi i loghi
 - accesso funzionalità premium (in base ai feature flag licenza);
 - possibile abilitazione LAN;
 - branding cliente, backup/restore, grafici, drilldown, stampa.
+
+![Livelli licenza](images/license-tiers.svg)
 
 ---
 
@@ -224,4 +230,3 @@ Lingua selezionabile da UI impostazioni.
 4. Salva e testa filtri/subtotali.
 5. Verifica grafico/drilldown/stampa secondo licenza.
 6. Esegui backup configurazione.
-

@@ -19,6 +19,8 @@ PivotDesk is a FastAPI + Pandas web app (with desktop launcher/tray) used to:
 - print pivot/chart/detail views;
 - manage licensing, LAN behavior, branding, and backup/restore.
 
+![PivotDesk workflow](images/pivot-workflow.svg)
+
 ---
 
 ## 2) Quick start
@@ -118,6 +120,8 @@ Detail modal features:
 
 Drilldown is a premium feature and is license-gated.
 
+![Drilldown and print flow](images/drilldown-print.svg)
+
 ---
 
 ## 9) Printing
@@ -142,6 +146,8 @@ When `print_show_logos` is enabled, branded footer logos are included; customer 
 - premium features available based on feature flags;
 - LAN can be enabled (license dependent);
 - branding, backup/restore, charts, drilldown, printing.
+
+![License tiers](images/license-tiers.svg)
 
 ---
 
@@ -221,4 +227,3 @@ Language can be switched from settings UI.
 4. Validate filters/totals/subtotals.
 5. Validate chart/drilldown/print based on license.
 6. Export backup snapshot.
-
