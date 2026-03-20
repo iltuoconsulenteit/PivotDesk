@@ -2683,6 +2683,17 @@ function removeFromZone(zone, field){
   renderBuilder();
 }
 
+function moveZoneItem(zone, fromIndex, direction){
+  if (!Array.isArray(BUILDER[zone])) return;
+  const items = BUILDER[zone];
+  const toIndex = fromIndex + direction;
+  if (fromIndex < 0 || fromIndex >= items.length) return;
+  if (toIndex < 0 || toIndex >= items.length) return;
+  const [item] = items.splice(fromIndex, 1);
+  items.splice(toIndex, 0, item);
+  renderBuilder();
+}
+
 function renderBuilder(){
   renderSimpleZone("filters");
   renderSimpleZone("rows");
@@ -2693,11 +2704,40 @@ function renderBuilder(){
 function renderSimpleZone(zone){
   const box = document.getElementById("zone-" + zone);
   box.innerHTML = "";
-  BUILDER[zone].forEach(field => {
+  BUILDER[zone].forEach((field, idx) => {
     const row = document.createElement("div");
     row.className = "drop-item";
-    row.innerHTML = '<span>' + escapeHtml(field) + '</span><button type="button">Rimuovi</button>';
-    row.querySelector("button").onclick = () => removeFromZone(zone, field);
+
+    const left = document.createElement("span");
+    left.textContent = field;
+
+    const right = document.createElement("div");
+    right.className = "actions-inline";
+
+    const upBtn = document.createElement("button");
+    upBtn.type = "button";
+    upBtn.textContent = "↑";
+    upBtn.disabled = idx === 0;
+    upBtn.title = "Sposta su";
+    upBtn.onclick = () => moveZoneItem(zone, idx, -1);
+
+    const downBtn = document.createElement("button");
+    downBtn.type = "button";
+    downBtn.textContent = "↓";
+    downBtn.disabled = idx === (BUILDER[zone].length - 1);
+    downBtn.title = "Sposta giù";
+    downBtn.onclick = () => moveZoneItem(zone, idx, 1);
+
+    const removeBtn = document.createElement("button");
+    removeBtn.type = "button";
+    removeBtn.textContent = "Rimuovi";
+    removeBtn.onclick = () => removeFromZone(zone, field);
+
+    right.appendChild(upBtn);
+    right.appendChild(downBtn);
+    right.appendChild(removeBtn);
+    row.appendChild(left);
+    row.appendChild(right);
     box.appendChild(row);
   });
 }
