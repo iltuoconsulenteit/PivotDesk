@@ -235,6 +235,7 @@ Nella dashboard principale (`templates/index.html`) i controlli sono stati conce
 - Barra rapida layout/opzioni
 
 Ogni pannello include il toggle **Mostra/Nascondi** per comprimere le sezioni meno usate e mantenere la pivot più in alto, riducendo lo scrolling.
+Su schermi larghi, barra utente e menu principale sono allineati sulla stessa riga così da recuperare ulteriore spazio verticale prima del risultato pivot.
 
 ---
 

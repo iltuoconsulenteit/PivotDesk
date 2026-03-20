@@ -232,6 +232,7 @@ The main dashboard (`templates/index.html`) now groups controls in a compact gri
 - Layout & options quickbar
 
 Each panel has a **Show/Hide** toggle so users can collapse less-used sections and keep the pivot output area visible without excessive scrolling.
+On wide screens, the user context bar and top action menu are aligned on one row to avoid wasting vertical space before the pivot result.
 
 ---
 

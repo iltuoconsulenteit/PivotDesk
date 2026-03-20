@@ -84,6 +84,7 @@ Change this password immediately in shared environments.
 - Drilldown/detail modal with column visibility presets.
 - Pivot print output excludes interactive UI controls (e.g., drilldown buttons) for clean report exports.
 - Compact home layout with collapsible Source/Preset/Filters/Layout panels to keep the pivot table visible higher on screen.
+- User bar and primary menu are aligned on a single row on wide screens to reduce vertical space in the header area.
 - License-aware feature gating (including Free tier policy).
 - LAN diagnostics/probe/firewall helper endpoints.
 - Customer branding (logo upload + rendering in UI/print contexts).
