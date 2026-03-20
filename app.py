@@ -1200,15 +1200,6 @@ def load_source_df(source_id: str | None) -> tuple[dict[str, Any], pd.DataFrame]
     return src, df.fillna("")
 
 
-def build_preview_source_without_skip(src: dict[str, Any]) -> dict[str, Any]:
-    preview_src = dict(src or {})
-    preview_cfg = dict(preview_src.get("config", {}) if isinstance(preview_src.get("config"), dict) else {})
-    preview_src["skip_rows"] = 0
-    preview_cfg["skip_rows"] = 0
-    preview_src["config"] = preview_cfg
-    return preview_src
-
-
 def load_dataframe_for_plugin(source: dict[str, Any]) -> pd.DataFrame:
     df = load_dataframe_from_source(source)
 
@@ -1649,9 +1640,7 @@ def build_dataframe_preview_payload(src: dict[str, Any], df: pd.DataFrame, limit
     skip_rows = src.get("skip_rows")
     if skip_rows is None:
         skip_rows = cfg.get("skip_rows", 0)
-    skip_rows_int = max(int(skip_rows or 0), 0)
-    df_effective = df.iloc[skip_rows_int:] if skip_rows_int > 0 else df
-    rows = df_effective.fillna("").head(limit).astype(str).to_dict(orient="records")
+    rows = df.fillna("").head(limit).astype(str).to_dict(orient="records")
     source_type = src.get("type", "csv")
     if str(source_type).lower() == "csv":
         resolved_info = f"CSV · delimitatore: {(delimiter.replace(chr(9), 'TAB') if delimiter else 'auto')} · encoding: {encoding or 'auto'}"
@@ -1664,22 +1653,18 @@ def build_dataframe_preview_payload(src: dict[str, Any], df: pd.DataFrame, limit
         "columns": columns,
         "rows": rows,
         "shown_rows": len(rows),
-        "total_rows": int(len(df_effective)),
+        "total_rows": int(len(df)),
         "total_columns": len(columns),
         "delimiter": delimiter,
         "encoding": encoding,
         "sheet_name": sheet_name,
-        "skip_rows": skip_rows_int,
+        "skip_rows": int(skip_rows or 0),
         "resolved_info": resolved_info,
     }
 
 
 def dataframe_preview_payload(source_id: str, limit: int = 20) -> dict[str, Any]:
-    src = get_source_by_id(source_id)
-    if not src:
-        raise FileNotFoundError(f"Sorgente non trovata: {source_id}")
-    preview_src = build_preview_source_without_skip(src)
-    df = load_dataframe_from_source_with_fallback(preview_src)
+    src, df = load_source_df(source_id)
     return build_dataframe_preview_payload(src, df, limit=limit)
 
 
@@ -2743,11 +2728,7 @@ def source_preview(
     if not current_user:
         return JSONResponse({"error": "Non autenticato"}, status_code=401)
     try:
-        src = get_source_by_id(source_id)
-        if not src:
-            return JSONResponse({"error": f"Sorgente non trovata: {source_id}"}, status_code=404)
-        preview_src = build_preview_source_without_skip(src)
-        df = load_dataframe_from_source_with_fallback(preview_src)
+        src, df = load_source_df(source_id)
         if calculated_fields:
             try:
                 raw = json.loads(calculated_fields)
@@ -2777,8 +2758,7 @@ async def source_preview_from_form(request: Request, limit: int = Query(20)):
         path = str(source.get("path") or source.get("config", {}).get("path") or "").strip()
         if not path:
             return JSONResponse({"error": "Percorso file obbligatorio per l'anteprima."}, status_code=400)
-        preview_source = build_preview_source_without_skip(source)
-        df = load_dataframe_from_source_with_fallback(preview_source)
+        df = load_dataframe_from_source_with_fallback(source)
         calculated_fields = sanitize_calculated_fields(
             payload.get("calculated_fields", []) if isinstance(payload, dict) else []
         )
