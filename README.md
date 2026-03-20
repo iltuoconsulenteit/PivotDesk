@@ -81,6 +81,7 @@ Change this password immediately in shared environments.
 - Numeric-safe filtering and optional subtotals/totals.
 - Chart modal (column/bar/line/pie) with print support.
 - Drilldown/detail modal with column visibility presets.
+- Pivot print output excludes interactive UI controls (e.g., drilldown buttons) for clean report exports.
 - License-aware feature gating (including Free tier policy).
 - LAN diagnostics/probe/firewall helper endpoints.
 - Customer branding (logo upload + rendering in UI/print contexts).

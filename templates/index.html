@@ -1627,6 +1627,15 @@ function printWindowAndAutoClose(win){
   }
 }
 
+function getPrintablePivotTableHtml(){
+  const wrap = document.querySelector("#report .table-responsive");
+  if (!wrap) return "";
+  const clone = wrap.cloneNode(true);
+  clone.querySelectorAll(".pivot-total-drill-btn").forEach(el => el.remove());
+  clone.querySelectorAll("button").forEach(el => el.remove());
+  return clone.innerHTML || "";
+}
+
 function buildPrintHtml(){
   const p = PRESETS.find(x => x.id === CURRENT);
   CURRENT_HEADER_FILTERS = CURRENT_HEADER_FILTERS || {};
@@ -1634,7 +1643,7 @@ function buildPrintHtml(){
   const sourceTitle = currentSourceTitle() || "";
   const sourceFilename = currentSourceFilename() || "";
   const filters = getActiveFiltersText();
-  const tableHtml = document.querySelector("#report .table-responsive")?.innerHTML || "";
+  const tableHtml = getPrintablePivotTableHtml();
   const showLogos = !!SETTINGS.print_show_logos;
 
   const filtersHtml = filters.length
