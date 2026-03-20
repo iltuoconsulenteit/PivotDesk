@@ -103,6 +103,7 @@ Alla prima esecuzione viene creato un utente admin:
 - Nei filtri colonna, quando i valori sono numerici, l’ordinamento è numerico (es. `1,2,3,...,10,11`) e non lessicografico (`1,10,11,2,...`); in applicazione filtri la comparazione è numerica (gestisce correttamente `1` vs `1.0`).
 - Nel menu **Visualizza** è disponibile **Grafico da pivot**: apre un template grafico (colonne, barre, linea, torta) costruito dalla tabella pivot corrente con scelta campo etichetta/valore e Top N; lo stesso modal è richiamabile anche dalla quickbar layout pivot tramite pulsante “Grafico”. La stampa grafico è disponibile direttamente dentro il modal tramite pulsante “Stampa grafico” e stampa solo il grafico (con header/filtri e, se presente, logo cliente in testata).
 - Nei grafici pivot la resa etichette è adattiva (riduzione overlap su dataset con molte categorie) e nelle righe **Totale/Subtotale** sono disponibili pulsanti **Dettaglio** per aprire l’elenco record che compongono il totale selezionato.
+- Nel modal **Dettaglio** (totali/subtotali) è disponibile **Stampa dettaglio**, selezione colonne visibili (mostra/nascondi) e gestione preset locali di colonne per ridurre la complessità su dataset con molte colonne.
 
 ## Troubleshooting veloce
 

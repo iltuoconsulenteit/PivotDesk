@@ -1194,9 +1194,38 @@ window.LICENSE_CONTEXT = {
         <h3 style="margin:0;">Dettaglio totale/subtotale</h3>
         <div id="drilldownStatus" class="small" style="color:#667085;">Nessun dettaglio caricato.</div>
       </div>
-      <button id="btnCloseDrilldownModal" type="button">Chiudi</button>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <button id="btnPrintDrilldownModal" type="button" data-feature="print">Stampa dettaglio</button>
+        <button id="btnCloseDrilldownModal" type="button">Chiudi</button>
+      </div>
     </div>
     <div id="drilldownMeta" class="small" style="margin-bottom:8px; color:#475467;"></div>
+    <div style="display:grid; grid-template-columns: 1.2fr 2fr; gap:12px; margin-bottom:10px;">
+      <div style="border:1px solid #d0d5dd; border-radius:10px; padding:8px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+          <strong style="font-size:13px;">Preset colonne</strong>
+        </div>
+        <div style="display:flex; gap:6px; margin-bottom:6px;">
+          <select id="drilldownPresetSelect" style="flex:1;"></select>
+          <button id="btnApplyDrilldownPreset" type="button">Applica</button>
+          <button id="btnDeleteDrilldownPreset" type="button" class="danger">Elimina</button>
+        </div>
+        <div style="display:flex; gap:6px;">
+          <input id="drilldownPresetName" placeholder="Nome preset colonne" style="flex:1;">
+          <button id="btnSaveDrilldownPreset" type="button">Salva preset</button>
+        </div>
+      </div>
+      <div style="border:1px solid #d0d5dd; border-radius:10px; padding:8px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+          <strong style="font-size:13px;">Colonne visibili</strong>
+          <div style="display:flex; gap:6px;">
+            <button id="btnShowAllDrilldownCols" type="button">Mostra tutte</button>
+            <button id="btnHideAllDrilldownCols" type="button">Nascondi tutte</button>
+          </div>
+        </div>
+        <div id="drilldownColsToggleWrap" style="max-height:120px; overflow:auto; border:1px solid #eaecf0; border-radius:8px; padding:6px;"></div>
+      </div>
+    </div>
     <div id="drilldownTableWrap" class="table-responsive">
       <p class="small">Premi “Dettaglio” su un totale della pivot per aprire l’elenco righe.</p>
     </div>
@@ -1355,6 +1384,13 @@ let CURRENT_VIEW_OPTIONS = null;
 let CURRENT_HEADER_FILTERS = {};
 let BUILDER_SOURCE = null;
 let LAST_PIVOT_CONTEXT = null;
+let DRILLDOWN_STATE = {
+  columns: [],
+  rows: [],
+  visible_columns: [],
+  label: "",
+};
+const DRILLDOWN_PRESETS_KEY = "pivotdesk_drilldown_column_presets_v1";
 
 let I18N = {
   it: {},
@@ -2851,6 +2887,97 @@ function decoratePivotTotalsWithDrillButtons(preset){
   });
 }
 
+function loadDrilldownPresets(){
+  try {
+    const raw = localStorage.getItem(DRILLDOWN_PRESETS_KEY);
+    const data = raw ? JSON.parse(raw) : {};
+    return data && typeof data === "object" ? data : {};
+  } catch (_) {
+    return {};
+  }
+}
+
+function saveDrilldownPresets(data){
+  try {
+    localStorage.setItem(DRILLDOWN_PRESETS_KEY, JSON.stringify(data || {}));
+  } catch (_) {}
+}
+
+function getDrilldownPresetScopeKey(){
+  const sid = String(LAST_PIVOT_CONTEXT?.source_id || "default");
+  const pid = String(LAST_PIVOT_CONTEXT?.pivot_id || "default");
+  return sid + "::" + pid;
+}
+
+function refreshDrilldownPresetSelect(){
+  const sel = document.getElementById("drilldownPresetSelect");
+  if (!sel) return;
+  const all = loadDrilldownPresets();
+  const scope = all[getDrilldownPresetScopeKey()] || {};
+  sel.innerHTML = "";
+  const empty = document.createElement("option");
+  empty.value = "";
+  empty.textContent = "-- Preset colonne --";
+  sel.appendChild(empty);
+  Object.keys(scope).sort((a, b) => a.localeCompare(b)).forEach(name => {
+    const opt = document.createElement("option");
+    opt.value = name;
+    opt.textContent = name;
+    sel.appendChild(opt);
+  });
+}
+
+function renderDrilldownColumnsToggles(){
+  const wrap = document.getElementById("drilldownColsToggleWrap");
+  if (!wrap) return;
+  const cols = Array.isArray(DRILLDOWN_STATE.columns) ? DRILLDOWN_STATE.columns : [];
+  if (!cols.length) {
+    wrap.innerHTML = "<div class='small'>Nessuna colonna disponibile.</div>";
+    return;
+  }
+  const visibleSet = new Set(DRILLDOWN_STATE.visible_columns || cols);
+  wrap.innerHTML = cols.map((col, idx) =>
+    '<label style="display:inline-flex; align-items:center; gap:6px; margin:0 10px 6px 0;">' +
+      '<input type="checkbox" data-drill-col="' + escapeHtml(col) + '"' + (visibleSet.has(col) ? " checked" : "") + '>' +
+      '<span>' + escapeHtml(col || ("Colonna " + (idx + 1))) + '</span>' +
+    '</label>'
+  ).join("");
+
+  wrap.querySelectorAll("input[data-drill-col]").forEach(chk => {
+    chk.addEventListener("change", () => {
+      const selected = Array.from(wrap.querySelectorAll("input[data-drill-col]:checked")).map(x => x.getAttribute("data-drill-col"));
+      DRILLDOWN_STATE.visible_columns = selected;
+      renderDrilldownDataTable();
+    });
+  });
+}
+
+function renderDrilldownDataTable(){
+  const wrap = document.getElementById("drilldownTableWrap");
+  if (!wrap) return;
+  const cols = Array.isArray(DRILLDOWN_STATE.columns) ? DRILLDOWN_STATE.columns : [];
+  const rows = Array.isArray(DRILLDOWN_STATE.rows) ? DRILLDOWN_STATE.rows : [];
+  const visible = Array.isArray(DRILLDOWN_STATE.visible_columns) && DRILLDOWN_STATE.visible_columns.length
+    ? DRILLDOWN_STATE.visible_columns
+    : cols;
+  const visibleSet = new Set(visible);
+  const visibleCols = cols.filter(c => visibleSet.has(c));
+  if (!visibleCols.length) {
+    wrap.innerHTML = "<p class='small'>Nessuna colonna selezionata.</p>";
+    return;
+  }
+  if (!rows.length) {
+    wrap.innerHTML = "<p class='small'>Nessuna riga disponibile per questo totale/subtotale.</p>";
+    return;
+  }
+  const head = visibleCols.map(c => "<th>" + escapeHtml(c) + "</th>").join("");
+  const body = rows.map(r => {
+    const tds = visibleCols.map(c => "<td>" + escapeHtml(r?.[c] ?? "") + "</td>").join("");
+    return "<tr>" + tds + "</tr>";
+  }).join("");
+  wrap.innerHTML = "<table class='preview-table'><thead><tr>" + head + "</tr></thead><tbody>" + body + "</tbody></table>";
+}
+
 async function openPivotDrilldown(label, rowFilters){
   const modal = document.getElementById("drilldownModal");
   const status = document.getElementById("drilldownStatus");
@@ -2879,21 +3006,19 @@ async function openPivotDrilldown(label, rowFilters){
     const data = await api(url);
     const cols = Array.isArray(data.columns) ? data.columns : [];
     const rows = Array.isArray(data.rows) ? data.rows : [];
-    if (!cols.length || !rows.length) {
-      wrap.innerHTML = "<p class='small'>Nessuna riga disponibile per questo totale/subtotale.</p>";
-      status.textContent = "Nessun risultato.";
-      return;
-    }
-
-    const head = cols.map(c => "<th>" + escapeHtml(c) + "</th>").join("");
-    const body = rows.map(r => {
-      const tds = cols.map(c => "<td>" + escapeHtml(r?.[c] ?? "") + "</td>").join("");
-      return "<tr>" + tds + "</tr>";
-    }).join("");
-    wrap.innerHTML =
-      "<table class='preview-table'><thead><tr>" + head + "</tr></thead><tbody>" + body + "</tbody></table>";
+    DRILLDOWN_STATE = {
+      columns: cols,
+      rows,
+      visible_columns: cols.slice(),
+      label: String(label || ""),
+    };
+    refreshDrilldownPresetSelect();
+    renderDrilldownColumnsToggles();
+    renderDrilldownDataTable();
     const totalRows = Number(data.total_rows || rows.length);
-    status.textContent = data.truncated
+    status.textContent = !rows.length
+      ? "Nessun risultato."
+      : data.truncated
       ? `Mostrate ${rows.length} righe su ${totalRows}.`
       : `Mostrate ${rows.length} righe.`;
   } catch (err) {
@@ -2905,6 +3030,86 @@ async function openPivotDrilldown(label, rowFilters){
 function closeDrilldownModal(){
   const modal = document.getElementById("drilldownModal");
   if (modal) modal.style.display = "none";
+}
+
+function applySelectedDrilldownPreset(){
+  const sel = document.getElementById("drilldownPresetSelect");
+  if (!sel || !sel.value) return;
+  const all = loadDrilldownPresets();
+  const scope = all[getDrilldownPresetScopeKey()] || {};
+  const cols = Array.isArray(scope[sel.value]) ? scope[sel.value] : [];
+  if (!cols.length) return;
+  DRILLDOWN_STATE.visible_columns = DRILLDOWN_STATE.columns.filter(c => cols.includes(c));
+  renderDrilldownColumnsToggles();
+  renderDrilldownDataTable();
+}
+
+function saveCurrentDrilldownPreset(){
+  const input = document.getElementById("drilldownPresetName");
+  const name = String(input?.value || "").trim();
+  if (!name) {
+    alert("Inserisci il nome preset colonne.");
+    return;
+  }
+  const selected = Array.isArray(DRILLDOWN_STATE.visible_columns) ? DRILLDOWN_STATE.visible_columns : [];
+  if (!selected.length) {
+    alert("Seleziona almeno una colonna visibile.");
+    return;
+  }
+  const all = loadDrilldownPresets();
+  const key = getDrilldownPresetScopeKey();
+  const scope = all[key] && typeof all[key] === "object" ? all[key] : {};
+  scope[name] = selected.slice();
+  all[key] = scope;
+  saveDrilldownPresets(all);
+  refreshDrilldownPresetSelect();
+  const sel = document.getElementById("drilldownPresetSelect");
+  if (sel) sel.value = name;
+}
+
+function deleteSelectedDrilldownPreset(){
+  const sel = document.getElementById("drilldownPresetSelect");
+  if (!sel || !sel.value) return;
+  const all = loadDrilldownPresets();
+  const key = getDrilldownPresetScopeKey();
+  const scope = all[key] && typeof all[key] === "object" ? all[key] : {};
+  delete scope[sel.value];
+  all[key] = scope;
+  saveDrilldownPresets(all);
+  refreshDrilldownPresetSelect();
+}
+
+function printDrilldownOnly(){
+  try {
+    if (!canUseFeature("print")) {
+      showLockedFeature("Stampa dettaglio", "print");
+      return;
+    }
+    const cols = Array.isArray(DRILLDOWN_STATE.columns) ? DRILLDOWN_STATE.columns : [];
+    const rows = Array.isArray(DRILLDOWN_STATE.rows) ? DRILLDOWN_STATE.rows : [];
+    const visible = Array.isArray(DRILLDOWN_STATE.visible_columns) && DRILLDOWN_STATE.visible_columns.length
+      ? DRILLDOWN_STATE.visible_columns
+      : cols;
+    const visibleSet = new Set(visible);
+    const visibleCols = cols.filter(c => visibleSet.has(c));
+    if (!visibleCols.length || !rows.length) throw new Error("Nessun dettaglio da stampare.");
+    const th = visibleCols.map(c => "<th>" + escapeHtml(c) + "</th>").join("");
+    const tb = rows.map(r => "<tr>" + visibleCols.map(c => "<td>" + escapeHtml(r?.[c] ?? "") + "</td>").join("") + "</tr>").join("");
+    const html =
+      '<!doctype html><html><head><meta charset="utf-8"><title>Stampa dettaglio</title>' +
+      '<style>@page{size:auto;margin:10mm;}body{font-family:Arial,sans-serif;font-size:10pt;color:#111827;}table{width:100%;border-collapse:collapse;font-size:8.8pt;}th,td{border:1px solid #cfd5df;padding:3px 4px;word-break:break-word;}th{background:#eef2f7;text-align:left;}h1{font-size:13pt;margin:0 0 8px;}p{margin:0 0 8px;color:#4b5563;}</style>' +
+      '</head><body><h1>Dettaglio totale/subtotale</h1><p>Data stampa: ' + escapeHtml(new Date().toLocaleString("it-IT")) + '</p>' +
+      '<table><thead><tr>' + th + '</tr></thead><tbody>' + tb + '</tbody></table></body></html>';
+    const win = window.open("", "_blank");
+    if (!win) throw new Error("Popup bloccato dal browser.");
+    win.document.open();
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    setTimeout(() => win.print(), 200);
+  } catch (err) {
+    alert("Stampa dettaglio non disponibile: " + (err?.message || err));
+  }
 }
 
 
@@ -4130,6 +4335,20 @@ bindClick("btnRenderChart", () => renderPivotChart());
 bindClick("btnPrintChartModal", () => printChartOnly());
 bindClick("btnCloseDrilldownModal", () => closeDrilldownModal());
 bindClick("drilldownModal", ev => { if (ev && ev.target && ev.target.id === "drilldownModal") closeDrilldownModal(); });
+bindClick("btnPrintDrilldownModal", () => printDrilldownOnly());
+bindClick("btnApplyDrilldownPreset", () => applySelectedDrilldownPreset());
+bindClick("btnSaveDrilldownPreset", () => saveCurrentDrilldownPreset());
+bindClick("btnDeleteDrilldownPreset", () => deleteSelectedDrilldownPreset());
+bindClick("btnShowAllDrilldownCols", () => {
+  DRILLDOWN_STATE.visible_columns = (DRILLDOWN_STATE.columns || []).slice();
+  renderDrilldownColumnsToggles();
+  renderDrilldownDataTable();
+});
+bindClick("btnHideAllDrilldownCols", () => {
+  DRILLDOWN_STATE.visible_columns = [];
+  renderDrilldownColumnsToggles();
+  renderDrilldownDataTable();
+});
 bindInput("chartTypeSelect", "change", () => renderPivotChart());
 bindInput("chartLabelField", "change", () => renderPivotChart());
 bindInput("chartValueField", "change", () => renderPivotChart());
