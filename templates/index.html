@@ -3546,7 +3546,7 @@ async function runLanProbeFromModal(){
       '<div style="margin:6px 0; word-break:break-all;"><code>' + escapeHtml(probeUrl) + "</code></div>" +
       "<div><strong>Passo 2:</strong> dopo l'apertura, clicca di nuovo su Test Firewall/LAN per aggiornare.</div>";
 
-    const status = await api("/lan/probe/result?probe_id=" + encodeURIComponent(probeId));
+    const status = await api("/lan/probe_check?probe_id=" + encodeURIComponent(probeId));
     if (status && status.reachable) {
       const remote = status.last_hit && status.last_hit.remote ? status.last_hit.remote : "sconosciuto";
       box.innerHTML += '<div style="margin-top:8px; color:#027a48; font-weight:700;">✅ Probe raggiunta da ' + escapeHtml(remote) + "</div>";
