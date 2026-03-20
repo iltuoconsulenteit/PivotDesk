@@ -28,13 +28,20 @@ Supported syntax:
     to_number(x)
     to_text(x)
     round(x, digits?)
+    minutes_diff(end_time, start_time)
+    hours_diff(end_time, start_time)
+    if_else(condition, true_value, false_value)
+    gte(a, b), gt(a, b), lte(a, b), lt(a, b), eq(a, b), neq(a, b)
     token_after(text, marker, case_sensitive?)
+
+Supported operators:
+- >=, <=, ==, !=, >, <
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, time
 import math
 import re
 from typing import Any, Callable
@@ -103,6 +110,37 @@ def _parse_date(value: Any) -> date | None:
 
     try:
         return datetime.fromisoformat(text.replace("Z", "+00:00")).date()
+    except ValueError:
+        return None
+
+
+def _parse_time(value: Any) -> time | None:
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value.time()
+    if isinstance(value, time):
+        return value
+
+    text = _normalize_spaces(_to_text(value))
+    if not text:
+        return None
+
+    known_formats = (
+        "%H:%M",
+        "%H:%M:%S",
+        "%H.%M",
+        "%H.%M.%S",
+    )
+    for fmt in known_formats:
+        try:
+            return datetime.strptime(text, fmt).time()
+        except ValueError:
+            pass
+
+    # Try ISO-like datetime values and use the time component.
+    try:
+        return datetime.fromisoformat(text.replace("Z", "+00:00")).time()
     except ValueError:
         return None
 
@@ -245,6 +283,73 @@ def fn_round(value: Any, digits: Any = 0) -> float | None:
     return round(number, int(digits_n or 0))
 
 
+def fn_minutes_diff(end_value: Any, start_value: Any) -> float | None:
+    end_t = _parse_time(end_value)
+    start_t = _parse_time(start_value)
+    if end_t is None or start_t is None:
+        return None
+    end_minutes = (end_t.hour * 60) + end_t.minute + (end_t.second / 60)
+    start_minutes = (start_t.hour * 60) + start_t.minute + (start_t.second / 60)
+    diff = end_minutes - start_minutes
+    if diff < 0:
+        diff += 24 * 60
+    return diff
+
+
+def fn_hours_diff(end_value: Any, start_value: Any) -> float | None:
+    diff = fn_minutes_diff(end_value, start_value)
+    if diff is None:
+        return None
+    return diff / 60
+
+
+def _compare_values(left: Any, right: Any) -> tuple[Any, Any] | None:
+    left_num = _to_number(left)
+    right_num = _to_number(right)
+    if left_num is not None and right_num is not None:
+        return left_num, right_num
+    if isinstance(left, bool) and isinstance(right, bool):
+        return left, right
+    if left is None or right is None:
+        return None
+    return _to_text(left), _to_text(right)
+
+
+def fn_gte(left: Any, right: Any) -> bool:
+    values = _compare_values(left, right)
+    return False if values is None else values[0] >= values[1]
+
+
+def fn_gt(left: Any, right: Any) -> bool:
+    values = _compare_values(left, right)
+    return False if values is None else values[0] > values[1]
+
+
+def fn_lte(left: Any, right: Any) -> bool:
+    values = _compare_values(left, right)
+    return False if values is None else values[0] <= values[1]
+
+
+def fn_lt(left: Any, right: Any) -> bool:
+    values = _compare_values(left, right)
+    return False if values is None else values[0] < values[1]
+
+
+def fn_eq(left: Any, right: Any) -> bool:
+    values = _compare_values(left, right)
+    if values is None:
+        return left is None and right is None
+    return values[0] == values[1]
+
+
+def fn_neq(left: Any, right: Any) -> bool:
+    return not fn_eq(left, right)
+
+
+def fn_if_else(condition: Any, true_value: Any, false_value: Any) -> Any:
+    return true_value if bool(condition) else false_value
+
+
 def fn_token_after(text: Any, marker: Any, case_sensitive: Any = False) -> str:
     """
     Return the first token that appears after `marker`.
@@ -304,8 +409,68 @@ SAFE_FUNCTIONS: dict[str, Callable[..., Any]] = {
     "to_number": fn_to_number,
     "to_text": fn_to_text,
     "round": fn_round,
+    "minutes_diff": fn_minutes_diff,
+    "hours_diff": fn_hours_diff,
+    "gte": fn_gte,
+    "gt": fn_gt,
+    "lte": fn_lte,
+    "lt": fn_lt,
+    "eq": fn_eq,
+    "neq": fn_neq,
+    "if_else": fn_if_else,
     "token_after": fn_token_after,
 }
+
+
+def _split_binary(expr: str, operators: tuple[str, ...]) -> tuple[str, str, str] | None:
+    depth_round = 0
+    depth_square = 0
+    quote: str | None = None
+    escape = False
+
+    idx = 0
+    while idx < len(expr):
+        ch = expr[idx]
+        if quote:
+            if escape:
+                escape = False
+            elif ch == "\\":
+                escape = True
+            elif ch == quote:
+                quote = None
+            idx += 1
+            continue
+
+        if ch in ("'", '"'):
+            quote = ch
+            idx += 1
+            continue
+        if ch == "(":
+            depth_round += 1
+            idx += 1
+            continue
+        if ch == ")":
+            depth_round -= 1
+            idx += 1
+            continue
+        if ch == "[":
+            depth_square += 1
+            idx += 1
+            continue
+        if ch == "]":
+            depth_square -= 1
+            idx += 1
+            continue
+
+        if depth_round == 0 and depth_square == 0:
+            for op in operators:
+                if expr.startswith(op, idx):
+                    left = expr[:idx].strip()
+                    right = expr[idx + len(op):].strip()
+                    if left and right:
+                        return left, op, right
+        idx += 1
+    return None
 
 
 def _split_args(arg_text: str) -> list[str]:
@@ -467,6 +632,23 @@ def evaluate_formula(formula: str, row: dict[str, Any]) -> Any:
     literal = _parse_literal(expr)
     if literal is not None or expr.lower() == "null":
         return literal
+
+    binary = _split_binary(expr, (">=", "<=", "==", "!=", ">", "<"))
+    if binary:
+        left_expr, op, right_expr = binary
+        left = evaluate_formula(left_expr, row)
+        right = evaluate_formula(right_expr, row)
+        if op == ">=":
+            return fn_gte(left, right)
+        if op == "<=":
+            return fn_lte(left, right)
+        if op == "==":
+            return fn_eq(left, right)
+        if op == "!=":
+            return fn_neq(left, right)
+        if op == ">":
+            return fn_gt(left, right)
+        return fn_lt(left, right)
 
     func = _parse_func(expr)
     if func:

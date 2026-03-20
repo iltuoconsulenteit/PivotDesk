@@ -92,6 +92,7 @@ Alla prima esecuzione viene creato un utente admin:
 - Su Windows `POST /lan/firewall/open` prova anche ad avviare `netsh` con elevazione (`RunAs`): l’utente deve confermare il prompt UAC per completare la regola firewall.
 - Con licenza attiva (non demo) è disponibile upload logo cliente (`POST /admin/branding/customer-logo`), mostrato su login e header principale.
 - Nei campi calcolati è disponibile `token_after(testo, marcatore, case_sensitive?)` per estrarre il primo token dopo stringhe come `#` o `CRO:` (utile su descrizioni bancarie/libere). Il terzo parametro è opzionale (`false` default).
+- Nei campi calcolati sono disponibili anche `minutes_diff(uscita, ingresso)` e `hours_diff(uscita, ingresso)` (input orari `HH:MM` / `HH:MM:SS`) più `if_else(condizione, valore_true, valore_false)` con operatori di confronto (`>=`, `<=`, `==`, `!=`, `>`, `<`). Esempio: `if_else(hours_diff([Uscita], [Ingresso]) >= 8, 1, 0)`.
 - Nel modal dei campi calcolati puoi trascinare i campi dalla sidebar direttamente dentro la formula (`[Nome Campo]`).
 - Nell’anteprima sorgente del builder, i campi calcolati definiti vengono mostrati come colonne aggiuntive (anteprima aggiornata al salvataggio/eliminazione campo calcolato).
 
