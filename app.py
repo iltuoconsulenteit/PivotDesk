@@ -69,6 +69,7 @@ USERS_PATH = DATA_DIR / "users.json"
 LICENSE_SETTINGS_PATH = DATA_DIR / "license_settings.json"
 BRANDING_DIR = DATA_DIR / "branding"
 CUSTOMER_LOGO_PATH = BRANDING_DIR / "customer_logo.png"
+CUSTOMER_LOGO_META_PATH = BRANDING_DIR / "customer_logo.json"
 
 LICENSES_DIR = BASE_DIR / "licenses"
 APPDATA_LICENSE_DIR = Path(os.getenv("APPDATA", str(BASE_DIR))) / "PivotDesk"
@@ -738,6 +739,7 @@ def get_license_context(prefer_online: bool = False) -> dict[str, Any]:
     multistore_ctx = try_multistore_license_context(prefer_online=prefer_online)
     if multistore_ctx:
         multistore_ctx.setdefault("license_purchase_url", "")
+        multistore_ctx.setdefault("customer_logo_url", get_customer_logo_url() if CUSTOMER_LOGO_PATH.exists() else "")
         return multistore_ctx
 
     lic = load_license_payload()
@@ -753,6 +755,7 @@ def get_license_context(prefer_online: bool = False) -> dict[str, Any]:
         "license_provider": lic.get("provider"),
         "license_remote_status": lic.get("status", status),
         "license_message": lic.get("message", ""),
+        "customer_logo_url": get_customer_logo_url() if CUSTOMER_LOGO_PATH.exists() else "",
         "license_purchase_url": "",
     }
 
@@ -801,6 +804,11 @@ def get_customer_logo_url() -> str:
             version = int(time.time())
         return f"/branding/customer-logo?v={version}"
     return "/static/img/pivotdesk-logo.png"
+
+
+def get_customer_logo_meta() -> dict[str, Any]:
+    data = read_json(CUSTOMER_LOGO_META_PATH, {})
+    return data if isinstance(data, dict) else {}
 
 
 def can_connect_to_host_port(host: str, port: int, timeout: float = 0.8) -> bool:
@@ -1720,7 +1728,9 @@ def index(request: Request):
 def branding_customer_logo():
     if not CUSTOMER_LOGO_PATH.exists():
         return RedirectResponse("/static/img/pivotdesk-logo.png", status_code=307)
-    return FileResponse(CUSTOMER_LOGO_PATH)
+    meta = get_customer_logo_meta()
+    media_type = str(meta.get("content_type") or "").strip() or None
+    return FileResponse(CUSTOMER_LOGO_PATH, media_type=media_type)
 
 
 @app.post("/admin/branding/customer-logo")
@@ -1744,6 +1754,15 @@ async def admin_upload_customer_logo(request: Request, file: UploadFile = File(.
 
     BRANDING_DIR.mkdir(parents=True, exist_ok=True)
     CUSTOMER_LOGO_PATH.write_bytes(payload)
+    write_json(
+        CUSTOMER_LOGO_META_PATH,
+        {
+            "content_type": content_type,
+            "uploaded_at": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "uploaded_by": str(current_user.get("username", "admin")),
+            "size": len(payload),
+        },
+    )
     return {"ok": True, "logo_url": get_customer_logo_url()}
 
 
