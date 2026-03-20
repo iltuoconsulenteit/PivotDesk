@@ -3202,6 +3202,11 @@ bindInput("srcPath", "input", async () => {
 });
 
 bindClick("btnCloseSettings", () => closeSettingsScreen());
+bindClick("menuOpenSources", () => {
+  try { resetSourceForm(); } catch (_) {}
+  try { renderSourcesManager(); } catch (_) {}
+  openSourcesScreen();
+});
 bindClick("btnSaveSettings", async () => {
   try {
     await saveSettingsFromForm();
