@@ -222,7 +222,20 @@ Language can be switched from settings UI.
 
 ---
 
-## 16) Project map
+## 16) Home layout usability
+
+The main dashboard (`templates/index.html`) now groups controls in a compact grid:
+
+- Source
+- Preset
+- Page filters
+- Layout & options quickbar
+
+Each panel has a **Show/Hide** toggle so users can collapse less-used sections and keep the pivot output area visible without excessive scrolling.
+
+---
+
+## 17) Project map
 
 - `app.py` → API and web routes
 - `services/pivot_engine.py` → pivot engine
@@ -234,7 +247,7 @@ Language can be switched from settings UI.
 
 ---
 
-## 17) Troubleshooting
+## 18) Troubleshooting
 
 - Port already in use → change `config.json` port or stop existing process.
 - Source load issues → validate file path/sheet/encoding.
@@ -244,7 +257,7 @@ Language can be switched from settings UI.
 
 ---
 
-## 18) Recommended operating checklist
+## 19) Recommended operating checklist
 
 1. Configure source.
 2. Build pivot preset.

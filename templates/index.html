@@ -64,6 +64,51 @@
       color:#175cd3;
       background:#eff8ff;
     }
+    .compact-pivot-layout{
+      display:grid;
+      grid-template-columns:repeat(12, minmax(0, 1fr));
+      gap:10px;
+      margin-bottom:8px;
+    }
+    .compact-pivot-layout .compact-col{
+      grid-column:span 12;
+      min-width:0;
+    }
+    .compact-panel{
+      padding:12px;
+    }
+    .compact-panel-head{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:8px;
+      margin-bottom:8px;
+    }
+    .compact-panel-head .section-title{
+      margin:0;
+    }
+    .compact-toggle{
+      border:1px solid #d0d5dd;
+      background:#fff;
+      color:#344054;
+      border-radius:999px;
+      padding:4px 10px;
+      font-size:12px;
+      cursor:pointer;
+      line-height:1.2;
+    }
+    .compact-body.hidden{
+      display:none;
+    }
+    .compact-body .field{
+      margin:0;
+    }
+    @media (min-width: 1024px){
+      .compact-pivot-layout .compact-col.source{ grid-column:span 4; }
+      .compact-pivot-layout .compact-col.preset{ grid-column:span 4; }
+      .compact-pivot-layout .compact-col.filters{ grid-column:span 4; }
+      .compact-pivot-layout .compact-col.layout{ grid-column:span 12; }
+    }
     .preview-card-meta {
       display:flex;
       flex-wrap:wrap;
@@ -725,10 +770,82 @@ window.LICENSE_CONTEXT = {
     </div>
   </div>
 
-  <div class="card">
-    <div class="field source-field">
-      <label for="sourceSelect"><strong data-i18n="source_data">Sorgente dati</strong></label>
-      <select id="sourceSelect"></select>
+  <div class="compact-pivot-layout">
+    <div class="card compact-panel compact-col source" data-collapsible="sourcePanel">
+      <div class="compact-panel-head">
+        <label for="sourceSelect" class="section-title"><strong data-i18n="source_data">Sorgente dati</strong></label>
+        <button type="button" class="compact-toggle" data-target="sourcePanel">Nascondi</button>
+      </div>
+      <div class="compact-body" id="sourcePanel">
+        <div class="field source-field">
+          <select id="sourceSelect"></select>
+        </div>
+      </div>
+    </div>
+
+    <div class="card compact-panel compact-col preset" data-collapsible="presetPanel">
+      <div class="compact-panel-head">
+        <div class="section-title" data-i18n="preset">Preset</div>
+        <button type="button" class="compact-toggle" data-target="presetPanel">Nascondi</button>
+      </div>
+      <div class="compact-body" id="presetPanel">
+        <div class="tabbar" id="tabbar"></div>
+      </div>
+    </div>
+
+    <div class="card compact-panel compact-col filters" data-collapsible="filtersPanel">
+      <div class="compact-panel-head">
+        <div class="section-title" data-i18n="page_filters">Filtri pagina</div>
+        <button type="button" class="compact-toggle" data-target="filtersPanel">Nascondi</button>
+      </div>
+      <div class="compact-body" id="filtersPanel">
+        <div class="filters" id="filters"></div>
+      </div>
+    </div>
+
+    <div class="card compact-panel compact-col layout" id="pivotQuickbarPanel" data-collapsible="pivotQuickbar">
+      <div class="compact-panel-head">
+        <div class="section-title">Layout & opzioni</div>
+        <button type="button" class="compact-toggle" data-target="pivotQuickbar">Nascondi</button>
+      </div>
+      <div class="compact-body" id="pivotQuickbar">
+        <div class="pivot-quickbar">
+          <div class="pivot-quickbar-left">
+            <span class="pivot-quickbar-label" data-i18n="pivot_layout">Layout pivot</span>
+
+            <button type="button" id="btnLayoutVertical" class="quick-toggle active" title="Layout verticale" data-i18n-title="layout_vertical_title">
+              ↕ Verticale
+            </button>
+
+            <button type="button" id="btnLayoutHorizontal" class="quick-toggle" title="Layout orizzontale" data-i18n-title="layout_horizontal_title">
+              ↔ Orizzontale
+            </button>
+          </div>
+
+          <div class="pivot-quickbar-right">
+            <label class="inline-check compact-check">
+              <input type="checkbox" id="chkRowTotals">
+              <span data-i18n="row_totals">Totali righe</span>
+            </label>
+
+            <label class="inline-check compact-check">
+              <input type="checkbox" id="chkColTotals">
+              <span data-i18n="col_totals">Totali colonne</span>
+            </label>
+
+            <label class="inline-check compact-check">
+              <input type="checkbox" id="chkSubtotals" data-feature="subtotals">
+              <span data-i18n="subtotals">Subtotali</span>
+            </label>
+
+            <button type="button" id="btnOpenChartsNear" class="quick-toggle" title="Grafico da pivot" aria-label="Grafico da pivot">
+              Grafico
+            </button>
+
+            <button type="button" id="btnApplyPivotView" class="primary" data-i18n="save_view">Salva vista</button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -736,53 +853,6 @@ window.LICENSE_CONTEXT = {
     <div class="section-title" data-i18n="csv_columns_available">Colonne disponibili nel CSV</div>
     <div id="columnsCount" class="small"></div>
     <div id="columnsRaw" class="columns-raw"></div>
-  </div>
-
-  <div class="card">
-    <div class="section-title" data-i18n="preset">Preset</div>
-    <div class="tabbar" id="tabbar"></div>
-  </div>
-
-  <div class="card">
-    <div class="section-title" data-i18n="page_filters">Filtri pagina</div>
-    <div class="filters" id="filters"></div>
-  </div>
-
-  <div class="card pivot-quickbar" id="pivotQuickbar">
-    <div class="pivot-quickbar-left">
-      <span class="pivot-quickbar-label" data-i18n="pivot_layout">Layout pivot</span>
-
-      <button type="button" id="btnLayoutVertical" class="quick-toggle active" title="Layout verticale" data-i18n-title="layout_vertical_title">
-        ↕ Verticale
-      </button>
-
-      <button type="button" id="btnLayoutHorizontal" class="quick-toggle" title="Layout orizzontale" data-i18n-title="layout_horizontal_title">
-        ↔ Orizzontale
-      </button>
-    </div>
-
-    <div class="pivot-quickbar-right">
-      <label class="inline-check compact-check">
-        <input type="checkbox" id="chkRowTotals">
-        <span data-i18n="row_totals">Totali righe</span>
-      </label>
-
-      <label class="inline-check compact-check">
-        <input type="checkbox" id="chkColTotals">
-        <span data-i18n="col_totals">Totali colonne</span>
-      </label>
-
-      <label class="inline-check compact-check">
-        <input type="checkbox" id="chkSubtotals" data-feature="subtotals">
-        <span data-i18n="subtotals">Subtotali</span>
-      </label>
-
-      <button type="button" id="btnOpenChartsNear" class="quick-toggle" title="Grafico da pivot" aria-label="Grafico da pivot">
-        Grafico
-      </button>
-
-      <button type="button" id="btnApplyPivotView" class="primary" data-i18n="save_view">Salva vista</button>
-    </div>
   </div>
 
   <div id="status" class="card"></div>
@@ -1961,6 +2031,23 @@ function initQuickbar(){
     refreshQuickbarFromPreset();
     setStatus("Vista salvata nel preset.");
   };
+}
+
+function initCompactPanels(){
+  const buttons = Array.from(document.querySelectorAll(".compact-toggle[data-target]"));
+  buttons.forEach(btn => {
+    if (btn.dataset.boundCompact === "1") return;
+    btn.dataset.boundCompact = "1";
+    btn.addEventListener("click", () => {
+      const targetId = String(btn.dataset.target || "").trim();
+      if (!targetId) return;
+      const body = document.getElementById(targetId);
+      if (!body) return;
+      const isHidden = body.classList.toggle("hidden");
+      btn.textContent = isHidden ? "Mostra" : "Nascondi";
+      btn.setAttribute("aria-expanded", isHidden ? "false" : "true");
+    });
+  });
 }
 
 
@@ -4590,6 +4677,7 @@ bindInput("backupRestoreFile", "change", async ev => {
 setBuilderMode("new");
 initDropZones();
 initQuickbar();
+initCompactPanels();
 
 
 function parseSortableValue(text) {

@@ -225,7 +225,20 @@ Lingua selezionabile da UI impostazioni.
 
 ---
 
-## 16) Struttura progetto (riferimento rapido)
+## 16) Usabilità layout home
+
+Nella dashboard principale (`templates/index.html`) i controlli sono stati concentrati in una griglia compatta:
+
+- Sorgente dati
+- Preset
+- Filtri pagina
+- Barra rapida layout/opzioni
+
+Ogni pannello include il toggle **Mostra/Nascondi** per comprimere le sezioni meno usate e mantenere la pivot più in alto, riducendo lo scrolling.
+
+---
+
+## 17) Struttura progetto (riferimento rapido)
 
 - `app.py` → API/route principali
 - `services/pivot_engine.py` → motore pivot
@@ -237,7 +250,7 @@ Lingua selezionabile da UI impostazioni.
 
 ---
 
-## 17) Troubleshooting sintetico
+## 18) Troubleshooting sintetico
 
 - Porta occupata → cambia `config.json` o chiudi processo attivo.
 - Sorgente non valida → verifica path/foglio/encoding.
@@ -247,7 +260,7 @@ Lingua selezionabile da UI impostazioni.
 
 ---
 
-## 18) Checklist operativa consigliata
+## 19) Checklist operativa consigliata
 
 1. Configura sorgente.
 2. Crea preset pivot.

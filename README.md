@@ -83,6 +83,7 @@ Change this password immediately in shared environments.
 - Chart extraction ignores interactive cell controls/icons so numeric values are detected correctly.
 - Drilldown/detail modal with column visibility presets.
 - Pivot print output excludes interactive UI controls (e.g., drilldown buttons) for clean report exports.
+- Compact home layout with collapsible Source/Preset/Filters/Layout panels to keep the pivot table visible higher on screen.
 - License-aware feature gating (including Free tier policy).
 - LAN diagnostics/probe/firewall helper endpoints.
 - Customer branding (logo upload + rendering in UI/print contexts).
