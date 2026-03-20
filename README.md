@@ -1,129 +1,116 @@
 # PivotDesk
 
-PivotDesk è una piattaforma web (FastAPI + Pandas) per importare dati aziendali da file o sorgenti configurate, analizzarli con pivot dinamiche e visualizzare risultati in tabella HTML.
+PivotDesk is a FastAPI + Pandas web application used to import business data, build dynamic pivots, and explore results in an interactive UI.
 
-## Full documentation (Internal Wiki)
+## Language docs
 
-Primary documentation is now maintained in English:
+- **Primary docs (EN):** this file + [`docs/WIKI.md`](docs/WIKI.md)
+- **Italian docs:** [`README.it.md`](README.it.md), [`docs/WIKI.it.md`](docs/WIKI.it.md)
 
-- **Wiki (English):** [`docs/WIKI.md`](docs/WIKI.md)
-- **Wiki (Italian):** [`docs/WIKI.it.md`](docs/WIKI.it.md)
+---
 
-The wiki includes:
-- full feature overview;
-- user guide (sources, pivots, filters, charts, drilldown);
-- admin guide (licenses, LAN, backup/restore, branding);
-- troubleshooting and operational checklist.
+## Project status
 
-## Stato del progetto
+This repository is a working local-development baseline. Main components:
 
-Questo repository è una base funzionante per sviluppo locale. Include:
+- FastAPI server (`app.py`)
+- desktop/web launchers (`main.py`, `run_pivotdesk.py`, `tray.py`)
+- pivot/data services (`services/`)
+- licensing modules (`licensing/`)
+- Jinja templates (`templates/`)
 
-- server FastAPI (`app.py`);
-- launcher desktop/web (`main.py`, `run_pivotdesk.py`, `tray.py`);
-- motore pivot e gestione sorgenti (`services/`);
-- moduli licensing (`licensing/`);
-- template Jinja2 (`templates/`).
+---
 
-## Requisiti
+## Requirements
 
 - Python 3.10+
-- pip aggiornato
+- updated pip
 
-## Setup rapido
-
-1. Crea e attiva un virtual environment.
-2. Installa le dipendenze core:
+Install core dependencies:
 
 ```bash
 python -m pip install -r requirements-core.txt
 ```
 
-3. (Opzionale, desktop/tray) Installa dipendenze aggiuntive:
+Optional desktop/tray dependencies:
 
 ```bash
 python -m pip install -r requirements-desktop.txt
 ```
 
-## Avvio applicazione
+---
 
-### Opzione A (consigliata in sviluppo)
+## Run
+
+Recommended for development:
 
 ```bash
 python run_pivotdesk.py
 ```
 
-### Opzione B (launcher principale)
+Alternative launcher:
 
 ```bash
 python main.py
 ```
 
-Dopo l'avvio, apri il browser su:
+Default URL:
 
 - `http://127.0.0.1:8091`
 
-## Credenziali di default
+---
 
-Alla prima esecuzione viene creato un utente admin:
+## Default credentials
+
+First run creates admin user:
 
 - username: `admin`
 - password: `admin`
 
-> Cambiare la password il prima possibile in ambienti condivisi.
+Change this password immediately in shared environments.
 
-## Struttura rapida
+---
 
-- `app.py`: entrypoint FastAPI e route web/API.
-- `services/pivot_engine.py`: trasformazioni dataframe e pivot.
-- `services/source_manager.py`: caricamento dati da sorgenti.
-- `templates/`: pagine HTML.
-- `data/`: configurazioni runtime generate automaticamente.
-- `licenses/`: file licenza demo/dev.
+## Quick feature overview
 
-## Note operative
+- Source ingestion: CSV, Excel (sheet selection), ODS, MySQL, HTTP JSON adapter.
+- Pivot builder with saved presets.
+- Calculated fields (server-side formula engine + UI assistant).
+- Numeric-safe filtering and optional subtotals/totals.
+- Chart modal (column/bar/line/pie) with print support.
+- Drilldown/detail modal with column visibility presets.
+- License-aware feature gating (including Free tier policy).
+- LAN diagnostics/probe/firewall helper endpoints.
+- Customer branding (logo upload + rendering in UI/print contexts).
+- Backup/restore endpoints for presets/settings.
+- UI localization (English/Italian).
 
-- Config host/porta da `config.json`.
-- I log launcher vengono scritti in `%LOCALAPPDATA%/PivotDesk/logs` su Windows.
-- Se la porta configurata è occupata, il launcher non avvia un secondo server.
-- Gli endpoint `GET /fields` e `GET /filter-values` accettano anche `pivot_id` opzionale: quando presente, applicano i `calculated_fields` del preset prima di restituire colonne/valori filtro.
-- Per utenze admin con licenza attiva è disponibile backup/ripristino di preset+impostazioni (`GET /admin/backup/export`, `POST /admin/backup/restore`).
-- Nel frontend il backup/restore è disponibile sia dal menu principale “Backup” sia dal riquadro “Backup & Restore” in Impostazioni; lato UI la funzione risulta attiva per licenze non demo (oltre al flag feature esplicito).
-- Nella barra licenza è disponibile il pulsante “Attiva licenza” con scelta provider (`developer`, `gumroad`, `lemonsqueezy`, `custom` secondo configurazione). La selezione può essere preimpostata anche da URL (`?provider=gumroad`).
-- Con licenza non-demo il launcher può bindare automaticamente su `0.0.0.0` (LAN). In output/log viene mostrato anche URL LAN suggerito; se non raggiungibile da altri PC verificare firewall/porta in ingresso.
-- Con licenza demo/trial/community il launcher forza bind locale su `127.0.0.1` (LAN disabilitata di default).
-- In startup app è attivo un controllo automatico: se la licenza abilita LAN ma il processo risulta in ascolto su `127.0.0.1`, PivotDesk rilancia uvicorn su `0.0.0.0` (override interno, indipendente dal batch di avvio).
-- Il launcher ora rileva il tipo licenza anche dal percorso configurato in `data/license_settings.json` (chiave `license_file`), riducendo casi in cui restava in bind locale `127.0.0.1` nonostante licenza attiva.
-- Endpoint diagnostico `GET /lan/status` disponibile per utenti autenticati: riporta host configurato, bind effettivo, URL loopback/LAN e suggerimento firewall.
-- `GET /lan/status` espone anche `bind_source` (`runtime`, `socket` o `inferred`): se `inferred`, il bind mostrato è dedotto da config/licenza e può differire dal processo realmente avviato (es. avvio manuale su `127.0.0.1`).
-- `GET /lan/status` include anche test socket locali (`loopback_reachable`, `lan_reachable_from_host`) e `startup_hint` per segnalare quando il server risponde su `127.0.0.1` ma rifiuta sull'IP LAN (tipico avvio localhost-only).
-- `GET /lan/status` espone anche `lan_expected_by_license` per distinguere la policy licenza (LAN attesa) dallo stato di bind realmente attivo.
-- Nel frontend (modale “Dettagli licenza”) è disponibile il pulsante “Diagnostica LAN” che mostra lo stato letto da `GET /lan/status`.
-- Per verifica pratica firewall/LAN: `POST /lan/probe/new` (autenticato) genera una URL test, `GET /lan/probe/{id}` registra il passaggio dal client remoto e `GET /lan/probe/result` (o `GET /lan/probe/status`, autenticato) mostra se la sonda è stata raggiunta.
-- Se `POST /lan/probe/new` risponde `LAN non attiva su questo avvio`, riavviare con launcher (`python run_pivotdesk.py`) oppure con uvicorn `--host 0.0.0.0`.
-- Endpoint admin `POST /lan/firewall/open` tenta apertura automatica della porta app nel firewall locale (Windows via `netsh`, Linux via `ufw` se disponibile).
-- Su Windows `POST /lan/firewall/open` prova anche ad avviare `netsh` con elevazione (`RunAs`): l’utente deve confermare il prompt UAC per completare la regola firewall.
-- Con licenza attiva (non demo) è disponibile upload logo cliente (`POST /admin/branding/customer-logo`), mostrato su login e header principale.
-- Nei campi calcolati è disponibile `token_after(testo, marcatore, case_sensitive?)` per estrarre il primo token dopo stringhe come `#` o `CRO:` (utile su descrizioni bancarie/libere). Il terzo parametro è opzionale (`false` default).
-- Nei campi calcolati sono disponibili anche `minutes_diff(uscita, ingresso)` e `hours_diff(uscita, ingresso)` (input orari `HH:MM`, `HH:MM:SS`, varianti AM/PM e frazioni giorno Excel `0.x`) più `if_else(condizione, valore_true, valore_false)` con operatori di confronto (`>=`, `<=`, `==`, `!=`, `>`, `<`). Esempio: `if_else(hours_diff([Uscita], [Ingresso]) >= 8, 1, 0)`.
-- Le formule dei campi calcolati vengono compilate e riusate durante l’elaborazione righe (meno parsing ripetuto), migliorando la reattività su dataset grandi con più campi calcolati.
-- Nel modal dei campi calcolati puoi trascinare i campi dalla sidebar direttamente dentro la formula (`[Nome Campo]`).
-- Il modal campi calcolati include un assistente funzioni stile Excel: ricerca funzione, firma argomenti e composizione guidata della formula; i campi sono trascinabili direttamente negli argomenti funzione.
-- Le funzioni nell’assistente sono divise per categoria (testo, data, numero, logica, ecc.) con sezioni espandibili/comprimibili e registro estendibile lato frontend (`registerCalculatedFunctionDefinition`) per futuri inserimenti custom.
-- Nell’anteprima sorgente del builder, i campi calcolati definiti vengono mostrati come colonne aggiuntive (anteprima aggiornata al salvataggio/eliminazione campo calcolato).
-- Per sorgenti Excel è disponibile caricamento elenco fogli direttamente nella maschera sorgente (selezione guidata del foglio da elaborare per anteprima e pivot, non solo primo foglio) con mantenimento del foglio salvato durante la modifica della sorgente.
-- È disponibile anche un adapter remoto `http_json` (alias `api`/`rest`) per plugin sorgente dati via HTTP/HTTPS JSON (es. API aziendali/Web/Google Apps Script), con supporto `GET`/`POST`, headers, body e `json_path` per estrarre array annidati.
-- Nei filtri colonna, quando i valori sono numerici, l’ordinamento è numerico (es. `1,2,3,...,10,11`) e non lessicografico (`1,10,11,2,...`); in applicazione filtri la comparazione è numerica (gestisce correttamente `1` vs `1.0`).
-- Nel menu **Visualizza** è disponibile **Grafico da pivot**: apre un template grafico (colonne, barre, linea, torta) costruito dalla tabella pivot corrente con scelta campo etichetta/valore e Top N; lo stesso modal è richiamabile anche dalla quickbar layout pivot tramite pulsante “Grafico”. La stampa grafico è disponibile direttamente dentro il modal tramite pulsante “Stampa grafico” e stampa solo il grafico (con header/filtri e, se presente, logo cliente in testata).
-- Nei grafici pivot la resa etichette è adattiva (riduzione overlap su dataset con molte categorie) e nelle righe **Totale/Subtotale** sono disponibili pulsanti **Dettaglio** per aprire l’elenco record che compongono il totale selezionato.
-- Nel modal **Dettaglio** (totali/subtotali) è disponibile **Stampa dettaglio**, selezione colonne visibili (mostra/nascondi) e gestione preset locali di colonne per ridurre la complessità su dataset con molte colonne.
-- Il pulsante dettaglio (icona lista) è disponibile anche su celle di **totali riga/colonna** della pivot (non solo totale generale), con filtri contestuali applicati prima dell’apertura lista.
-- Il pulsante dettaglio è propagato su **tutte le righe pivot** (oltre ai totali), così puoi aprire rapidamente la lista record contributiva per ogni riga visualizzata.
-- L’icona dettaglio è posizionata accanto ai **valori** (non sul campo di raggruppamento a sinistra) e la stampa dettaglio include i loghi come nelle altre stampe, se abilitati nelle impostazioni.
-- Livello licenza **Free**: pivot solo da sorgenti **CSV** a video; funzioni premium come **stampa**, **dettaglio/drilldown** e **grafici** restano disponibili solo per licenze a pagamento.
+---
 
-## Troubleshooting veloce
+## Licensing notes (important)
 
-- Errore dipendenze mancanti: reinstalla i requirements.
-- Porta occupata: cambia `port` in `config.json` o chiudi il processo attivo.
-- Template non trovati: verifica che la cartella `templates/` sia presente nella root progetto.
+- **Free tier:** CSV-based on-screen pivots only.
+- Premium features such as print, charts, and drilldown are available only for paid/dev licenses (based on feature flags/policy).
+- LAN exposure is license-controlled and validated by diagnostics endpoints.
+
+---
+
+## Useful paths
+
+- `app.py` – main API/web entrypoint
+- `services/pivot_engine.py` – pivot transformation logic
+- `services/source_manager.py` – source loading pipeline
+- `plugins/calculated_fields/backend.py` – formula engine
+- `templates/` – frontend pages
+- `static/js/` – frontend logic
+- `docs/WIKI.md` – full internal wiki (EN)
+
+---
+
+## Troubleshooting
+
+- Missing dependencies: reinstall requirements.
+- Port already in use: update `config.json` or stop the running process.
+- Missing templates/static assets: verify repository structure is intact.
+- LAN issues: check `/lan/status`, run probe endpoints, and verify firewall state.
+
