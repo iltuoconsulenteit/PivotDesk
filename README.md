@@ -97,7 +97,7 @@ Alla prima esecuzione viene creato un utente admin:
 - Il modal campi calcolati include un assistente funzioni stile Excel: ricerca funzione, firma argomenti e composizione guidata della formula; i campi sono trascinabili direttamente negli argomenti funzione.
 - Le funzioni nell’assistente sono divise per categoria (testo, data, numero, logica, ecc.) con registro estendibile lato frontend (`registerCalculatedFunctionDefinition`) per futuri inserimenti custom.
 - Nell’anteprima sorgente del builder, i campi calcolati definiti vengono mostrati come colonne aggiuntive (anteprima aggiornata al salvataggio/eliminazione campo calcolato).
-- Nel menu **Visualizza** è disponibile **Grafico da pivot**: apre un template grafico (colonne, barre, linea, torta) costruito dalla tabella pivot corrente con scelta campo etichetta/valore e Top N; lo stesso modal è richiamabile anche dal pulsante vicino al report pivot. La stampa grafico è disponibile direttamente dentro il modal, con lo stesso layout di stampa pivot.
+- Nel menu **Visualizza** è disponibile **Grafico da pivot**: apre un template grafico (colonne, barre, linea, torta) costruito dalla tabella pivot corrente con scelta campo etichetta/valore e Top N; lo stesso modal è richiamabile anche dal pulsante vicino al report pivot. La stampa grafico è disponibile direttamente dentro il modal e stampa solo il grafico (con header/filtri e, se presente, logo cliente in testata).
 
 ## Troubleshooting veloce
 
