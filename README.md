@@ -82,7 +82,7 @@ Change this password immediately in shared environments.
 - Chart modal (column/bar/line/pie) with print support.
 - Chart extraction ignores interactive cell controls/icons so numeric values are detected correctly.
 - Drilldown/detail modal with column visibility presets.
-- Pivot print output excludes interactive UI controls (e.g., drilldown buttons) for clean report exports.
+- Pivot print output excludes interactive UI controls (e.g., drilldown buttons and column filter inputs) for clean report exports.
 - Compact home layout with collapsible Source/Preset/Filters/Layout panels to keep the pivot table visible higher on screen.
 - User bar and primary menu are aligned on a single row on wide screens to reduce vertical space in the header area.
 - Responsive menu adaptation for tablet/smartphone: top menu buttons reflow and their submenus open inline (not clipped).

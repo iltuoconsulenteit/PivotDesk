@@ -2003,6 +2003,10 @@ function getPrintablePivotTableHtml(){
   const wrap = document.querySelector("#report .table-responsive");
   if (!wrap) return "";
   const clone = wrap.cloneNode(true);
+  clone.querySelectorAll("thead tr").forEach(tr => {
+    if (tr.querySelector("input, select, textarea")) tr.remove();
+  });
+  clone.querySelectorAll(".pivot-col-filter").forEach(el => el.remove());
   clone.querySelectorAll(".pivot-total-drill-btn").forEach(el => el.remove());
   clone.querySelectorAll("button").forEach(el => el.remove());
   return clone.innerHTML || "";
