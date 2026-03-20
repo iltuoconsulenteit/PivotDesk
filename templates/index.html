@@ -147,6 +147,20 @@
     .pd-table tbody tr.total-row td:first-child {
       text-align: left;
     }
+    .pivot-total-drill-btn {
+      margin-left: 8px;
+      border: 1px solid #c7d7fe;
+      background: #eef4ff;
+      color: #1d4ed8;
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 11px;
+      cursor: pointer;
+      vertical-align: middle;
+    }
+    .pivot-total-drill-btn:hover {
+      background: #dbeafe;
+    }
 
     .branding {
       display: flex;
@@ -337,6 +351,26 @@
       display: block;
       background: #fff;
       border-radius: 8px;
+    }
+    .drilldown-modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, .48);
+      z-index: 3250;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .drilldown-modal {
+      width: min(1120px, 98vw);
+      max-height: 92vh;
+      overflow: auto;
+      background: #fff;
+      border-radius: 14px;
+      border: 1px solid #d0d5dd;
+      box-shadow: 0 24px 60px rgba(15, 23, 42, .2);
+      padding: 14px;
     }
 
     .calc-wizard-grid {
@@ -1153,6 +1187,22 @@ window.LICENSE_CONTEXT = {
   </div>
 </div>
 
+<div id="drilldownModal" class="drilldown-modal-overlay">
+  <div class="drilldown-modal">
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:8px;">
+      <div>
+        <h3 style="margin:0;">Dettaglio totale/subtotale</h3>
+        <div id="drilldownStatus" class="small" style="color:#667085;">Nessun dettaglio caricato.</div>
+      </div>
+      <button id="btnCloseDrilldownModal" type="button">Chiudi</button>
+    </div>
+    <div id="drilldownMeta" class="small" style="margin-bottom:8px; color:#475467;"></div>
+    <div id="drilldownTableWrap" class="table-responsive">
+      <p class="small">Premi “Dettaglio” su un totale della pivot per aprire l’elenco righe.</p>
+    </div>
+  </div>
+</div>
+
 <div id="calcFieldModal" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,.45); z-index:3000; align-items:center; justify-content:center; padding:24px;">
   <div style="width:min(760px, 96vw); max-height:90vh; overflow:auto; background:#fff; border-radius:18px; border:1px solid #d0d5dd; box-shadow:0 24px 60px rgba(15,23,42,.18);">
     <div style="padding:18px 20px; border-bottom:1px solid #eaecf0; display:flex; justify-content:space-between; align-items:center; gap:12px;">
@@ -1304,6 +1354,7 @@ let SETTINGS = {
 let CURRENT_VIEW_OPTIONS = null;
 let CURRENT_HEADER_FILTERS = {};
 let BUILDER_SOURCE = null;
+let LAST_PIVOT_CONTEXT = null;
 
 let I18N = {
   it: {},
@@ -2696,7 +2747,8 @@ async function runCurrent(){
 
   setStatus("Calcolo pivot in corso...");
 
-  const filters = encodeURIComponent(JSON.stringify(getFilters()));
+  const filtersObj = getFilters();
+  const filters = encodeURIComponent(JSON.stringify(filtersObj));
   const viewOptions = encodeURIComponent(JSON.stringify(getEffectiveViewOptions()));
 
   const url =
@@ -2712,6 +2764,19 @@ async function runCurrent(){
 document.getElementById("report").innerHTML =
   '<h3 class="report-title">' + escapeHtml(p.title || p.id) + '</h3>' +
   '<div class="table-responsive">' + (j.html || "") + '</div>';
+
+LAST_PIVOT_CONTEXT = {
+  pivot_id: p.id,
+  source_id: CURRENT_SOURCE || "",
+  row_fields: Array.isArray(p.rows) ? p.rows.slice() : [],
+  filters: filtersObj || {}
+};
+
+try {
+  decoratePivotTotalsWithDrillButtons(p);
+} catch (err) {
+  console.warn("Dettaglio totali non attivato:", err);
+}
 
 try {
   if (typeof enableRenderedTableSortingAndFilters === "function") {
@@ -2732,6 +2797,114 @@ try {
     document.getElementById("report").innerHTML = "<p>Errore nel caricamento della pivot.</p>";
     setStatus("ERRORE: " + e.message);
   }
+}
+
+function getPivotHeaderMap(){
+  const table = document.querySelector("#report table.pd-table");
+  if (!table) return null;
+  const head = table.querySelector("thead tr");
+  if (!head) return null;
+  const headers = Array.from(head.querySelectorAll("th")).map(th => String(th.textContent || "").trim());
+  const map = {};
+  headers.forEach((h, idx) => { if (h) map[h] = idx; });
+  return { table, headers, map };
+}
+
+function extractRowFiltersFromPivotRow(rowEl, preset){
+  const rowFields = Array.isArray(preset?.rows) ? preset.rows : [];
+  if (!rowFields.length) return {};
+  const h = getPivotHeaderMap();
+  if (!h) return {};
+  const cells = Array.from(rowEl.querySelectorAll("td")).map(td => String(td.textContent || "").trim());
+  const out = {};
+  rowFields.forEach(field => {
+    const idx = h.map[field];
+    if (idx === undefined) return;
+    const value = String(cells[idx] || "").trim();
+    if (!value) return;
+    if (/^subtotale$/i.test(value) || /^totale generale$/i.test(value)) return;
+    out[field] = value;
+  });
+  return out;
+}
+
+function decoratePivotTotalsWithDrillButtons(preset){
+  const table = document.querySelector("#report table.pd-table");
+  if (!table) return;
+  Array.from(table.querySelectorAll("tbody tr.subtotal-row, tbody tr.total-row")).forEach(row => {
+    const firstCell = row.querySelector("td");
+    if (!firstCell || firstCell.querySelector(".pivot-total-drill-btn")) return;
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "pivot-total-drill-btn";
+    btn.textContent = "Dettaglio";
+    btn.addEventListener("click", ev => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      const rowFilters = row.classList.contains("subtotal-row")
+        ? extractRowFiltersFromPivotRow(row, preset)
+        : {};
+      const label = String(firstCell.textContent || "").trim() || (row.classList.contains("subtotal-row") ? "Subtotale" : "Totale");
+      openPivotDrilldown(label, rowFilters);
+    });
+    firstCell.appendChild(btn);
+  });
+}
+
+async function openPivotDrilldown(label, rowFilters){
+  const modal = document.getElementById("drilldownModal");
+  const status = document.getElementById("drilldownStatus");
+  const wrap = document.getElementById("drilldownTableWrap");
+  const meta = document.getElementById("drilldownMeta");
+  if (!modal || !status || !wrap || !meta) return;
+  if (!LAST_PIVOT_CONTEXT?.pivot_id) {
+    status.textContent = "Dettaglio non disponibile: pivot non caricata.";
+    modal.style.display = "flex";
+    return;
+  }
+
+  modal.style.display = "flex";
+  status.textContent = "Caricamento dettaglio in corso...";
+  const baseFilters = LAST_PIVOT_CONTEXT.filters || {};
+  const effectiveFilters = { ...baseFilters, ...(rowFilters || {}) };
+  meta.textContent = `${label || "Totale"} · Filtri: ${Object.keys(effectiveFilters).length ? JSON.stringify(effectiveFilters) : "nessuno"}`;
+
+  try {
+    const url =
+      "/pivot/drilldown?pivot_id=" + encodeURIComponent(LAST_PIVOT_CONTEXT.pivot_id) +
+      "&source_id=" + encodeURIComponent(LAST_PIVOT_CONTEXT.source_id || "") +
+      "&filters=" + encodeURIComponent(JSON.stringify(baseFilters || {})) +
+      "&row_filters=" + encodeURIComponent(JSON.stringify(rowFilters || {})) +
+      "&limit=300";
+    const data = await api(url);
+    const cols = Array.isArray(data.columns) ? data.columns : [];
+    const rows = Array.isArray(data.rows) ? data.rows : [];
+    if (!cols.length || !rows.length) {
+      wrap.innerHTML = "<p class='small'>Nessuna riga disponibile per questo totale/subtotale.</p>";
+      status.textContent = "Nessun risultato.";
+      return;
+    }
+
+    const head = cols.map(c => "<th>" + escapeHtml(c) + "</th>").join("");
+    const body = rows.map(r => {
+      const tds = cols.map(c => "<td>" + escapeHtml(r?.[c] ?? "") + "</td>").join("");
+      return "<tr>" + tds + "</tr>";
+    }).join("");
+    wrap.innerHTML =
+      "<table class='preview-table'><thead><tr>" + head + "</tr></thead><tbody>" + body + "</tbody></table>";
+    const totalRows = Number(data.total_rows || rows.length);
+    status.textContent = data.truncated
+      ? `Mostrate ${rows.length} righe su ${totalRows}.`
+      : `Mostrate ${rows.length} righe.`;
+  } catch (err) {
+    wrap.innerHTML = "<p class='small'>Errore nel caricamento del dettaglio.</p>";
+    status.textContent = "Errore: " + (err?.message || err);
+  }
+}
+
+function closeDrilldownModal(){
+  const modal = document.getElementById("drilldownModal");
+  if (modal) modal.style.display = "none";
 }
 
 
@@ -2831,6 +3004,27 @@ function buildChartSeries(){
   return sliced.length ? { ok: true, items: sliced } : { ok: false, reason: "Nessun valore numerico disponibile." };
 }
 
+function ensureChartCanvasSize(type, count){
+  const canvas = document.getElementById("chartsCanvas");
+  if (!canvas) return;
+  const safeCount = Math.max(1, Number(count || 1));
+  let targetHeight = 440;
+  if (type === "bar") {
+    targetHeight = Math.max(440, Math.min(1400, 120 + safeCount * 28));
+  } else if (type === "pie") {
+    targetHeight = 460;
+  } else {
+    targetHeight = Math.max(440, Math.min(920, 300 + safeCount * 20));
+  }
+  canvas.height = targetHeight;
+}
+
+function labelStepForWidth(itemsCount, plotWidth, minSpacing){
+  const spacing = Math.max(34, Number(minSpacing || 56));
+  const slot = Math.max(1, plotWidth / Math.max(1, itemsCount));
+  return Math.max(1, Math.ceil(spacing / slot));
+}
+
 function drawChartsCanvas(type, items){
   const canvas = document.getElementById("chartsCanvas");
   if (!canvas) return;
@@ -2868,21 +3062,27 @@ function drawChartsCanvas(type, items){
 
     ctx.font = "12px sans-serif";
     ctx.fillStyle = "#344054";
-    items.slice(0, 12).forEach((it, idx) => {
-      const y = 32 + idx * 24;
+    const legendRowsMax = Math.max(4, Math.floor((H - 44) / 20));
+    const visible = items.slice(0, legendRowsMax);
+    visible.forEach((it, idx) => {
+      const y = 28 + idx * 20;
       ctx.fillStyle = palette[idx % palette.length];
       ctx.fillRect(W * 0.62, y - 10, 14, 14);
       ctx.fillStyle = "#344054";
       const pct = ((it.value / total) * 100).toFixed(1);
-      ctx.fillText(`${it.label} (${pct}%)`, W * 0.62 + 20, y + 1);
+      ctx.fillText(`${it.label}`.slice(0, 24) + ` (${pct}%)`, W * 0.62 + 20, y + 1);
     });
+    if (items.length > visible.length) {
+      ctx.fillStyle = "#667085";
+      ctx.fillText(`+${items.length - visible.length} altri elementi`, W * 0.62, 28 + visible.length * 20);
+    }
     return;
   }
 
   const left = 88;
   const right = 24;
   const top = 28;
-  const bottom = 86;
+  const bottom = type === "line" || type === "column" ? 112 : 46;
   const plotW = W - left - right;
   const plotH = H - top - bottom;
 
@@ -2909,19 +3109,23 @@ function drawChartsCanvas(type, items){
 
   if (type === "bar") {
     const slotH = plotH / items.length;
+    const labelStep = labelStepForWidth(items.length, plotH, 22);
     items.forEach((it, idx) => {
       const y = top + idx * slotH + 4;
       const h = Math.max(8, slotH - 8);
       const w = (it.value / maxV) * (plotW - 20);
       ctx.fillStyle = palette[idx % palette.length];
       ctx.fillRect(left + 1, y, w, h);
-      ctx.fillStyle = "#344054";
-      ctx.fillText(it.label.slice(0, 24), 4, y + h / 2 + 4);
+      if (idx % labelStep === 0 || h > 20) {
+        ctx.fillStyle = "#344054";
+        ctx.fillText(it.label.slice(0, 22), 4, y + h / 2 + 4);
+      }
     });
     return;
   }
 
   const slotW = plotW / items.length;
+  const axisLabelStep = labelStepForWidth(items.length, plotW, type === "line" ? 66 : 58);
   if (type === "line") {
     ctx.strokeStyle = "#1d4ed8";
     ctx.lineWidth = 2;
@@ -2939,12 +3143,14 @@ function drawChartsCanvas(type, items){
       ctx.beginPath();
       ctx.arc(x, y, 4, 0, Math.PI * 2);
       ctx.fill();
-      ctx.save();
-      ctx.translate(x, top + plotH + 10);
-      ctx.rotate(-0.55);
-      ctx.fillStyle = "#475467";
-      ctx.fillText(it.label.slice(0, 16), 0, 0);
-      ctx.restore();
+      if (idx % axisLabelStep === 0 || items.length <= 8) {
+        ctx.save();
+        ctx.translate(x, top + plotH + 12);
+        ctx.rotate(-0.48);
+        ctx.fillStyle = "#475467";
+        ctx.fillText(it.label.slice(0, 14), 0, 0);
+        ctx.restore();
+      }
     });
     return;
   }
@@ -2957,12 +3163,14 @@ function drawChartsCanvas(type, items){
     const y = top + plotH - h;
     ctx.fillStyle = palette[idx % palette.length];
     ctx.fillRect(x, y, w, h);
-    ctx.save();
-    ctx.translate(x + 2, top + plotH + 12);
-    ctx.rotate(-0.65);
-    ctx.fillStyle = "#475467";
-    ctx.fillText(it.label.slice(0, 16), 0, 0);
-    ctx.restore();
+    if (idx % axisLabelStep === 0 || items.length <= 8) {
+      ctx.save();
+      ctx.translate(x + 2, top + plotH + 12);
+      ctx.rotate(-0.52);
+      ctx.fillStyle = "#475467";
+      ctx.fillText(it.label.slice(0, 14), 0, 0);
+      ctx.restore();
+    }
   });
 }
 
@@ -2972,9 +3180,11 @@ function renderPivotChart(){
   const built = buildChartSeries();
   if (!built.ok) {
     if (status) status.textContent = built.reason;
+    ensureChartCanvasSize(type, 1);
     drawChartsCanvas("column", [{ label: "N/A", value: 0 }]);
     return;
   }
+  ensureChartCanvasSize(type, built.items.length);
   drawChartsCanvas(type, built.items);
   if (status) status.textContent = `Grafico aggiornato (${built.items.length} elementi).`;
 }
@@ -3918,6 +4128,8 @@ bindClick("btnCloseChartsModal", () => closeChartsModal());
 bindClick("chartsModal", ev => { if (ev && ev.target && ev.target.id === "chartsModal") closeChartsModal(); });
 bindClick("btnRenderChart", () => renderPivotChart());
 bindClick("btnPrintChartModal", () => printChartOnly());
+bindClick("btnCloseDrilldownModal", () => closeDrilldownModal());
+bindClick("drilldownModal", ev => { if (ev && ev.target && ev.target.id === "drilldownModal") closeDrilldownModal(); });
 bindInput("chartTypeSelect", "change", () => renderPivotChart());
 bindInput("chartLabelField", "change", () => renderPivotChart());
 bindInput("chartValueField", "change", () => renderPivotChart());

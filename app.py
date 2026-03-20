@@ -2991,3 +2991,57 @@ def pivot_run(
 
     except Exception as exc:
         return JSONResponse({"error": str(exc)}, status_code=500)
+
+
+@app.get("/pivot/drilldown")
+def pivot_drilldown(
+    pivot_id: str = Query(...),
+    source_id: str | None = None,
+    filters: str | None = None,
+    row_filters: str | None = None,
+    limit: int = Query(300, ge=1, le=2000),
+):
+    try:
+        sid = normalize_source_id(source_id)
+        preset = find_preset_by_id(pivot_id, source_id=sid)
+        if not preset:
+            return JSONResponse({"error": f"Preset non trovato: {pivot_id}"}, status_code=404)
+
+        sid = sid or preset.get("source_id")
+        _, df = load_source_df(sid)
+        df = apply_calculated_fields_to_dataframe(df, preset.get("calculated_fields", []))
+
+        df = normalize_df(
+            df,
+            numeric_fields=preset.get("numeric_fields", []),
+            date_fields=preset.get("date_fields", []),
+        )
+
+        global_filters = json.loads(filters) if filters else {}
+        if not isinstance(global_filters, dict):
+            global_filters = {}
+
+        subtotal_filters = json.loads(row_filters) if row_filters else {}
+        if not isinstance(subtotal_filters, dict):
+            subtotal_filters = {}
+
+        effective_filters = {**global_filters, **subtotal_filters}
+        filtered = apply_filters(df, effective_filters)
+
+        cols = [str(c) for c in filtered.columns]
+        total_rows = len(filtered)
+        rows_preview = filtered.head(limit).to_dict(orient="records")
+
+        return {
+            "ok": True,
+            "pivot_id": pivot_id,
+            "source_id": sid,
+            "applied_filters": effective_filters,
+            "columns": cols,
+            "rows": rows_preview,
+            "total_rows": total_rows,
+            "returned_rows": len(rows_preview),
+            "truncated": total_rows > limit,
+        }
+    except Exception as exc:
+        return JSONResponse({"error": str(exc)}, status_code=500)
