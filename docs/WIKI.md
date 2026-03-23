@@ -43,7 +43,7 @@ Default first-run credentials: `admin / admin` (change immediately).
 ### Built-in demo (recommended first run)
 - Demo CSV file: `demo/demo_sales.csv`
 - Demo source: `demo_sales` (seeded from `sources.json`)
-- Demo preset: `pivots/demo/demo_sales_overview.json`
+- Demo preset: `pivots/demo_sales/demo_sales_overview.json`
 
 Suggested onboarding flow:
 1. open **Manage data sources** and confirm source `demo_sales`;

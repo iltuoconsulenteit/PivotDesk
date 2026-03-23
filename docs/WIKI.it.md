@@ -41,7 +41,7 @@ Credenziali iniziali: `admin / admin` (da cambiare subito).
 ### Demo integrata (consigliata al primo avvio)
 - File CSV demo: `demo/demo_sales.csv`
 - Sorgente demo: `demo_sales` (seed da `sources.json`)
-- Preset demo: `pivots/demo/demo_sales_overview.json`
+- Preset demo: `pivots/demo_sales/demo_sales_overview.json`
 
 Flusso consigliato onboarding:
 1. apri **Gestisci sorgenti dati** e verifica la sorgente `demo_sales`;

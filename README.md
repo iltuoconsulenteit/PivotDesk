@@ -77,7 +77,7 @@ Runtime resources (templates/static/licenses) are resolved with a frozen-safe `_
 
 - Demo CSV dataset: `demo/demo_sales.csv`
 - Demo source seed: `sources.json` (`id: demo_sales`)
-- Demo pivot preset: `pivots/demo/demo_sales_overview.json`
+- Demo pivot preset: `pivots/demo_sales/demo_sales_overview.json`
 
 On first startup in source mode, `sources.json` is used as the legacy seed and migrated to the user runtime source bundle, so new users can immediately run a working pivot demo.
 
