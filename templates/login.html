@@ -21,6 +21,9 @@
     button{margin-top:16px;width:100%;padding:12px 14px;border:0;border-radius:12px;background:#1d4ed8;color:#fff;font-weight:700;cursor:pointer}
     .error{background:#fef3f2;color:#b42318;border:1px solid #fecdca;padding:10px 12px;border-radius:10px;margin:12px 0}
     .note{margin-top:12px;font-size:12px;color:#667085}
+    .login-language{display:flex;align-items:center;gap:8px;justify-content:flex-end;margin:0 0 12px}
+    .login-language label{margin:0;font-size:12px;font-weight:600;color:#667085}
+    .login-language select{width:auto;min-width:120px;padding:8px 10px;border:1px solid #d0d5dd;border-radius:10px;background:#fff}
     @media (max-width: 860px){
       .shell{grid-template-columns:1fr}
       .hero{order:2}
@@ -51,6 +54,13 @@
     </div>
 
     <form class="card" method="post" action="/login">
+      <div class="login-language">
+        <label for="loginLanguageSelect" data-i18n="settings_language_label">Lingua interfaccia</label>
+        <select id="loginLanguageSelect" aria-label="Language">
+          <option value="en">English</option>
+          <option value="it">Italiano</option>
+        </select>
+      </div>
       <h2 data-i18n="login_welcome">Benvenuto in PivotDesk</h2>
       <p class="subtitle" data-i18n="login_enter_credentials">Inserisci le tue credenziali per continuare.</p>
       {% if error %}<div class="error">{{ error }}</div>{% endif %}
@@ -65,12 +75,15 @@
   </div>
   <script>
     (async function(){
-      try{
-        const settingsRes = await fetch('/settings');
-        const settings = settingsRes.ok ? (await settingsRes.json()).settings || {} : {};
-        const lang = (settings.language || 'en').toLowerCase();
-        const catRes = await fetch('/static/languages/' + (lang === 'it' ? 'it' : 'en') + '.json');
-        const cat = catRes.ok ? await catRes.json() : {};
+      const getCatalog = async (lang) => {
+        const normalized = (lang || "en").toLowerCase() === "it" ? "it" : "en";
+        const res = await fetch('/static/languages/' + normalized + '.json');
+        const cat = res.ok ? await res.json() : {};
+        return { cat, lang: normalized };
+      };
+
+      const applyCatalog = (cat, lang) => {
+        document.documentElement.setAttribute("lang", lang);
         document.querySelectorAll('[data-i18n]').forEach(el => {
           const key = el.getAttribute('data-i18n');
           if (cat[key]) {
@@ -78,6 +91,24 @@
             else el.textContent = cat[key];
           }
         });
+      };
+
+      try{
+        const settingsRes = await fetch('/settings');
+        const settings = settingsRes.ok ? (await settingsRes.json()).settings || {} : {};
+        const localLang = (window.localStorage && localStorage.getItem("pivotdesk_login_lang")) || "";
+        const startupLang = localLang || settings.language || 'en';
+        const sel = document.getElementById("loginLanguageSelect");
+        const first = await getCatalog(startupLang);
+        applyCatalog(first.cat, first.lang);
+        if (sel) {
+          sel.value = first.lang;
+          sel.addEventListener("change", async () => {
+            const next = await getCatalog(sel.value);
+            applyCatalog(next.cat, next.lang);
+            try { localStorage.setItem("pivotdesk_login_lang", next.lang); } catch (_) {}
+          });
+        }
       }catch(_){}
     })();
   </script>

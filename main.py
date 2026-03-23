@@ -154,6 +154,7 @@ APP_HOST = "127.0.0.1"
 APP_PORT = 8091
 APP_PUBLIC_HOST = "127.0.0.1"
 APP_URL = "http://127.0.0.1:8091"
+APP_LOGIN_URL = "http://127.0.0.1:8091/login"
 LICENSE_TYPE = "demo"
 
 
@@ -199,7 +200,7 @@ def run_server() -> None:
 
 
 def main() -> None:
-    global APP_HOST, APP_PORT, APP_PUBLIC_HOST, APP_URL, LICENSE_TYPE
+    global APP_HOST, APP_PORT, APP_PUBLIC_HOST, APP_URL, APP_LOGIN_URL, LICENSE_TYPE
 
     parser = argparse.ArgumentParser(description="PivotDesk server launcher")
     parser.add_argument("--host", dest="host", default=None, help="Override bind host")
@@ -219,6 +220,7 @@ def main() -> None:
         APP_PORT = int(cfg.get("port", 8091))
     APP_PUBLIC_HOST = "127.0.0.1" if APP_HOST == "0.0.0.0" else APP_HOST
     APP_URL = f"http://{APP_PUBLIC_HOST}:{APP_PORT}"
+    APP_LOGIN_URL = f"{APP_URL}/login"
 
     write_log("=== PivotDesk START ===")
     write_log(f"Frozen: {is_frozen()}")
@@ -242,8 +244,8 @@ def main() -> None:
             write_log("Apertura browser disabilitata da --no-browser")
         else:
             try:
-                webbrowser.open(APP_URL)
-                write_log("Browser aperto")
+                webbrowser.open(APP_LOGIN_URL)
+                write_log(f"Browser aperto su {APP_LOGIN_URL}")
             except Exception as exc:
                 write_log(f"Errore apertura browser: {exc!r}")
     else:

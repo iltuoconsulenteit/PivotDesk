@@ -68,7 +68,7 @@ Developer note: keep local launcher scripts outside the public repository when n
 
 Default URL:
 
-- `http://127.0.0.1:8091`
+- `http://127.0.0.1:8091/login`
 
 Packaging note: **PyInstaller one-dir** is the recommended first packaging target.
 Runtime resources (templates/static/licenses) are resolved with a frozen-safe `_MEIPASS` fallback, while writable runtime data uses the app user area in packaged mode.

@@ -151,7 +151,7 @@ def open_browser_when_ready(host: str, port: int) -> None:
     def _worker() -> None:
         probe_host = "127.0.0.1" if host == "0.0.0.0" else host
         if wait_for_server(probe_host, port, timeout=20.0):
-            webbrowser.open(f"http://{PUBLIC_HOST}:{port}/")
+            webbrowser.open(f"http://{PUBLIC_HOST}:{port}/login")
 
     threading.Thread(target=_worker, daemon=True).start()
 
@@ -165,6 +165,7 @@ def print_banner() -> None:
     print(f"App import: {APP_IMPORT}")
     print(f"Licenza rilevata: {license_type}")
     print(f"Server: http://{PUBLIC_HOST}:{PORT}/")
+    print(f"Login: http://{PUBLIC_HOST}:{PORT}/login")
     if HOST == "0.0.0.0":
         lan_host = resolve_public_lan_host()
         print(f"LAN: http://{lan_host}:{PORT}/")
@@ -221,7 +222,7 @@ def main() -> int:
         print(f"Attenzione: la porta {PORT} risulta già in uso.")
         print(f"Prova ad aprire: http://{PUBLIC_HOST}:{PORT}/")
         if OPEN_BROWSER:
-            webbrowser.open(f"http://{PUBLIC_HOST}:{PORT}/")
+            webbrowser.open(f"http://{PUBLIC_HOST}:{PORT}/login")
         return 0
 
     ensure_dependencies()
