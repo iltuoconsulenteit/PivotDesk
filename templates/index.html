@@ -115,6 +115,7 @@
       grid-template-columns:repeat(12, minmax(0, 1fr));
       gap:10px;
       margin-bottom:8px;
+      align-items:stretch;
     }
     .compact-pivot-layout .compact-col{
       grid-column:span 12;
@@ -122,6 +123,9 @@
     }
     .compact-panel{
       padding:12px;
+      height:100%;
+      display:flex;
+      flex-direction:column;
     }
     .compact-panel-head{
       display:flex;
@@ -148,6 +152,12 @@
     }
     .compact-body .field{
       margin:0;
+    }
+    .compact-body{
+      flex:1 1 auto;
+      display:flex;
+      flex-direction:column;
+      justify-content:flex-start;
     }
     .source-picker-row{
       display:flex;
@@ -2959,15 +2969,24 @@ async function loadSourcePreview(sourceId){
 }
 
 async function showCurrentSourcePreview(){
-  if (!CURRENT_SOURCE) {
+  const sourceSelect = document.getElementById("sourceSelect");
+  const selectedId = String(sourceSelect && sourceSelect.value ? sourceSelect.value : CURRENT_SOURCE || "").trim();
+  if (!selectedId) {
     setStatus("Nessuna sorgente selezionata.");
     return;
   }
-  await loadSourcePreview(CURRENT_SOURCE);
+  CURRENT_SOURCE = selectedId;
+  try {
+    await loadSourcePreview(selectedId);
+  } catch (err) {
+    setStatus("ERRORE anteprima sorgente: " + (err && err.message ? err.message : String(err)));
+    return;
+  }
   const card = document.getElementById("sourcePreviewCard");
   if (card && typeof card.scrollIntoView === "function") {
     card.scrollIntoView({ behavior: "smooth", block: "start" });
   }
+  setStatus("Anteprima sorgente aggiornata.");
 }
 
 function resetSourceForm(){
@@ -5071,7 +5090,7 @@ bindClick("btnLicenseActivateNow", async () => {
 
 bindClick("btnCloseSources", () => closeSourcesScreen());
 bindClick("btnSourceNew", () => resetSourceForm());
-bindClick("btnShowSourcePreview", () => showCurrentSourcePreview().catch(() => {}));
+bindClick("btnShowSourcePreview", () => showCurrentSourcePreview());
 bindClick("btnSourceSave", async () => {
   try {
     await saveSourceFromForm();
