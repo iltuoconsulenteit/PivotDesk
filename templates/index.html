@@ -134,8 +134,23 @@
       gap:8px;
       margin-bottom:8px;
     }
+    .compact-panel-head-actions{
+      display:flex;
+      align-items:center;
+      gap:6px;
+    }
     .compact-panel-head .section-title{
       margin:0;
+    }
+    .compact-head-btn{
+      border:1px solid #d0d5dd;
+      background:#fff;
+      color:#344054;
+      border-radius:999px;
+      padding:4px 10px;
+      font-size:12px;
+      cursor:pointer;
+      line-height:1.2;
     }
     .compact-toggle{
       border:1px solid #d0d5dd;
@@ -1159,7 +1174,10 @@ window.LICENSE_CONTEXT = {
     <div class="card compact-panel compact-col preset" data-collapsible="presetPanel">
       <div class="compact-panel-head">
         <div class="section-title" data-i18n="preset">Preset</div>
-        <button type="button" class="compact-toggle" data-target="presetPanel">Nascondi</button>
+        <div class="compact-panel-head-actions">
+          <button type="button" id="btnEditCurrentPresetInline" class="compact-head-btn" data-i18n="menu_edit_preset">Modifica preset attivo</button>
+          <button type="button" class="compact-toggle" data-target="presetPanel">Nascondi</button>
+        </div>
       </div>
       <div class="compact-body" id="presetPanel">
         <div class="tabbar" id="tabbar"></div>
@@ -5030,6 +5048,7 @@ bindInput("appLanguageSelect", "change", () => {
 });
 
 bindClick("btnCloseBuilder", () => closeBuilderScreen());
+bindClick("btnEditCurrentPresetInline", () => openBuilderForCurrentPreset());
 bindClick("btnBuilderSwapRowsCols", () => {
   const rows = [].concat(BUILDER.rows || []);
   BUILDER.rows = [].concat(BUILDER.cols || []);
