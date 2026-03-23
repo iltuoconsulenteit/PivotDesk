@@ -149,6 +149,26 @@
     .compact-body .field{
       margin:0;
     }
+    .source-picker-row{
+      display:flex;
+      gap:8px;
+      align-items:center;
+    }
+    .source-picker-row select{
+      flex:1 1 auto;
+      min-width:0;
+    }
+    .source-list-btn{
+      flex:0 0 auto;
+      min-width:44px;
+      padding:8px 10px;
+      border:1px solid #d0d5dd;
+      border-radius:10px;
+      background:#fff;
+      cursor:pointer;
+      font-size:16px;
+      line-height:1;
+    }
     .quickbar-info{
       display:inline-flex;
       align-items:center;
@@ -1096,7 +1116,10 @@ window.LICENSE_CONTEXT = {
       </div>
       <div class="compact-body" id="sourcePanel">
         <div class="field source-field">
-          <select id="sourceSelect"></select>
+          <div class="source-picker-row">
+            <select id="sourceSelect"></select>
+            <button id="btnShowSourcePreview" type="button" class="source-list-btn" title="Mostra anteprima dati" aria-label="Mostra anteprima dati">📋</button>
+          </div>
         </div>
       </div>
     </div>
@@ -1223,7 +1246,7 @@ window.LICENSE_CONTEXT = {
       </div>
     </div>
 
-    <div class="card" style="margin-bottom:14px;">
+    <div class="card" id="sourcePreviewCard" style="margin-bottom:14px;">
       <div class="small">Sorgente dati del preset</div>
       <div class="builder-top" style="align-items:end;">
         <div class="field">
@@ -2932,6 +2955,18 @@ async function loadSourcePreview(sourceId){
   } catch (err) {
     clearSourcePreview("Impossibile caricare l'anteprima dati.");
     throw err;
+  }
+}
+
+async function showCurrentSourcePreview(){
+  if (!CURRENT_SOURCE) {
+    setStatus("Nessuna sorgente selezionata.");
+    return;
+  }
+  await loadSourcePreview(CURRENT_SOURCE);
+  const card = document.getElementById("sourcePreviewCard");
+  if (card && typeof card.scrollIntoView === "function") {
+    card.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 }
 
@@ -5036,6 +5071,7 @@ bindClick("btnLicenseActivateNow", async () => {
 
 bindClick("btnCloseSources", () => closeSourcesScreen());
 bindClick("btnSourceNew", () => resetSourceForm());
+bindClick("btnShowSourcePreview", () => showCurrentSourcePreview().catch(() => {}));
 bindClick("btnSourceSave", async () => {
   try {
     await saveSourceFromForm();
