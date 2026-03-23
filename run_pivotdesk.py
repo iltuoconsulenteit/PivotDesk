@@ -220,7 +220,7 @@ def main() -> int:
 
     if is_port_open(HOST, PORT):
         print(f"Attenzione: la porta {PORT} risulta già in uso.")
-        print(f"Prova ad aprire: http://{PUBLIC_HOST}:{PORT}/")
+        print(f"Prova ad aprire: http://{PUBLIC_HOST}:{PORT}/login")
         if OPEN_BROWSER:
             webbrowser.open(f"http://{PUBLIC_HOST}:{PORT}/login")
         return 0

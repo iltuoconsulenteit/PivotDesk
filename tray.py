@@ -263,7 +263,7 @@ def start_server() -> None:
     log(f"host={host} port={port}")
     if host == "0.0.0.0":
         lan_host = resolve_public_lan_host()
-        log(f"URL locale: http://127.0.0.1:{port}/")
+        log(f"URL login locale: http://127.0.0.1:{port}/login")
         log(f"URL LAN: http://{lan_host}:{port}/")
 
     creationflags = subprocess.CREATE_NO_WINDOW if sys.platform.startswith("win") else 0

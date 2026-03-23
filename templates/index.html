@@ -1165,6 +1165,7 @@ window.LICENSE_CONTEXT = {
         <div class="field source-field">
           <div class="source-picker-row">
             <select id="sourceSelect"></select>
+            <button id="btnEditCurrentSourceInline" type="button" class="source-list-btn" title="Modifica sorgente attiva" aria-label="Modifica sorgente attiva">✏️</button>
             <button id="btnShowSourcePreview" type="button" class="source-list-btn" title="Mostra anteprima dati" aria-label="Mostra anteprima dati">📋</button>
           </div>
         </div>
@@ -2677,6 +2678,23 @@ function openSourcesScreen(){
   renderSourcesManager();
   bindSourceUiButtons();
   window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function openSourceEditorForCurrentSource(){
+  const sourceSelect = document.getElementById("sourceSelect");
+  const selectedId = String(sourceSelect && sourceSelect.value ? sourceSelect.value : CURRENT_SOURCE || "").trim();
+  if (!selectedId) {
+    setStatus("Nessuna sorgente selezionata.");
+    return;
+  }
+  openSourcesScreen();
+  const src = (SOURCES || []).find(x => String(x && x.id ? x.id : "").trim() === selectedId);
+  if (!src) {
+    setStatus("ERRORE: sorgente selezionata non trovata.");
+    return;
+  }
+  loadSourceIntoForm(src);
+  setStatus("Modifica sorgente: " + (src.title || src.id));
 }
 
 function closeSourcesScreen(){
@@ -5158,6 +5176,7 @@ bindClick("btnLicenseActivateNow", async () => {
 
 bindClick("btnCloseSources", () => closeSourcesScreen());
 bindClick("btnSourceNew", () => resetSourceForm());
+bindClick("btnEditCurrentSourceInline", () => openSourceEditorForCurrentSource());
 bindClick("btnShowSourcePreview", () => showCurrentSourcePreview());
 bindClick("btnCloseSourcePreviewModal", () => closeSourcePreviewModal());
 bindClick("sourcePreviewModal", ev => {
