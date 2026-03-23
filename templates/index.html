@@ -918,16 +918,38 @@
       box-shadow: 0 0 0 3px rgba(23,92,211,.14);
       background: #eef4ff;
     }
+    .source-preview-modal-overlay{
+      display:none;
+      position:fixed;
+      inset:0;
+      background:rgba(15,23,42,.48);
+      z-index:3300;
+      align-items:center;
+      justify-content:center;
+      padding:20px;
+    }
+    .source-preview-modal{
+      width:min(1100px, 98vw);
+      max-height:92vh;
+      overflow:auto;
+      background:#fff;
+      border-radius:14px;
+      border:1px solid #d0d5dd;
+      box-shadow:0 24px 60px rgba(15,23,42,.2);
+      padding:14px;
+    }
 
     @media (max-width: 768px) {
       .charts-modal-overlay,
       .drilldown-modal-overlay,
-      .license-modal-overlay {
+      .license-modal-overlay,
+      .source-preview-modal-overlay {
         padding: 10px;
       }
       .charts-modal,
       .drilldown-modal,
-      .license-modal {
+      .license-modal,
+      .source-preview-modal {
         width: 100%;
         max-height: calc(100vh - 20px);
         border-radius: 12px;
@@ -1706,6 +1728,25 @@ window.LICENSE_CONTEXT = {
     </div>
     <div id="drilldownTableWrap" class="table-responsive">
       <p class="small">Premi “Dettaglio” su un totale della pivot per aprire l’elenco righe.</p>
+    </div>
+  </div>
+</div>
+
+<div id="sourcePreviewModal" class="source-preview-modal-overlay">
+  <div class="source-preview-modal">
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:8px;">
+      <div>
+        <h3 style="margin:0;">Anteprima dati sorgente</h3>
+        <div class="small" style="color:#667085;">Prime righe della sorgente selezionata.</div>
+      </div>
+      <button id="btnCloseSourcePreviewModal" type="button">Chiudi</button>
+    </div>
+    <div id="sourcePreviewModalMeta" class="preview-card-meta">Caricamento anteprima...</div>
+    <div class="preview-table-wrap" id="sourcePreviewModalTableWrap">
+      <table class="preview-table" id="sourcePreviewModalTable">
+        <thead></thead>
+        <tbody></tbody>
+      </table>
     </div>
   </div>
 </div>
@@ -2950,7 +2991,7 @@ async function previewSourceFromForm(force = false){
 async function loadSourcePreview(sourceId){
   if (!sourceId) {
     clearSourcePreview();
-    return;
+    return null;
   }
   try {
     let url = "/source-preview?source_id=" + encodeURIComponent(sourceId) + "&limit=20";
@@ -2962,6 +3003,7 @@ async function loadSourcePreview(sourceId){
     }
     const data = await api(url);
     renderSourcePreview(data);
+    return data;
   } catch (err) {
     clearSourcePreview("Impossibile caricare l'anteprima dati.");
     throw err;
@@ -2976,17 +3018,24 @@ async function showCurrentSourcePreview(){
     return;
   }
   CURRENT_SOURCE = selectedId;
+  let data = null;
   try {
-    await loadSourcePreview(selectedId);
+    data = await loadSourcePreview(selectedId);
   } catch (err) {
     setStatus("ERRORE anteprima sorgente: " + (err && err.message ? err.message : String(err)));
     return;
   }
-  const card = document.getElementById("sourcePreviewCard");
-  if (card && typeof card.scrollIntoView === "function") {
-    card.scrollIntoView({ behavior: "smooth", block: "start" });
+  const modal = document.getElementById("sourcePreviewModal");
+  if (data && modal) {
+    renderPreviewTableInto(data, "sourcePreviewModalMeta", "sourcePreviewModalTable", "Nessuna colonna disponibile per l'anteprima.");
+    modal.style.display = "flex";
   }
   setStatus("Anteprima sorgente aggiornata.");
+}
+
+function closeSourcePreviewModal(){
+  const modal = document.getElementById("sourcePreviewModal");
+  if (modal) modal.style.display = "none";
 }
 
 function resetSourceForm(){
@@ -5091,6 +5140,10 @@ bindClick("btnLicenseActivateNow", async () => {
 bindClick("btnCloseSources", () => closeSourcesScreen());
 bindClick("btnSourceNew", () => resetSourceForm());
 bindClick("btnShowSourcePreview", () => showCurrentSourcePreview());
+bindClick("btnCloseSourcePreviewModal", () => closeSourcePreviewModal());
+bindClick("sourcePreviewModal", ev => {
+  if (ev && ev.target && ev.target.id === "sourcePreviewModal") closeSourcePreviewModal();
+});
 bindClick("btnSourceSave", async () => {
   try {
     await saveSourceFromForm();
