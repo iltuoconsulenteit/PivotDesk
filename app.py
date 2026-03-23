@@ -82,6 +82,7 @@ STATIC_DIR = resource_path("static")
 TEMPLATES_DIR = resource_path("templates")
 DATA_DIR = APP_HOME_DIR / "data"
 PIVOTS_DIR = APP_HOME_DIR / "pivots"
+LEGACY_PIVOTS_DIR = resource_path("pivots")
 
 CONFIG_PATH = DATA_DIR / "config.json"
 SETTINGS_PATH = DATA_DIR / "settings.json"
@@ -1452,6 +1453,22 @@ def build_preset_payload(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def load_pivot_files(source_id: str | None = None) -> list[dict[str, Any]]:
+    if str(PIVOTS_DIR.resolve()) != str(LEGACY_PIVOTS_DIR.resolve()):
+        runtime_has_pivots = any(PIVOTS_DIR.glob("*/*.json")) if PIVOTS_DIR.exists() else False
+        if not runtime_has_pivots and LEGACY_PIVOTS_DIR.exists():
+            for legacy_folder in LEGACY_PIVOTS_DIR.iterdir():
+                if not legacy_folder.is_dir():
+                    continue
+                target_folder = PIVOTS_DIR / legacy_folder.name
+                target_folder.mkdir(parents=True, exist_ok=True)
+                for legacy_file in legacy_folder.glob("*.json"):
+                    target_file = target_folder / legacy_file.name
+                    if not target_file.exists():
+                        try:
+                            shutil.copy2(legacy_file, target_file)
+                        except Exception:
+                            continue
+
     items: list[dict[str, Any]] = []
 
     if source_id:
