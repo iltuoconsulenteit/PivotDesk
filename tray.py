@@ -24,6 +24,16 @@ def base_dir() -> Path:
     return Path(__file__).resolve().parent
 
 
+def resource_base_dir() -> Path:
+    if is_frozen() and hasattr(sys, "_MEIPASS"):
+        return Path(getattr(sys, "_MEIPASS"))
+    return Path(__file__).resolve().parent
+
+
+def resource_path(*parts: str) -> Path:
+    return resource_base_dir().joinpath(*parts)
+
+
 BASE_DIR = base_dir()
 
 
@@ -187,7 +197,9 @@ def get_runtime_port(default_port: int = 8091) -> int:
 
 
 def _icon_image() -> Image.Image:
-    icon_path = BASE_DIR / "static" / "img" / "pivotdesk-icon.png"
+    icon_path = resource_path("static", "img", "pivotdesk-icon.png")
+    if not icon_path.exists():
+        icon_path = BASE_DIR / "static" / "img" / "pivotdesk-icon.png"
     return Image.open(icon_path)
 
 

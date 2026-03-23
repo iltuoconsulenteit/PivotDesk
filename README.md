@@ -71,6 +71,7 @@ Default URL:
 - `http://127.0.0.1:8091`
 
 Packaging note: **PyInstaller one-dir** is the recommended first packaging target.
+Runtime resources (templates/static/licenses) are resolved with a frozen-safe `_MEIPASS` fallback, while writable runtime data uses the app user area in packaged mode.
 
 ---
 
