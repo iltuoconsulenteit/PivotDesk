@@ -1159,13 +1159,15 @@ window.LICENSE_CONTEXT = {
     <div class="card compact-panel compact-col source" data-collapsible="sourcePanel">
       <div class="compact-panel-head">
         <label for="sourceSelect" class="section-title"><strong data-i18n="source_data">Sorgente dati</strong></label>
-        <button type="button" class="compact-toggle" data-target="sourcePanel">Nascondi</button>
+        <div class="compact-panel-head-actions">
+          <button id="btnEditCurrentSourceInline" type="button" class="compact-head-btn">Modifica sorgente attiva</button>
+          <button type="button" class="compact-toggle" data-target="sourcePanel">Nascondi</button>
+        </div>
       </div>
       <div class="compact-body" id="sourcePanel">
         <div class="field source-field">
           <div class="source-picker-row">
             <select id="sourceSelect"></select>
-            <button id="btnEditCurrentSourceInline" type="button" class="source-list-btn" title="Modifica sorgente attiva" aria-label="Modifica sorgente attiva">✏️</button>
             <button id="btnShowSourcePreview" type="button" class="source-list-btn" title="Mostra anteprima dati" aria-label="Mostra anteprima dati">📋</button>
           </div>
         </div>
