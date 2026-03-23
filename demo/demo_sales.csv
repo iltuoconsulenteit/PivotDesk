@@ -1,0 +1,21 @@
+Date,Region,Channel,Category,Customer,Amount,Quantity,Status,SalesRep
+2026-01-03,North,Online,Software,Alfa SRL,1200.50,3,Closed,Marco
+2026-01-05,North,Retail,Hardware,Beta Spa,860.00,2,Closed,Lucia
+2026-01-07,South,Online,Services,Gamma SNC,430.00,1,Open,Paolo
+2026-01-11,West,Partner,Software,Delta SRL,1790.00,4,Closed,Marco
+2026-01-15,East,Online,Hardware,Epsilon SRL,620.00,1,Open,Chiara
+2026-01-18,South,Retail,Services,Zeta Spa,510.00,2,Closed,Paolo
+2026-01-21,North,Partner,Software,Eta SRL,2100.00,5,Closed,Lucia
+2026-01-24,West,Online,Hardware,Theta SRL,780.00,2,Open,Marco
+2026-02-02,East,Retail,Services,Iota SNC,460.00,1,Closed,Chiara
+2026-02-04,North,Online,Software,Kappa Spa,1320.00,3,Closed,Lucia
+2026-02-08,South,Partner,Hardware,Lambda SRL,940.00,2,Open,Paolo
+2026-02-10,West,Retail,Software,Mu SRL,1540.00,3,Closed,Marco
+2026-02-14,East,Online,Services,Nu Spa,520.00,1,Closed,Chiara
+2026-02-16,North,Partner,Hardware,Xi SRL,880.00,2,Open,Lucia
+2026-02-20,South,Online,Software,Omicron SRL,1680.00,4,Closed,Paolo
+2026-02-23,West,Partner,Services,Pi SNC,495.00,1,Closed,Marco
+2026-03-01,East,Retail,Hardware,Rho SRL,730.00,2,Open,Chiara
+2026-03-03,North,Online,Services,Sigma SRL,575.00,1,Closed,Lucia
+2026-03-07,South,Retail,Software,Tau Spa,1480.00,3,Closed,Paolo
+2026-03-10,West,Online,Hardware,Upsilon SRL,810.00,2,Open,Marco

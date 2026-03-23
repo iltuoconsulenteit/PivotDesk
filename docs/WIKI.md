@@ -40,6 +40,16 @@ Default local URL: `http://127.0.0.1:8091`
 
 Default first-run credentials: `admin / admin` (change immediately).
 
+### Built-in demo (recommended first run)
+- Demo CSV file: `demo/demo_sales.csv`
+- Demo source: `demo_sales` (seeded from `sources.json`)
+- Demo preset: `pivots/demo/demo_sales_overview.json`
+
+Suggested onboarding flow:
+1. open **Manage data sources** and confirm source `demo_sales`;
+2. open **Pivot builder** and load `Demo Sales Overview`;
+3. run the pivot and test filters/charts/drilldown.
+
 ---
 
 ## 3) Data sources

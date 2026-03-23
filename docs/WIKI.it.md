@@ -38,6 +38,16 @@ URL locale predefinito: `http://127.0.0.1:8091`.
 
 Credenziali iniziali: `admin / admin` (da cambiare subito).
 
+### Demo integrata (consigliata al primo avvio)
+- File CSV demo: `demo/demo_sales.csv`
+- Sorgente demo: `demo_sales` (seed da `sources.json`)
+- Preset demo: `pivots/demo/demo_sales_overview.json`
+
+Flusso consigliato onboarding:
+1. apri **Gestisci sorgenti dati** e verifica la sorgente `demo_sales`;
+2. apri il **Costruttore pivot** e carica `Demo Sales Overview`;
+3. esegui la pivot e prova filtri/grafico/drilldown.
+
 ---
 
 ## 3) Sorgenti dati

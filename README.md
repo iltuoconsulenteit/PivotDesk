@@ -73,6 +73,14 @@ Default URL:
 Packaging note: **PyInstaller one-dir** is the recommended first packaging target.
 Runtime resources (templates/static/licenses) are resolved with a frozen-safe `_MEIPASS` fallback, while writable runtime data uses the app user area in packaged mode.
 
+### Built-in demo content (first-time onboarding)
+
+- Demo CSV dataset: `demo/demo_sales.csv`
+- Demo source seed: `sources.json` (`id: demo_sales`)
+- Demo pivot preset: `pivots/demo/demo_sales_overview.json`
+
+On first startup in source mode, `sources.json` is used as the legacy seed and migrated to the user runtime source bundle, so new users can immediately run a working pivot demo.
+
 ---
 
 ## Default credentials
