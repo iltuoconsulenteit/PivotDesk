@@ -86,6 +86,7 @@ PIVOTS_DIR = APP_HOME_DIR / "pivots"
 CONFIG_PATH = DATA_DIR / "config.json"
 SETTINGS_PATH = DATA_DIR / "settings.json"
 SOURCES_PATH = DATA_DIR / "sources.json"
+LEGACY_SOURCES_PATH = BASE_DIR / "sources.json"
 USERS_PATH = DATA_DIR / "users.json"
 LICENSE_SETTINGS_PATH = DATA_DIR / "license_settings.json"
 BRANDING_DIR = DATA_DIR / "branding"
@@ -1189,6 +1190,29 @@ def load_sources_data() -> dict[str, Any]:
             normalized_items.append(normalized)
 
     default_source = normalize_source_id(raw.get("default_source", ""))
+
+    if not normalized_items and LEGACY_SOURCES_PATH.exists():
+        legacy_raw = read_json(LEGACY_SOURCES_PATH, {}) or {}
+        legacy_items = legacy_raw.get("items")
+        if legacy_items is None:
+            legacy_items = legacy_raw.get("sources", [])
+        for item in legacy_items or []:
+            normalized = normalize_source_item(item)
+            if normalized:
+                normalized_items.append(normalized)
+
+        legacy_default = normalize_source_id(legacy_raw.get("default_source", ""))
+        if legacy_default:
+            default_source = legacy_default
+
+        if normalized_items:
+            seeded = {
+                "default_source": default_source or normalized_items[0]["id"],
+                "items": normalized_items,
+            }
+            write_json(SOURCES_PATH, seeded)
+            return seeded
+
     if not default_source and normalized_items:
         default_source = normalized_items[0]["id"]
 
