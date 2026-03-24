@@ -81,7 +81,7 @@ Runtime resources (templates/static/licenses) are resolved with a frozen-safe `_
 
 On first startup in source mode, `sources.json` is used as the legacy seed and migrated to the user runtime source bundle, so new users can immediately run a working pivot demo.
 
-If you migrate/copy pivot folders from another PivotDesk instance, missing sources are inferred from the imported preset folders (`pivots/<source_id>/*`) and added as editable migration placeholders, so preset/source relinking can be completed directly from Source Management.
+If you migrate/copy pivot folders from another PivotDesk instance, missing sources are inferred from the imported preset folders (`pivots/<source_id>/*`) and added as editable migration placeholders, so preset/source relinking can be completed directly from Source Management. For Excel-oriented migrated presets, source hints such as `sheet_name` and `skip_rows` are also retained when present in migration payloads.
 
 ---
 

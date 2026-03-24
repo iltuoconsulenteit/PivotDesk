@@ -1227,21 +1227,54 @@ def infer_sources_from_pivots_dirs() -> list[dict[str, Any]]:
                 continue
 
             current = inferred_by_id.get(sid, {})
+            inferred_config = dict(current.get("config", {}) or {})
+            payload_source_config = payload.get("source_config")
+            if isinstance(payload_source_config, dict):
+                inferred_config.update(payload_source_config)
+
+            sheet_hint = (
+                payload.get("source_sheet_name")
+                or payload.get("source_sheet")
+                or inferred_config.get("sheet_name")
+                or inferred_config.get("sheet")
+                or ""
+            )
+            skip_rows_hint = (
+                payload.get("source_skip_rows")
+                if payload.get("source_skip_rows") is not None
+                else payload.get("skip_rows")
+            )
+            if skip_rows_hint is None:
+                skip_rows_hint = inferred_config.get("skip_rows")
+
             title = (
                 str(payload.get("source_title", "")).strip()
                 or str(payload.get("source_name", "")).strip()
                 or str(current.get("title", "")).strip()
                 or sid
             )
+            source_type_hint = (
+                str(payload.get("source_type", "")).strip().lower()
+                or str(current.get("type", "")).strip().lower()
+                or "csv"
+            )
             path_hint = str(payload.get("source_path", "")).strip()
+            if path_hint and "path" not in inferred_config:
+                inferred_config["path"] = path_hint
+            if sheet_hint:
+                inferred_config["sheet_name"] = sheet_hint
+            if skip_rows_hint is not None and str(skip_rows_hint).strip() != "":
+                inferred_config["skip_rows"] = skip_rows_hint
 
             inferred_item = normalize_source_item(
                 {
                     "id": sid,
                     "title": title,
-                    "type": current.get("type", "csv") or "csv",
+                    "type": source_type_hint,
                     "path": path_hint or current.get("path", ""),
-                    "config": dict(current.get("config", {}) or {}),
+                    "config": inferred_config,
+                    "sheet_name": inferred_config.get("sheet_name"),
+                    "skip_rows": inferred_config.get("skip_rows"),
                     "migration_placeholder": not bool(path_hint or current.get("path")),
                     "migration_note": "Sorgente inferita dai preset migrati. Verifica percorso/tipo prima dell'uso.",
                 }
