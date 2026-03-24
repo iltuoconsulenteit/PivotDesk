@@ -1711,8 +1711,12 @@ window.LICENSE_CONTEXT = {
           <select id="chartValueField"></select>
         </div>
         <div class="field">
-          <label for="chartTopN">Top N</label>
+          <label for="chartTopN">Top N (per valore)</label>
           <input id="chartTopN" type="number" min="1" max="200" value="12">
+        </div>
+        <div class="field">
+          <label for="chartMinValue">Soglia minima valore (opzionale)</label>
+          <input id="chartMinValue" type="number" step="any" placeholder="es. 1000">
         </div>
       </div>
       <div class="builder-actions" style="justify-content:flex-start; margin-bottom:10px;">
@@ -4015,18 +4019,24 @@ function buildChartSeries(){
   const labelIdx = Number(document.getElementById("chartLabelField")?.value || 0);
   const valueIdx = Number(document.getElementById("chartValueField")?.value || 1);
   const topN = Math.max(1, Math.min(200, Number(document.getElementById("chartTopN")?.value || 12)));
+  const minValueRaw = String(document.getElementById("chartMinValue")?.value || "").trim();
+  const minValue = minValueRaw === "" ? null : Number(minValueRaw);
+  const hasMinValue = Number.isFinite(minValue);
 
   const series = [];
   data.rows.forEach(cells => {
     const label = String(cells[labelIdx] || "").trim();
     const num = parseNumberForChart(cells[valueIdx]);
     if (!label || num === null) return;
+    if (hasMinValue && num < Number(minValue)) return;
     series.push({ label, value: num });
   });
 
   series.sort((a, b) => b.value - a.value);
   const sliced = series.slice(0, topN);
-  return sliced.length ? { ok: true, items: sliced } : { ok: false, reason: "Nessun valore numerico disponibile." };
+  return sliced.length
+    ? { ok: true, items: sliced, totalFiltered: series.length, topN, minValue: hasMinValue ? Number(minValue) : null }
+    : { ok: false, reason: "Nessun valore numerico disponibile con i filtri impostati." };
 }
 
 function ensureChartCanvasSize(type, count){
@@ -4048,6 +4058,13 @@ function labelStepForWidth(itemsCount, plotWidth, minSpacing){
   const spacing = Math.max(34, Number(minSpacing || 56));
   const slot = Math.max(1, plotWidth / Math.max(1, itemsCount));
   return Math.max(1, Math.ceil(spacing / slot));
+}
+
+function compactAxisLabel(value, maxLen = 11){
+  const text = String(value || "").trim();
+  if (!text) return "";
+  if (text.length <= maxLen) return text;
+  return text.slice(0, Math.max(3, maxLen - 1)) + "…";
 }
 
 function drawChartsCanvas(type, items){
@@ -4107,7 +4124,7 @@ function drawChartsCanvas(type, items){
   const left = 88;
   const right = 24;
   const top = 28;
-  const bottom = type === "line" || type === "column" ? 112 : 46;
+  const bottom = type === "line" || type === "column" ? 142 : 46;
   const plotW = W - left - right;
   const plotH = H - top - bottom;
 
@@ -4150,7 +4167,7 @@ function drawChartsCanvas(type, items){
   }
 
   const slotW = plotW / items.length;
-  const axisLabelStep = labelStepForWidth(items.length, plotW, type === "line" ? 66 : 58);
+  const axisLabelStep = labelStepForWidth(items.length, plotW, type === "line" ? 96 : 92);
   if (type === "line") {
     ctx.strokeStyle = "#1d4ed8";
     ctx.lineWidth = 2;
@@ -4170,10 +4187,10 @@ function drawChartsCanvas(type, items){
       ctx.fill();
       if (idx % axisLabelStep === 0 || items.length <= 8) {
         ctx.save();
-        ctx.translate(x, top + plotH + 12);
-        ctx.rotate(-0.48);
+        ctx.translate(x - 2, top + plotH + 14);
+        ctx.rotate(-0.68);
         ctx.fillStyle = "#475467";
-        ctx.fillText(it.label.slice(0, 14), 0, 0);
+        ctx.fillText(compactAxisLabel(it.label, 10), 0, 0);
         ctx.restore();
       }
     });
@@ -4190,10 +4207,10 @@ function drawChartsCanvas(type, items){
     ctx.fillRect(x, y, w, h);
     if (idx % axisLabelStep === 0 || items.length <= 8) {
       ctx.save();
-      ctx.translate(x + 2, top + plotH + 12);
-      ctx.rotate(-0.52);
+      ctx.translate(x + 1, top + plotH + 14);
+      ctx.rotate(-0.7);
       ctx.fillStyle = "#475467";
-      ctx.fillText(it.label.slice(0, 14), 0, 0);
+      ctx.fillText(compactAxisLabel(it.label, 10), 0, 0);
       ctx.restore();
     }
   });
@@ -4211,7 +4228,10 @@ function renderPivotChart(){
   }
   ensureChartCanvasSize(type, built.items.length);
   drawChartsCanvas(type, built.items);
-  if (status) status.textContent = `Grafico aggiornato (${built.items.length} elementi).`;
+  if (status) {
+    const minTxt = built.minValue !== null ? ` · soglia >= ${built.minValue}` : "";
+    status.textContent = `Grafico aggiornato (${built.items.length} di ${built.totalFiltered} elementi, Top N=${built.topN}${minTxt}).`;
+  }
 }
 
 function openChartsModal(){
@@ -5182,6 +5202,8 @@ bindClick("btnHideAllDrilldownCols", () => {
 bindInput("chartTypeSelect", "change", () => renderPivotChart());
 bindInput("chartLabelField", "change", () => renderPivotChart());
 bindInput("chartValueField", "change", () => renderPivotChart());
+bindInput("chartTopN", "input", () => renderPivotChart());
+bindInput("chartMinValue", "input", () => renderPivotChart());
 bindClick("btnCloseLicenseDetails", () => closeLicenseInfo());
 bindClick("btnCheckLanStatus", async () => {
   try {
