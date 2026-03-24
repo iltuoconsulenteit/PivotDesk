@@ -1172,7 +1172,84 @@ def normalize_source_item(item: dict[str, Any]) -> dict[str, Any] | None:
         elif key in normalized["config"]:
             normalized[key] = normalized["config"].get(key)
 
+    if bool(item.get("migration_placeholder")):
+        normalized["migration_placeholder"] = True
+    migration_note = str(item.get("migration_note", "")).strip()
+    if migration_note:
+        normalized["migration_note"] = migration_note
+
     return normalized
+
+
+def infer_sources_from_pivots_dirs() -> list[dict[str, Any]]:
+    inferred_by_id: dict[str, dict[str, Any]] = {}
+
+    if not PIVOTS_DIR.exists():
+        return []
+
+    for folder in PIVOTS_DIR.iterdir():
+        if not folder.is_dir():
+            continue
+
+        fallback_sid = normalize_source_id(folder.name)
+        if not fallback_sid:
+            continue
+
+        source_payload_files = [
+            folder / "source.json",
+            folder / "_source.json",
+            folder / "source_config.json",
+        ]
+        for source_payload_file in source_payload_files:
+            if not source_payload_file.exists():
+                continue
+            payload = read_json(source_payload_file, {}) or {}
+            candidate = payload.get("source", payload) if isinstance(payload, dict) else {}
+            normalized = normalize_source_item(candidate if isinstance(candidate, dict) else {})
+            if normalized and normalized.get("id"):
+                inferred_by_id[normalized["id"]] = normalized
+                break
+
+        for preset_file in folder.glob("*.json"):
+            payload = read_json(preset_file, {}) or {}
+            if not isinstance(payload, dict):
+                continue
+
+            embedded_source = payload.get("source")
+            if isinstance(embedded_source, dict):
+                normalized_embedded = normalize_source_item(embedded_source)
+                if normalized_embedded and normalized_embedded.get("id"):
+                    inferred_by_id[normalized_embedded["id"]] = normalized_embedded
+                    continue
+
+            sid = normalize_source_id(payload.get("source_id", fallback_sid) or fallback_sid)
+            if not sid:
+                continue
+
+            current = inferred_by_id.get(sid, {})
+            title = (
+                str(payload.get("source_title", "")).strip()
+                or str(payload.get("source_name", "")).strip()
+                or str(current.get("title", "")).strip()
+                or sid
+            )
+            path_hint = str(payload.get("source_path", "")).strip()
+
+            inferred_item = normalize_source_item(
+                {
+                    "id": sid,
+                    "title": title,
+                    "type": current.get("type", "csv") or "csv",
+                    "path": path_hint or current.get("path", ""),
+                    "config": dict(current.get("config", {}) or {}),
+                    "migration_placeholder": not bool(path_hint or current.get("path")),
+                    "migration_note": "Sorgente inferita dai preset migrati. Verifica percorso/tipo prima dell'uso.",
+                }
+            )
+            if inferred_item:
+                inferred_by_id[sid] = inferred_item
+
+    return list(inferred_by_id.values())
 
 
 def load_sources_data() -> dict[str, Any]:
@@ -1220,10 +1297,29 @@ def load_sources_data() -> dict[str, Any]:
     if default_source and not any(x["id"] == default_source for x in normalized_items):
         default_source = normalized_items[0]["id"] if normalized_items else ""
 
-    return {
+    known_source_ids = {x["id"] for x in normalized_items}
+    inferred_items = infer_sources_from_pivots_dirs()
+    inferred_added = False
+    for item in inferred_items:
+        sid = item.get("id")
+        if not sid or sid in known_source_ids:
+            continue
+        known_source_ids.add(sid)
+        normalized_items.append(item)
+        inferred_added = True
+
+    if not default_source and normalized_items:
+        default_source = normalized_items[0]["id"]
+
+    merged = {
         "default_source": default_source,
         "items": normalized_items,
     }
+
+    if inferred_added:
+        write_json(SOURCES_PATH, merged)
+
+    return merged
 
 
 def save_sources_data(data: dict[str, Any]) -> dict[str, Any]:
@@ -1261,8 +1357,14 @@ def load_source_df(source_id: str | None) -> tuple[dict[str, Any], pd.DataFrame]
     src = get_source_by_id(source_id)
     if not src:
         raise FileNotFoundError(f"Sorgente non trovata: {source_id}")
+    source_path = str(src.get("path") or src.get("config", {}).get("path") or "").strip()
+    source_type = str(src.get("type", "")).strip().lower()
+    if not source_path and source_type not in {"mysql"}:
+        raise FileNotFoundError(
+            "La sorgente selezionata non ha ancora un percorso configurato. "
+            "Apri 'Gestione sorgenti' e completa i parametri della sorgente migrata."
+        )
     if is_free_license():
-        source_type = str(src.get("type", "")).strip().lower()
         if source_type != "csv":
             raise PermissionError("Licenza Free: sono consentite solo sorgenti CSV per la pivot a video.")
 
