@@ -20,6 +20,7 @@
   "menu_pivot": "Pivot",
   "menu_open_builder": "Open pivot builder",
   "menu_edit_preset": "Edit active preset",
+  "menu_edit_source": "Edit active source",
   "menu_delete_preset": "Delete active preset",
   "menu_view": "View",
   "menu_layout_vertical": "Vertical measures layout",

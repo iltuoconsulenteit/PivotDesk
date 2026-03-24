@@ -20,6 +20,7 @@
   "menu_pivot": "Pivot",
   "menu_open_builder": "Apri costruttore pivot",
   "menu_edit_preset": "Modifica preset attivo",
+  "menu_edit_source": "Modifica sorgente attiva",
   "menu_delete_preset": "Elimina preset attivo",
   "menu_view": "Visualizza",
   "menu_layout_vertical": "Layout misure verticale",
