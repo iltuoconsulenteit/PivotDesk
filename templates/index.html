@@ -644,6 +644,25 @@
       z-index: 2;
       padding-bottom: 6px;
     }
+    .drilldown-scroll-top{
+      overflow-x:auto;
+      overflow-y:hidden;
+      height:14px;
+      border:1px solid #e4e7ec;
+      border-radius:8px 8px 0 0;
+      background:#f8fafc;
+    }
+    .drilldown-scroll-top-inner{
+      height:1px;
+    }
+    .drilldown-table-main{
+      overflow:auto;
+      max-height:52vh;
+      border:1px solid #e4e7ec;
+      border-top:0;
+      border-radius:0 0 8px 8px;
+      background:#fff;
+    }
 
     .calc-wizard-grid {
       display: grid;
@@ -3729,7 +3748,38 @@ function renderDrilldownDataTable(){
     const tds = visibleCols.map(c => "<td>" + escapeHtml(r?.[c] ?? "") + "</td>").join("");
     return "<tr>" + tds + "</tr>";
   }).join("");
-  wrap.innerHTML = "<table class='preview-table'><thead><tr>" + head + "</tr></thead><tbody>" + body + "</tbody></table>";
+  wrap.innerHTML =
+    "<div id='drilldownScrollTop' class='drilldown-scroll-top'><div id='drilldownScrollTopInner' class='drilldown-scroll-top-inner'></div></div>" +
+    "<div id='drilldownTableMain' class='drilldown-table-main'><table class='preview-table'><thead><tr>" + head + "</tr></thead><tbody>" + body + "</tbody></table></div>";
+
+  const topBar = document.getElementById("drilldownScrollTop");
+  const topInner = document.getElementById("drilldownScrollTopInner");
+  const main = document.getElementById("drilldownTableMain");
+  if (!topBar || !topInner || !main) return;
+
+  const syncTopWidth = () => {
+    const table = main.querySelector("table");
+    topInner.style.width = table ? (table.scrollWidth + "px") : (main.scrollWidth + "px");
+  };
+
+  let syncing = false;
+  topBar.addEventListener("scroll", () => {
+    if (syncing) return;
+    syncing = true;
+    main.scrollLeft = topBar.scrollLeft;
+    syncing = false;
+  });
+  main.addEventListener("scroll", () => {
+    if (syncing) return;
+    syncing = true;
+    topBar.scrollLeft = main.scrollLeft;
+    syncing = false;
+  });
+
+  syncTopWidth();
+  if (typeof window !== "undefined") {
+    window.setTimeout(syncTopWidth, 0);
+  }
 }
 
 async function openPivotDrilldown(label, rowFilters){
