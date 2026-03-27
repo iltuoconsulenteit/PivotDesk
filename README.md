@@ -146,6 +146,8 @@ The following diagrams are visual examples derived from the HTML layout structur
 - `services/pivot_engine.py` – pivot transformation logic
 - `services/source_manager.py` – source loading pipeline
 - `plugins/calculated_fields/backend.py` – formula engine
+- `plugins/cross_source_lookup/plugin.py` – lookup/VLOOKUP-like join between two sources (optional plugin, disabled by default)
+- `plugins/multi_source_merge/plugin.py` – multi-source schema merge/union builder (optional plugin, disabled by default)
 - `templates/` – frontend pages
 - `static/js/` – frontend logic
 - `docs/WIKI.md` – full internal wiki (EN)

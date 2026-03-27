@@ -1,0 +1,14 @@
+{
+  "id": "cross_source_lookup",
+  "name": "Cross Source Lookup",
+  "version": "0.1.0",
+  "description": "Lookup/VLOOKUP-style matching between two sources, including optional calculated fields.",
+  "enabled": false,
+  "frontend": {
+    "menu": [],
+    "panel": {
+      "id": "crossSourceLookupPanel",
+      "title": "Cross Source Lookup"
+    }
+  }
+}
