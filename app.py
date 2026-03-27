@@ -87,7 +87,9 @@ LEGACY_PIVOTS_DIR = resource_path("pivots")
 CONFIG_PATH = DATA_DIR / "config.json"
 SETTINGS_PATH = DATA_DIR / "settings.json"
 SOURCES_PATH = DATA_DIR / "sources.json"
+PLUGINS_CONFIG_PATH = DATA_DIR / "plugins.json"
 LEGACY_SOURCES_PATH = BASE_DIR / "sources.json"
+LEGACY_PLUGINS_CONFIG_PATH = BASE_DIR / "plugins.json"
 USERS_PATH = DATA_DIR / "users.json"
 LICENSE_SETTINGS_PATH = DATA_DIR / "license_settings.json"
 BRANDING_DIR = DATA_DIR / "branding"
@@ -1451,9 +1453,29 @@ def get_runtime_paths() -> dict[str, str]:
     }
 
 
+def get_plugin_roots() -> list[Path]:
+    roots = [
+        APP_HOME_DIR / "plugins",
+        BASE_DIR / "plugins",
+        resource_path("plugins"),
+    ]
+    out: list[Path] = []
+    seen: set[str] = set()
+    for root in roots:
+        key = str(root.resolve()) if root.exists() else str(root)
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(root)
+    return out
+
+
 def load_plugins_enabled_map() -> dict[str, bool]:
-    plugins_cfg = BASE_DIR / "plugins.json"
-    raw = read_json(plugins_cfg, {}) or {}
+    raw = read_json(PLUGINS_CONFIG_PATH, None)
+    if not isinstance(raw, dict) and LEGACY_PLUGINS_CONFIG_PATH.exists():
+        raw = read_json(LEGACY_PLUGINS_CONFIG_PATH, {}) or {}
+    if not isinstance(raw, dict):
+        raw = {}
     enabled = raw.get("enabled", {}) if isinstance(raw, dict) else {}
     if not isinstance(enabled, dict):
         enabled = {}
@@ -1463,8 +1485,9 @@ def load_plugins_enabled_map() -> dict[str, bool]:
     # In developer runtime, default-enable all discovered plugins unless
     # explicitly disabled in plugins.json.
     if is_dev_runtime():
-        plugins_root = BASE_DIR / "plugins"
-        if plugins_root.exists():
+        for plugins_root in get_plugin_roots():
+            if not plugins_root.exists():
+                continue
             for plugin_dir in plugins_root.iterdir():
                 if not plugin_dir.is_dir():
                     continue
@@ -1478,7 +1501,7 @@ def load_plugins_enabled_map() -> dict[str, bool]:
 
 def save_plugins_enabled_map(enabled_map: dict[str, bool]) -> dict[str, bool]:
     clean = {str(k): bool(v) for k, v in (enabled_map or {}).items() if str(k).strip()}
-    write_json(BASE_DIR / "plugins.json", {"enabled": clean})
+    write_json(PLUGINS_CONFIG_PATH, {"enabled": clean})
     return clean
 
 
@@ -1970,7 +1993,7 @@ def list_excel_sheet_names(path: str) -> list[str]:
         return [str(name) for name in (workbook.sheet_names or [])]
 
 plugin_manager = PluginManager(
-    BASE_DIR / "plugins",
+    get_plugin_roots(),
     enabled_map=load_plugins_enabled_map(),
 )
 
@@ -2626,7 +2649,7 @@ def plugins_status():
     )
     enabled_map = load_plugins_enabled_map()
 
-    plugins = status_payload.get("plugins", []) if isinstance(status_payload, dict) else []
+    plugins = status_payload.get("items", []) if isinstance(status_payload, dict) else []
     if isinstance(plugins, list):
         for item in plugins:
             if not isinstance(item, dict):
@@ -2640,6 +2663,7 @@ def plugins_status():
             item["effective_enabled"] = bool(configured_enabled and license_allows_plugins)
 
     if isinstance(status_payload, dict):
+        status_payload["plugins"] = plugins
         status_payload["license_plugins_allowed"] = license_allows_plugins
         status_payload["configured_enabled_map"] = enabled_map
     return status_payload

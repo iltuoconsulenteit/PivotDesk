@@ -53,21 +53,33 @@ class PluginAPI:
 class PluginManager:
     def __init__(
         self,
-        plugins_dir: str | Path,
+        plugins_dir: str | Path | list[str | Path] | tuple[str | Path, ...],
         *,
         enabled_map: dict[str, bool] | None = None,
     ) -> None:
-        self.plugins_dir = Path(plugins_dir)
+        if isinstance(plugins_dir, (list, tuple)):
+            self.plugins_dirs = [Path(p) for p in plugins_dir]
+        else:
+            self.plugins_dirs = [Path(plugins_dir)]
         self.enabled_map = enabled_map or {}
         self.loaded_plugins: dict[str, LoadedPlugin] = {}
 
     def discover_plugin_dirs(self) -> list[Path]:
-        if not self.plugins_dir.exists():
-            return []
-        return sorted(
-            p for p in self.plugins_dir.iterdir()
-            if p.is_dir() and (p / "manifest.json").exists()
-        )
+        discovered: dict[str, Path] = {}
+        for root in self.plugins_dirs:
+            if not root.exists():
+                continue
+            for p in sorted(root.iterdir()):
+                if not p.is_dir() or not (p / "manifest.json").exists():
+                    continue
+                plugin_id = p.name
+                try:
+                    raw = json.loads((p / "manifest.json").read_text(encoding="utf-8"))
+                    plugin_id = str(raw.get("id") or p.name).strip() or p.name
+                except Exception:
+                    pass
+                discovered.setdefault(plugin_id, p)
+        return sorted(discovered.values(), key=lambda x: x.name)
 
     def _read_manifest(self, path: Path) -> PluginManifest:
         raw = json.loads(path.read_text(encoding="utf-8"))
@@ -155,7 +167,7 @@ class PluginManager:
 
     def get_status(self) -> dict[str, Any]:
         return {
-            "plugins_dir": str(self.plugins_dir),
+            "plugins_dirs": [str(p) for p in self.plugins_dirs],
             "count": len(self.loaded_plugins),
             "items": [
                 {

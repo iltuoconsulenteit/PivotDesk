@@ -1660,6 +1660,33 @@ window.LICENSE_CONTEXT = {
       <div class="section-title">Sorgenti disponibili</div>
       <div id="sourcesList"></div>
     </div>
+
+    <div class="card" style="margin-top:16px;">
+      <div class="section-title">Plugin sorgenti (lookup / merge)</div>
+      <div class="small" style="margin-bottom:10px; color:#475467;">Utility rapide per richiamare i plugin cross-source e multi-source merge dalla sezione sorgenti.</div>
+      <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:12px;">
+        <div style="border:1px solid #eaecf0; border-radius:10px; padding:10px;">
+          <div style="font-weight:600; margin-bottom:6px;">Cross source lookup</div>
+          <div class="field"><label for="lkPrimarySource">Sorgente primaria</label><input id="lkPrimarySource" placeholder="es. banche_a"></div>
+          <div class="field"><label for="lkSecondarySource">Sorgente secondaria</label><input id="lkSecondarySource" placeholder="es. anagrafica"></div>
+          <div class="field"><label for="lkPrimaryField">Campo match primaria</label><input id="lkPrimaryField" placeholder="es. iban"></div>
+          <div class="field"><label for="lkSecondaryField">Campo match secondaria</label><input id="lkSecondaryField" placeholder="es. iban"></div>
+          <div class="field"><label for="lkPickFields">Campi da riportare (comma)</label><input id="lkPickFields" placeholder="es. categoria,gruppo"></div>
+          <div class="builder-actions"><button id="btnRunCrossLookup" type="button">Esegui lookup</button></div>
+        </div>
+        <div style="border:1px solid #eaecf0; border-radius:10px; padding:10px;">
+          <div style="font-weight:600; margin-bottom:6px;">Multi source merge</div>
+          <div class="small" style="margin-bottom:8px;">Config JSON sources (array con source_id e column_map)</div>
+          <textarea id="mergeSourcesJson" style="width:100%; min-height:140px;" placeholder='[{\"source_id\":\"s1\",\"column_map\":{\"iban\":\"IBAN\"}},{\"source_id\":\"s2\",\"column_map\":{\"iban\":\"iban\",\"importo\":\"amount\"}}]'></textarea>
+          <div class="field"><label for="mergeOutputColumns">Colonne output (comma, opzionale)</label><input id="mergeOutputColumns" placeholder="es. iban,importo,_source"></div>
+          <div class="builder-actions"><button id="btnRunMultiMerge" type="button">Esegui merge</button></div>
+        </div>
+      </div>
+      <div style="margin-top:10px;">
+        <div class="small" style="margin-bottom:4px;">Output plugin</div>
+        <pre id="sourcePluginsOutput" style="max-height:260px; overflow:auto; background:#0b1220; color:#d1e0ff; border-radius:8px; padding:10px; font-size:12px;">{}</pre>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -2830,6 +2857,62 @@ function openSourceEditorForCurrentSource(){
   }
   loadSourceIntoForm(src);
   setStatus("Modifica sorgente: " + (src.title || src.id));
+}
+
+function setSourcePluginOutput(payload){
+  const out = document.getElementById("sourcePluginsOutput");
+  if (!out) return;
+  try {
+    out.textContent = JSON.stringify(payload || {}, null, 2);
+  } catch (_e) {
+    out.textContent = String(payload || "");
+  }
+}
+
+async function runCrossSourceLookupFromUi(){
+  const payload = {
+    primary_source_id: String(document.getElementById("lkPrimarySource")?.value || "").trim(),
+    secondary_source_id: String(document.getElementById("lkSecondarySource")?.value || "").trim(),
+    primary_match_field: String(document.getElementById("lkPrimaryField")?.value || "").trim(),
+    secondary_match_field: String(document.getElementById("lkSecondaryField")?.value || "").trim(),
+    secondary_pick_fields: String(document.getElementById("lkPickFields")?.value || "")
+      .split(",").map(x => x.trim()).filter(Boolean),
+    limit: 200
+  };
+  if (!payload.primary_source_id || !payload.secondary_source_id || !payload.primary_match_field || !payload.secondary_match_field) {
+    throw new Error("Compila sorgenti e campi di match per il lookup.");
+  }
+  const res = await api("/plugin/cross-source-lookup/query", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+  setSourcePluginOutput(res);
+  setStatus("Lookup cross-source completato.");
+}
+
+async function runMultiSourceMergeFromUi(){
+  const raw = String(document.getElementById("mergeSourcesJson")?.value || "").trim();
+  if (!raw) throw new Error("Inserisci il JSON delle sorgenti da unire.");
+  let sources = [];
+  try {
+    sources = JSON.parse(raw);
+  } catch (_e) {
+    throw new Error("JSON sorgenti non valido.");
+  }
+  if (!Array.isArray(sources) || !sources.length) throw new Error("Il JSON deve contenere un array di sorgenti.");
+  const outputColumns = String(document.getElementById("mergeOutputColumns")?.value || "")
+    .split(",").map(x => x.trim()).filter(Boolean);
+  const res = await api("/plugin/multi-source-merge/build", {
+    method: "POST",
+    body: JSON.stringify({
+      sources,
+      output_columns: outputColumns,
+      include_source_tag: true,
+      limit: 1000
+    })
+  });
+  setSourcePluginOutput(res);
+  setStatus("Merge multi-source completato.");
 }
 
 function closeSourcesScreen(){
@@ -5480,6 +5563,20 @@ bindClick("btnSourceDelete", async () => {
     await deleteSourceFromForm();
   } catch (e) {
     setStatus("ERRORE: " + e.message);
+  }
+});
+bindClick("btnRunCrossLookup", async () => {
+  try {
+    await runCrossSourceLookupFromUi();
+  } catch (e) {
+    setStatus("ERRORE plugin lookup: " + e.message);
+  }
+});
+bindClick("btnRunMultiMerge", async () => {
+  try {
+    await runMultiSourceMergeFromUi();
+  } catch (e) {
+    setStatus("ERRORE plugin merge: " + e.message);
   }
 });
 

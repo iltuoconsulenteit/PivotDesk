@@ -155,6 +155,7 @@ The following diagrams are visual examples derived from the HTML layout structur
 Plugin visibility/enablement:
 - `GET /plugins/status` shows runtime status + license allow/deny flags.
 - `POST /plugins/config/save` persists plugin enable/disable map (`plugins.json`, restart required).
+- Plugin discovery scans these folders (first match by plugin id wins): `APP_HOME/plugins`, runtime `plugins/`, bundled `resource/plugins`.
 
 ---
 
