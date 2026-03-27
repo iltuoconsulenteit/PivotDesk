@@ -1667,15 +1667,23 @@ window.LICENSE_CONTEXT = {
       <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:12px;">
         <div style="border:1px solid #eaecf0; border-radius:10px; padding:10px;">
           <div style="font-weight:600; margin-bottom:6px;">Cross source lookup</div>
-          <div class="field"><label for="lkPrimarySource">Sorgente primaria</label><input id="lkPrimarySource" placeholder="es. banche_a"></div>
-          <div class="field"><label for="lkSecondarySource">Sorgente secondaria</label><input id="lkSecondarySource" placeholder="es. anagrafica"></div>
-          <div class="field"><label for="lkPrimaryField">Campo match primaria</label><input id="lkPrimaryField" placeholder="es. iban"></div>
-          <div class="field"><label for="lkSecondaryField">Campo match secondaria</label><input id="lkSecondaryField" placeholder="es. iban"></div>
-          <div class="field"><label for="lkPickFields">Campi da riportare (comma)</label><input id="lkPickFields" placeholder="es. categoria,gruppo"></div>
+          <div class="field"><label for="lkPrimarySourceSel">Sorgente primaria</label><select id="lkPrimarySourceSel"></select></div>
+          <div class="field"><label for="lkSecondarySourceSel">Sorgente secondaria</label><select id="lkSecondarySourceSel"></select></div>
+          <div class="field"><label for="lkPrimaryFieldSel">Campo match primaria</label><select id="lkPrimaryFieldSel"></select></div>
+          <div class="field"><label for="lkSecondaryFieldSel">Campo match secondaria</label><select id="lkSecondaryFieldSel"></select></div>
+          <div class="small" style="margin-bottom:4px;">Campi secondaria: trascina qui i campi da riportare</div>
+          <div id="lkPickFieldsAvailable" style="display:flex; flex-wrap:wrap; gap:6px; min-height:34px; padding:6px; border:1px dashed #c7d7fe; border-radius:8px; margin-bottom:6px;"></div>
+          <div id="lkPickFieldsSelected" style="display:flex; flex-wrap:wrap; gap:6px; min-height:40px; padding:8px; border:1px solid #98a2b3; border-radius:8px; background:#f8fafc;"></div>
           <div class="builder-actions"><button id="btnRunCrossLookup" type="button">Esegui lookup</button></div>
         </div>
         <div style="border:1px solid #eaecf0; border-radius:10px; padding:10px;">
           <div style="font-weight:600; margin-bottom:6px;">Multi source merge</div>
+          <div class="small" style="margin-bottom:8px;">Builder guidato merge (dropdown + mappature)</div>
+          <div id="mergeSourceBlocks" style="display:grid; gap:8px; margin-bottom:8px;"></div>
+          <div class="builder-actions" style="margin-bottom:8px;">
+            <button id="btnAddMergeSourceBlock" type="button">Aggiungi sorgente merge</button>
+            <button id="btnGenerateMergeJson" type="button">Genera JSON dal builder</button>
+          </div>
           <div class="small" style="margin-bottom:8px;">Config JSON sources (array con source_id e column_map)</div>
           <textarea id="mergeSourcesJson" style="width:100%; min-height:140px;" placeholder='[{\"source_id\":\"s1\",\"column_map\":{\"iban\":\"IBAN\"}},{\"source_id\":\"s2\",\"column_map\":{\"iban\":\"iban\",\"importo\":\"amount\"}}]'></textarea>
           <div class="field"><label for="mergeOutputColumns">Colonne output (comma, opzionale)</label><input id="mergeOutputColumns" placeholder="es. iban,importo,_source"></div>
@@ -2839,6 +2847,7 @@ function openSourcesScreen(){
   document.getElementById("sourcesScreen").classList.add("active");
   renderSourcesManager();
   bindSourceUiButtons();
+  initSourcePluginBuilders().catch(() => {});
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
@@ -2869,14 +2878,205 @@ function setSourcePluginOutput(payload){
   }
 }
 
+async function loadPluginSourcesIntoSelect(selectId){
+  const sel = document.getElementById(selectId);
+  if (!sel) return;
+  sel.innerHTML = '<option value="">Seleziona sorgente...</option>';
+  (SOURCES || []).forEach(src => {
+    const o = document.createElement("option");
+    o.value = src.id;
+    o.textContent = src.title || src.id;
+    sel.appendChild(o);
+  });
+}
+
+async function loadSourceFields(sourceId){
+  if (!sourceId) return [];
+  try {
+    const res = await api("/fields?source_id=" + encodeURIComponent(sourceId));
+    return Array.isArray(res.fields) ? res.fields : [];
+  } catch (_e) {
+    return [];
+  }
+}
+
+function populateFieldSelect(selectId, fields){
+  const sel = document.getElementById(selectId);
+  if (!sel) return;
+  const current = sel.value;
+  sel.innerHTML = '<option value="">Seleziona campo...</option>';
+  (fields || []).forEach(f => {
+    const o = document.createElement("option");
+    o.value = f;
+    o.textContent = f;
+    sel.appendChild(o);
+  });
+  if (current && (fields || []).includes(current)) sel.value = current;
+}
+
+function renderLookupPickFields(fields){
+  const avail = document.getElementById("lkPickFieldsAvailable");
+  if (!avail) return;
+  avail.innerHTML = "";
+  (fields || []).forEach(field => {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "chip";
+    chip.textContent = field;
+    chip.draggable = true;
+    chip.dataset.field = field;
+    chip.style.border = "1px solid #c7d7fe";
+    chip.style.background = "#eef4ff";
+    chip.style.borderRadius = "999px";
+    chip.style.padding = "4px 8px";
+    chip.addEventListener("dragstart", ev => {
+      ev.dataTransfer.setData("text/plain", field);
+    });
+    chip.onclick = () => addLookupSelectedField(field);
+    avail.appendChild(chip);
+  });
+}
+
+function addLookupSelectedField(field){
+  const box = document.getElementById("lkPickFieldsSelected");
+  if (!box || !field) return;
+  if (Array.from(box.querySelectorAll("[data-field]")).some(x => x.dataset.field === field)) return;
+  const chip = document.createElement("button");
+  chip.type = "button";
+  chip.dataset.field = field;
+  chip.textContent = field + " ×";
+  chip.style.border = "1px solid #98a2b3";
+  chip.style.background = "#fff";
+  chip.style.borderRadius = "999px";
+  chip.style.padding = "4px 8px";
+  chip.onclick = () => chip.remove();
+  box.appendChild(chip);
+}
+
+function getLookupSelectedFields(){
+  const box = document.getElementById("lkPickFieldsSelected");
+  if (!box) return [];
+  return Array.from(box.querySelectorAll("[data-field]")).map(x => x.dataset.field).filter(Boolean);
+}
+
+async function refreshLookupBuilders(){
+  await loadPluginSourcesIntoSelect("lkPrimarySourceSel");
+  await loadPluginSourcesIntoSelect("lkSecondarySourceSel");
+  const primarySel = document.getElementById("lkPrimarySourceSel");
+  const secondarySel = document.getElementById("lkSecondarySourceSel");
+  if (primarySel && CURRENT_SOURCE) primarySel.value = CURRENT_SOURCE;
+  if (secondarySel && CURRENT_SOURCE) secondarySel.value = CURRENT_SOURCE;
+}
+
+let MERGE_BLOCK_COUNTER = 0;
+
+async function addMergeSourceBlock(initial = null){
+  const wrap = document.getElementById("mergeSourceBlocks");
+  if (!wrap) return;
+  MERGE_BLOCK_COUNTER += 1;
+  const blockId = "mergeBlock" + MERGE_BLOCK_COUNTER;
+  const block = document.createElement("div");
+  block.id = blockId;
+  block.style.border = "1px solid #d0d5dd";
+  block.style.borderRadius = "8px";
+  block.style.padding = "8px";
+  block.innerHTML =
+    "<div class='field'><label>Sorgente</label><select data-merge-source></select></div>" +
+    "<div data-merge-mappings style='display:grid; gap:6px;'></div>" +
+    "<div class='builder-actions'><button type='button' data-merge-add-map>Aggiungi mappatura</button><button type='button' data-merge-remove-block>Rimuovi sorgente</button></div>";
+  wrap.appendChild(block);
+
+  const sourceSel = block.querySelector("select[data-merge-source]");
+  sourceSel.innerHTML = '<option value="">Seleziona sorgente...</option>';
+  (SOURCES || []).forEach(src => {
+    const o = document.createElement("option");
+    o.value = src.id;
+    o.textContent = src.title || src.id;
+    sourceSel.appendChild(o);
+  });
+  if (initial && initial.source_id) sourceSel.value = initial.source_id;
+
+  const addMapRow = async (targetVal = "", sourceVal = "") => {
+    const mapWrap = block.querySelector("[data-merge-mappings]");
+    const row = document.createElement("div");
+    row.style.display = "grid";
+    row.style.gridTemplateColumns = "1fr 1fr auto";
+    row.style.gap = "6px";
+    row.innerHTML =
+      "<input placeholder='colonna output' data-merge-target>" +
+      "<select data-merge-source-field></select>" +
+      "<button type='button' data-merge-remove-map>×</button>";
+    mapWrap.appendChild(row);
+    row.querySelector("[data-merge-target]").value = targetVal;
+    row.querySelector("[data-merge-remove-map]").onclick = () => row.remove();
+    const fields = await loadSourceFields(sourceSel.value);
+    const sel = row.querySelector("[data-merge-source-field]");
+    sel.innerHTML = '<option value="">Seleziona campo...</option>';
+    fields.forEach(f => {
+      const o = document.createElement("option");
+      o.value = String(f || "");
+      o.textContent = String(f || "");
+      sel.appendChild(o);
+    });
+    if (sourceVal) sel.value = sourceVal;
+  };
+
+  block.querySelector("[data-merge-add-map]").onclick = () => addMapRow();
+  block.querySelector("[data-merge-remove-block]").onclick = () => block.remove();
+  sourceSel.onchange = () => {
+    const rows = Array.from(block.querySelectorAll("[data-merge-source-field]"));
+    loadSourceFields(sourceSel.value).then(fields => {
+      rows.forEach(sel => {
+        const curr = sel.value;
+        sel.innerHTML = '<option value="">Seleziona campo...</option>';
+        fields.forEach(f => {
+          const o = document.createElement("option");
+          o.value = String(f || "");
+          o.textContent = String(f || "");
+          sel.appendChild(o);
+        });
+        if (curr && fields.includes(curr)) sel.value = curr;
+      });
+    });
+  };
+
+  if (initial && initial.column_map && typeof initial.column_map === "object") {
+    const entries = Object.entries(initial.column_map);
+    if (entries.length) {
+      for (const [k, v] of entries) await addMapRow(String(k), String(v));
+    } else {
+      await addMapRow();
+    }
+  } else {
+    await addMapRow();
+  }
+}
+
+function buildMergeSourcesJsonFromBuilder(){
+  const wrap = document.getElementById("mergeSourceBlocks");
+  const out = [];
+  if (!wrap) return out;
+  wrap.querySelectorAll("div[id^='mergeBlock']").forEach(block => {
+    const sourceId = String(block.querySelector("[data-merge-source]")?.value || "").trim();
+    if (!sourceId) return;
+    const columnMap = {};
+    block.querySelectorAll("[data-merge-mappings] > div").forEach(row => {
+      const target = String(row.querySelector("[data-merge-target]")?.value || "").trim();
+      const sourceField = String(row.querySelector("[data-merge-source-field]")?.value || "").trim();
+      if (target && sourceField) columnMap[target] = sourceField;
+    });
+    out.push({ source_id: sourceId, column_map: columnMap });
+  });
+  return out;
+}
+
 async function runCrossSourceLookupFromUi(){
   const payload = {
-    primary_source_id: String(document.getElementById("lkPrimarySource")?.value || "").trim(),
-    secondary_source_id: String(document.getElementById("lkSecondarySource")?.value || "").trim(),
-    primary_match_field: String(document.getElementById("lkPrimaryField")?.value || "").trim(),
-    secondary_match_field: String(document.getElementById("lkSecondaryField")?.value || "").trim(),
-    secondary_pick_fields: String(document.getElementById("lkPickFields")?.value || "")
-      .split(",").map(x => x.trim()).filter(Boolean),
+    primary_source_id: String(document.getElementById("lkPrimarySourceSel")?.value || "").trim(),
+    secondary_source_id: String(document.getElementById("lkSecondarySourceSel")?.value || "").trim(),
+    primary_match_field: String(document.getElementById("lkPrimaryFieldSel")?.value || "").trim(),
+    secondary_match_field: String(document.getElementById("lkSecondaryFieldSel")?.value || "").trim(),
+    secondary_pick_fields: getLookupSelectedFields(),
     limit: 200
   };
   if (!payload.primary_source_id || !payload.secondary_source_id || !payload.primary_match_field || !payload.secondary_match_field) {
@@ -2919,6 +3119,66 @@ function closeSourcesScreen(){
   document.getElementById("sourcesScreen").classList.remove("active");
   document.getElementById("mainView").classList.remove("hidden");
   window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+async function initSourcePluginBuilders(){
+  await refreshLookupBuilders();
+
+  const primarySel = document.getElementById("lkPrimarySourceSel");
+  const secondarySel = document.getElementById("lkSecondarySourceSel");
+  const selectedDrop = document.getElementById("lkPickFieldsSelected");
+  const addMergeBtn = document.getElementById("btnAddMergeSourceBlock");
+  const genMergeBtn = document.getElementById("btnGenerateMergeJson");
+
+  if (primarySel && !primarySel.dataset.boundLookupPrimary) {
+    primarySel.dataset.boundLookupPrimary = "1";
+    primarySel.addEventListener("change", async () => {
+      const fields = await loadSourceFields(primarySel.value);
+      populateFieldSelect("lkPrimaryFieldSel", fields);
+    });
+  }
+
+  if (secondarySel && !secondarySel.dataset.boundLookupSecondary) {
+    secondarySel.dataset.boundLookupSecondary = "1";
+    secondarySel.addEventListener("change", async () => {
+      const fields = await loadSourceFields(secondarySel.value);
+      populateFieldSelect("lkSecondaryFieldSel", fields);
+      renderLookupPickFields(fields);
+    });
+  }
+
+  if (selectedDrop && !selectedDrop.dataset.boundDnD) {
+    selectedDrop.dataset.boundDnD = "1";
+    selectedDrop.addEventListener("dragover", ev => ev.preventDefault());
+    selectedDrop.addEventListener("drop", ev => {
+      ev.preventDefault();
+      const field = ev.dataTransfer.getData("text/plain");
+      addLookupSelectedField(field);
+    });
+  }
+
+  const mergeWrap = document.getElementById("mergeSourceBlocks");
+  if (mergeWrap && !mergeWrap.dataset.initialized) {
+    mergeWrap.dataset.initialized = "1";
+    mergeWrap.innerHTML = "";
+    await addMergeSourceBlock();
+  }
+  if (addMergeBtn && !addMergeBtn.dataset.bound) {
+    addMergeBtn.dataset.bound = "1";
+    addMergeBtn.addEventListener("click", () => addMergeSourceBlock());
+  }
+  if (genMergeBtn && !genMergeBtn.dataset.bound) {
+    genMergeBtn.dataset.bound = "1";
+    genMergeBtn.addEventListener("click", () => {
+      const built = buildMergeSourcesJsonFromBuilder();
+      const area = document.getElementById("mergeSourcesJson");
+      if (area) area.value = JSON.stringify(built, null, 2);
+      setStatus("JSON merge generato dal builder guidato.");
+    });
+  }
+
+  if (primarySel && primarySel.value) primarySel.dispatchEvent(new Event("change"));
+  if (secondarySel && secondarySel.value) secondarySel.dispatchEvent(new Event("change"));
 }
 
 function updateSourceFormVisibility(){

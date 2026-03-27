@@ -175,6 +175,80 @@ def wait_for_server(host: str, port: int, timeout: int = 30) -> bool:
     return False
 
 
+def wait_for_server_with_splash(host: str, port: int, timeout: int = 30) -> bool:
+    try:
+        import tkinter as tk
+        from tkinter import ttk
+    except Exception:
+        return wait_for_server(host, port, timeout=timeout)
+
+    root = tk.Tk()
+    root.title("PivotDesk")
+    root.geometry("520x230")
+    root.resizable(False, False)
+    root.configure(bg="white")
+    root.attributes("-topmost", True)
+
+    frame = tk.Frame(root, bg="white")
+    frame.pack(fill="both", expand=True, padx=16, pady=14)
+
+    logo_path = BASE_DIR / "static" / "img" / "pivotdesk-logo.png"
+    logo_img = None
+    if logo_path.exists():
+        try:
+            logo_img = tk.PhotoImage(file=str(logo_path))
+            logo_label = tk.Label(frame, image=logo_img, bg="white")
+            logo_label.pack(pady=(2, 8))
+        except Exception:
+            logo_img = None
+
+    title = tk.Label(frame, text="PivotDesk in avvio...", font=("Segoe UI", 12, "bold"), bg="white", fg="#101828")
+    title.pack(pady=(0, 6))
+    status_var = tk.StringVar(value="Inizializzazione server in corso...")
+    status = tk.Label(frame, textvariable=status_var, font=("Segoe UI", 10), bg="white", fg="#475467")
+    status.pack(pady=(0, 10))
+
+    progress = ttk.Progressbar(frame, orient="horizontal", mode="determinate", maximum=100, length=460)
+    progress.pack(pady=(0, 8))
+    hint = tk.Label(frame, text="Attendere prego, l'apertura iniziale può richiedere alcuni secondi.", font=("Segoe UI", 9), bg="white", fg="#667085")
+    hint.pack()
+
+    root.update_idletasks()
+    root.update()
+
+    start = time.time()
+    ok = False
+    while time.time() - start < timeout:
+        if port_is_open(host, port):
+            ok = True
+            break
+        elapsed = time.time() - start
+        pct = min(98.0, (elapsed / max(1.0, timeout)) * 100.0)
+        progress["value"] = pct
+        status_var.set(f"Avvio servizio web... {int(elapsed)}s")
+        try:
+            root.update_idletasks()
+            root.update()
+        except Exception:
+            # Se la finestra viene chiusa manualmente, continuiamo comunque l'attesa.
+            pass
+        time.sleep(0.2)
+
+    progress["value"] = 100 if ok else progress["value"]
+    status_var.set("Server pronto." if ok else "Timeout in attesa server.")
+    try:
+        root.update_idletasks()
+        root.update()
+        time.sleep(0.25)
+    except Exception:
+        pass
+    try:
+        root.destroy()
+    except Exception:
+        pass
+    return ok
+
+
 def run_server() -> None:
     write_log("Avvio server uvicorn")
     write_log(f"BASE_DIR={BASE_DIR}")
@@ -238,7 +312,7 @@ def main() -> None:
     server_thread = threading.Thread(target=run_server, daemon=True)
     server_thread.start()
 
-    if wait_for_server(APP_PUBLIC_HOST, APP_PORT, timeout=30):
+    if wait_for_server_with_splash(APP_PUBLIC_HOST, APP_PORT, timeout=35):
         write_log(f"Server raggiungibile su {APP_URL}")
         if args.no_browser:
             write_log("Apertura browser disabilitata da --no-browser")

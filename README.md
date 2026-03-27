@@ -156,6 +156,10 @@ Plugin visibility/enablement:
 - `GET /plugins/status` shows runtime status + license allow/deny flags.
 - `POST /plugins/config/save` persists plugin enable/disable map (`plugins.json`, restart required).
 - Plugin discovery scans these folders (first match by plugin id wins): `APP_HOME/plugins`, runtime `plugins/`, bundled `resource/plugins`.
+- Source management includes guided plugin forms (dropdown + drag/drop for lookup fields, guided merge builder to generate JSON mapping).
+
+Startup UX:
+- `main.py` now shows a startup splash (logo + progress bar) while waiting for server readiness.
 
 ---
 
