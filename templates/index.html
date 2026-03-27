@@ -597,9 +597,36 @@
 
     .charts-controls-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      grid-template-columns: repeat(5, minmax(0, 1fr));
       gap: 12px;
       margin-bottom: 12px;
+      align-items: end;
+    }
+    .charts-controls-grid .field{
+      min-width:0;
+      margin:0;
+    }
+    .charts-controls-grid label{
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .charts-controls-grid input,
+    .charts-controls-grid select{
+      width:100%;
+      min-width:0;
+      max-width:100%;
+      box-sizing:border-box;
+    }
+    @media (max-width: 1320px) {
+      .charts-controls-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+    }
+    @media (max-width: 980px) {
+      .charts-controls-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
     }
 
     .chart-canvas-wrap {
@@ -1662,6 +1689,17 @@ window.LICENSE_CONTEXT = {
       </div>
     </div>
 
+    <div class="settings-backup-box" style="margin-top:12px;">
+      <div class="section-title" style="font-size:15px; margin-bottom:2px;">Plugin (developer/admin)</div>
+      <div class="small" style="margin-bottom:8px;">Mostra stato plugin, licenza e abilitazione runtime. Le modifiche di configurazione richiedono riavvio.</div>
+      <div id="pluginsSettingsStatus" class="small" style="margin-bottom:8px; color:#475467;">Caricamento plugin...</div>
+      <div id="pluginsSettingsList" style="display:grid; gap:8px;"></div>
+      <div class="settings-backup-actions" style="margin-top:10px;">
+        <button id="btnReloadPluginsStatus" type="button">Ricarica plugin</button>
+        <button id="btnSavePluginsConfig" type="button" class="primary">Salva configurazione plugin</button>
+      </div>
+    </div>
+
     <div class="builder-actions">
       <button id="btnSaveSettings" type="button" class="primary" data-i18n="settings_save">Salva impostazioni</button>
     </div>
@@ -1948,6 +1986,7 @@ let SETTINGS = {
   print_show_logos: true,
   language: "en"
 };
+let PLUGINS_STATUS = null;
 let CURRENT_VIEW_OPTIONS = null;
 let CURRENT_HEADER_FILTERS = {};
 let BUILDER_SOURCE = null;
@@ -2330,13 +2369,83 @@ function renderSettingsForm(){
   if (langSelect) langSelect.value = (SETTINGS.language || "en");
   const topLang = document.getElementById("appLanguageSelect");
   if (topLang) topLang.value = (SETTINGS.language || "en");
+  renderPluginsSettingsList();
   applyI18n();
+}
+
+function renderPluginsSettingsList(){
+  const list = document.getElementById("pluginsSettingsList");
+  const status = document.getElementById("pluginsSettingsStatus");
+  if (!list || !status) return;
+  const items = Array.isArray(PLUGINS_STATUS?.plugins) ? PLUGINS_STATUS.plugins : [];
+  const licenseAllowed = !!(PLUGINS_STATUS && PLUGINS_STATUS.license_plugins_allowed);
+  if (!items.length) {
+    list.innerHTML = "<div class='small'>Nessun plugin disponibile.</div>";
+    status.textContent = "Nessun plugin rilevato.";
+    return;
+  }
+  status.textContent = licenseAllowed
+    ? "Licenza: plugin consentiti. Puoi gestire l'abilitazione."
+    : "Licenza: plugin non consentiti. Visualizzazione disponibile, esecuzione limitata.";
+
+  list.innerHTML = items.map(p => {
+    const pid = String(p.id || "");
+    const enabled = !!p.configured_enabled;
+    const runtimeEnabled = !!p.runtime_enabled;
+    const effectiveEnabled = !!p.effective_enabled;
+    const desc = String(p.description || "").trim();
+    const badge = effectiveEnabled ? "Attivo" : (enabled ? "Configurato ma bloccato da licenza" : "Disabilitato");
+    return (
+      "<label style='display:grid; gap:4px; border:1px solid #eaecf0; border-radius:10px; padding:8px 10px; background:#fff;'>" +
+        "<span style='display:flex; align-items:center; justify-content:space-between; gap:8px;'>" +
+          "<span style='font-weight:600;'>" + escapeHtml(String(p.name || pid)) + "</span>" +
+          "<span class='small' style='color:#667085;'>" + escapeHtml(badge) + "</span>" +
+        "</span>" +
+        "<span class='small' style='color:#475467;'>" + escapeHtml(desc || "Nessuna descrizione") + "</span>" +
+        "<span class='small' style='display:flex; gap:10px; color:#667085;'>" +
+          "<span>runtime: " + (runtimeEnabled ? "on" : "off") + "</span>" +
+          "<span>licenza: " + (licenseAllowed ? "ok" : "no") + "</span>" +
+        "</span>" +
+        "<span style='display:flex; align-items:center; gap:8px;'>" +
+          "<input type='checkbox' data-plugin-enable='" + escapeHtml(pid) + "'" + (enabled ? " checked" : "") + ">" +
+          "<span class='small'>Abilitato in configurazione</span>" +
+        "</span>" +
+      "</label>"
+    );
+  }).join("");
+}
+
+async function loadPluginsStatus(){
+  const data = await api("/plugins/status");
+  PLUGINS_STATUS = data || { plugins: [] };
+  renderPluginsSettingsList();
+}
+
+async function savePluginsConfigFromSettings(){
+  const list = document.getElementById("pluginsSettingsList");
+  if (!list) return;
+  const enabled = {};
+  list.querySelectorAll("input[data-plugin-enable]").forEach(chk => {
+    const pid = chk.getAttribute("data-plugin-enable");
+    if (pid) enabled[pid] = !!chk.checked;
+  });
+  const res = await api("/plugins/config/save", {
+    method: "POST",
+    body: JSON.stringify({ enabled })
+  });
+  setStatus(res && res.message ? res.message : "Configurazione plugin salvata.");
+  await loadPluginsStatus();
 }
 
 async function loadSettings(){
   const j = await api("/settings");
   SETTINGS = j.settings || { print_show_logos: true, language: "en" };
   if (!SETTINGS.language) SETTINGS.language = "en";
+  try {
+    await loadPluginsStatus();
+  } catch (_e) {
+    // eventuali limitazioni licenza/ruolo non devono bloccare il caricamento impostazioni
+  }
   renderSettingsForm();
 }
 
@@ -5418,6 +5527,21 @@ bindClick("btnSaveSettings", async () => {
     await saveSettingsFromForm();
   } catch (e) {
     setStatus("ERRORE: " + e.message);
+  }
+});
+bindClick("btnReloadPluginsStatus", async () => {
+  try {
+    await loadPluginsStatus();
+    setStatus("Stato plugin aggiornato.");
+  } catch (e) {
+    setStatus("ERRORE plugin: " + e.message);
+  }
+});
+bindClick("btnSavePluginsConfig", async () => {
+  try {
+    await savePluginsConfigFromSettings();
+  } catch (e) {
+    setStatus("ERRORE plugin: " + e.message);
   }
 });
 bindClick("btnUploadCustomerLogo", async () => {

@@ -158,6 +158,7 @@ DEFAULT_LICENSE_FEATURES = {
     "backup_restore": False,
     "charts": False,
     "drilldown": False,
+    "plugins": False,
 }
 
 DEFAULT_DEV_FEATURES = {
@@ -167,6 +168,7 @@ DEFAULT_DEV_FEATURES = {
     "backup_restore": True,
     "charts": True,
     "drilldown": True,
+    "plugins": True,
 }
 
 
@@ -797,7 +799,7 @@ def has_license_feature(feature_name: str) -> bool:
         return True
 
     # fallback: licenze a pagamento abilitano alcune feature premium anche senza flag esplicito
-    if feature_name in {"backup_restore", "print", "charts", "drilldown"}:
+    if feature_name in {"backup_restore", "print", "charts", "drilldown", "plugins"}:
         status = str(ctx.get("license_status", "")).strip().lower()
         return status not in {"", "demo", "free", "community", "trial"}
 
@@ -1454,8 +1456,30 @@ def load_plugins_enabled_map() -> dict[str, bool]:
     raw = read_json(plugins_cfg, {}) or {}
     enabled = raw.get("enabled", {}) if isinstance(raw, dict) else {}
     if not isinstance(enabled, dict):
-        return {}
-    return {str(k): bool(v) for k, v in enabled.items()}
+        enabled = {}
+
+    normalized = {str(k): bool(v) for k, v in enabled.items()}
+
+    # In developer runtime, default-enable all discovered plugins unless
+    # explicitly disabled in plugins.json.
+    if is_dev_runtime():
+        plugins_root = BASE_DIR / "plugins"
+        if plugins_root.exists():
+            for plugin_dir in plugins_root.iterdir():
+                if not plugin_dir.is_dir():
+                    continue
+                manifest = read_json(plugin_dir / "manifest.json", {}) or {}
+                plugin_id = str(manifest.get("id") or plugin_dir.name).strip()
+                if plugin_id and plugin_id not in normalized:
+                    normalized[plugin_id] = True
+
+    return normalized
+
+
+def save_plugins_enabled_map(enabled_map: dict[str, bool]) -> dict[str, bool]:
+    clean = {str(k): bool(v) for k, v in (enabled_map or {}).items() if str(k).strip()}
+    write_json(BASE_DIR / "plugins.json", {"enabled": clean})
+    return clean
 
 
 def sanitize_values(values: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
@@ -2595,7 +2619,53 @@ def plugins_registry():
 
 @app.get("/plugins/status")
 def plugins_status():
-    return plugin_manager.get_status()
+    status_payload = plugin_manager.get_status()
+    license_ctx = get_license_context(prefer_online=False)
+    license_allows_plugins = bool(
+        has_license_feature("plugins") or license_ctx.get("license_is_dev") or is_dev_runtime()
+    )
+    enabled_map = load_plugins_enabled_map()
+
+    plugins = status_payload.get("plugins", []) if isinstance(status_payload, dict) else []
+    if isinstance(plugins, list):
+        for item in plugins:
+            if not isinstance(item, dict):
+                continue
+            plugin_id = str(item.get("id", "")).strip()
+            runtime_enabled = bool(item.get("enabled"))
+            configured_enabled = enabled_map.get(plugin_id, runtime_enabled)
+            item["runtime_enabled"] = runtime_enabled
+            item["configured_enabled"] = bool(configured_enabled)
+            item["license_allowed"] = license_allows_plugins
+            item["effective_enabled"] = bool(configured_enabled and license_allows_plugins)
+
+    if isinstance(status_payload, dict):
+        status_payload["license_plugins_allowed"] = license_allows_plugins
+        status_payload["configured_enabled_map"] = enabled_map
+    return status_payload
+
+
+@app.post("/plugins/config/save")
+async def plugins_config_save(request: Request):
+    current_user = require_admin(request)
+    if not current_user:
+        return JSONResponse({"error": "Non autorizzato"}, status_code=403)
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+
+    enabled_raw = payload.get("enabled", {}) if isinstance(payload, dict) else {}
+    if not isinstance(enabled_raw, dict):
+        return JSONResponse({"error": "Formato non valido: enabled deve essere un oggetto."}, status_code=400)
+
+    saved_map = save_plugins_enabled_map({str(k): bool(v) for k, v in enabled_raw.items()})
+    return {
+        "ok": True,
+        "enabled": saved_map,
+        "restart_required": True,
+        "message": "Configurazione plugin salvata. Riavvia PivotDesk per applicare eventuali cambi di routing.",
+    }
 
 
 @app.get("/settings")

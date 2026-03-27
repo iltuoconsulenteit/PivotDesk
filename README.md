@@ -152,6 +152,10 @@ The following diagrams are visual examples derived from the HTML layout structur
 - `static/js/` – frontend logic
 - `docs/WIKI.md` – full internal wiki (EN)
 
+Plugin visibility/enablement:
+- `GET /plugins/status` shows runtime status + license allow/deny flags.
+- `POST /plugins/config/save` persists plugin enable/disable map (`plugins.json`, restart required).
+
 ---
 
 ## Troubleshooting
