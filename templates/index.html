@@ -765,6 +765,30 @@
       outline-offset: 2px;
       background: #eff8ff;
     }
+    .plugin-tools-tabs{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      margin-bottom:10px;
+    }
+    .plugin-tool-pane{
+      margin-bottom:10px;
+    }
+    .plugin-tool-card{
+      border:1px solid #eaecf0;
+      border-radius:10px;
+      padding:12px;
+      background:#fff;
+    }
+    #sourcePluginsOutput{
+      max-height:240px;
+      overflow:auto;
+      background:#0b1220;
+      color:#d1e0ff;
+      border-radius:8px;
+      padding:10px;
+      font-size:12px;
+    }
 
     @media (max-width: 900px) {
       .branding {
@@ -1667,9 +1691,13 @@ window.LICENSE_CONTEXT = {
 
     <div class="card" style="margin-top:16px;">
       <div class="section-title">Plugin sorgenti (lookup / merge)</div>
-      <div class="small" style="margin-bottom:10px; color:#475467;">Utility rapide per richiamare i plugin cross-source e multi-source merge dalla sezione sorgenti.</div>
-      <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:12px;">
-        <div style="border:1px solid #eaecf0; border-radius:10px; padding:10px;">
+      <div class="small" style="margin-bottom:10px; color:#475467;">Utility guidate: seleziona un tool e compila solo i campi necessari. Le opzioni avanzate restano nascoste di default.</div>
+      <div class="plugin-tools-tabs">
+        <button type="button" class="quick-toggle active" id="btnPluginTabLookup">Lookup guidato</button>
+        <button type="button" class="quick-toggle" id="btnPluginTabMerge">Merge guidato</button>
+      </div>
+      <div id="pluginToolLookup" class="plugin-tool-pane">
+        <div class="plugin-tool-card">
           <div style="font-weight:600; margin-bottom:6px;">Cross source lookup</div>
           <div class="field"><label for="lkPrimarySourceSel">Sorgente primaria</label><select id="lkPrimarySourceSel"></select></div>
           <div class="field"><label for="lkSecondarySourceSel">Sorgente secondaria</label><select id="lkSecondarySourceSel"></select></div>
@@ -1680,16 +1708,21 @@ window.LICENSE_CONTEXT = {
           <div id="lkPickFieldsSelected" style="display:flex; flex-wrap:wrap; gap:6px; min-height:40px; padding:8px; border:1px solid #98a2b3; border-radius:8px; background:#f8fafc;"></div>
           <div class="builder-actions"><button id="btnRunCrossLookup" type="button">Esegui lookup</button></div>
         </div>
-        <div style="border:1px solid #eaecf0; border-radius:10px; padding:10px;">
+      </div>
+      <div id="pluginToolMerge" class="plugin-tool-pane hidden">
+        <div class="plugin-tool-card">
           <div style="font-weight:600; margin-bottom:6px;">Multi source merge</div>
           <div class="small" style="margin-bottom:8px;">Builder guidato merge (dropdown + mappature)</div>
           <div id="mergeSourceBlocks" style="display:grid; gap:8px; margin-bottom:8px;"></div>
           <div class="builder-actions" style="margin-bottom:8px;">
             <button id="btnAddMergeSourceBlock" type="button">Aggiungi sorgente merge</button>
             <button id="btnGenerateMergeJson" type="button">Genera JSON dal builder</button>
+            <button id="btnToggleMergeAdvanced" type="button">Mostra opzioni avanzate</button>
           </div>
-          <div class="small" style="margin-bottom:8px;">Config JSON sources (array con source_id e column_map)</div>
-          <textarea id="mergeSourcesJson" style="width:100%; min-height:140px;" placeholder='[{\"source_id\":\"s1\",\"column_map\":{\"iban\":\"IBAN\"}},{\"source_id\":\"s2\",\"column_map\":{\"iban\":\"iban\",\"importo\":\"amount\"}}]'></textarea>
+          <div id="mergeAdvancedPanel" class="hidden">
+            <div class="small" style="margin-bottom:8px;">Config JSON sources (array con source_id e column_map)</div>
+            <textarea id="mergeSourcesJson" style="width:100%; min-height:140px;" placeholder='[{\"source_id\":\"s1\",\"column_map\":{\"iban\":\"IBAN\"}},{\"source_id\":\"s2\",\"column_map\":{\"iban\":\"iban\",\"importo\":\"amount\"}}]'></textarea>
+          </div>
           <div class="field"><label for="mergeOutputColumns">Colonne output (comma, opzionale)</label><input id="mergeOutputColumns" placeholder="es. iban,importo,_source"></div>
           <div class="builder-actions"><button id="btnRunMultiMerge" type="button">Esegui merge</button></div>
         </div>
@@ -3146,6 +3179,27 @@ function buildMergeSourcesJsonFromBuilder(){
   return out;
 }
 
+function setPluginToolTab(tab){
+  const key = String(tab || "lookup").toLowerCase() === "merge" ? "merge" : "lookup";
+  const lookupPane = document.getElementById("pluginToolLookup");
+  const mergePane = document.getElementById("pluginToolMerge");
+  const lookupBtn = document.getElementById("btnPluginTabLookup");
+  const mergeBtn = document.getElementById("btnPluginTabMerge");
+  if (lookupPane) lookupPane.classList.toggle("hidden", key !== "lookup");
+  if (mergePane) mergePane.classList.toggle("hidden", key !== "merge");
+  if (lookupBtn) lookupBtn.classList.toggle("active", key === "lookup");
+  if (mergeBtn) mergeBtn.classList.toggle("active", key === "merge");
+}
+
+function toggleMergeAdvancedPanel(forceOpen){
+  const panel = document.getElementById("mergeAdvancedPanel");
+  const btn = document.getElementById("btnToggleMergeAdvanced");
+  if (!panel || !btn) return;
+  const nextOpen = (typeof forceOpen === "boolean") ? forceOpen : panel.classList.contains("hidden");
+  panel.classList.toggle("hidden", !nextOpen);
+  btn.textContent = nextOpen ? "Nascondi opzioni avanzate" : "Mostra opzioni avanzate";
+}
+
 async function runCrossSourceLookupFromUi(){
   const payload = {
     primary_source_id: String(document.getElementById("lkPrimarySourceSel")?.value || "").trim(),
@@ -3168,12 +3222,15 @@ async function runCrossSourceLookupFromUi(){
 
 async function runMultiSourceMergeFromUi(){
   const raw = String(document.getElementById("mergeSourcesJson")?.value || "").trim();
-  if (!raw) throw new Error("Inserisci il JSON delle sorgenti da unire.");
   let sources = [];
-  try {
-    sources = JSON.parse(raw);
-  } catch (_e) {
-    throw new Error("JSON sorgenti non valido.");
+  if (raw) {
+    try {
+      sources = JSON.parse(raw);
+    } catch (_e) {
+      throw new Error("JSON sorgenti non valido.");
+    }
+  } else {
+    sources = buildMergeSourcesJsonFromBuilder();
   }
   if (!Array.isArray(sources) || !sources.length) throw new Error("Il JSON deve contenere un array di sorgenti.");
   const outputColumns = String(document.getElementById("mergeOutputColumns")?.value || "")
@@ -3205,6 +3262,9 @@ async function initSourcePluginBuilders(){
   const selectedDrop = document.getElementById("lkPickFieldsSelected");
   const addMergeBtn = document.getElementById("btnAddMergeSourceBlock");
   const genMergeBtn = document.getElementById("btnGenerateMergeJson");
+  const tabLookupBtn = document.getElementById("btnPluginTabLookup");
+  const tabMergeBtn = document.getElementById("btnPluginTabMerge");
+  const toggleMergeAdvancedBtn = document.getElementById("btnToggleMergeAdvanced");
 
   if (primarySel && !primarySel.dataset.boundLookupPrimary) {
     primarySel.dataset.boundLookupPrimary = "1";
@@ -3252,6 +3312,20 @@ async function initSourcePluginBuilders(){
       setStatus("JSON merge generato dal builder guidato.");
     });
   }
+  if (tabLookupBtn && !tabLookupBtn.dataset.bound) {
+    tabLookupBtn.dataset.bound = "1";
+    tabLookupBtn.addEventListener("click", () => setPluginToolTab("lookup"));
+  }
+  if (tabMergeBtn && !tabMergeBtn.dataset.bound) {
+    tabMergeBtn.dataset.bound = "1";
+    tabMergeBtn.addEventListener("click", () => setPluginToolTab("merge"));
+  }
+  if (toggleMergeAdvancedBtn && !toggleMergeAdvancedBtn.dataset.bound) {
+    toggleMergeAdvancedBtn.dataset.bound = "1";
+    toggleMergeAdvancedBtn.addEventListener("click", () => toggleMergeAdvancedPanel());
+  }
+  setPluginToolTab("lookup");
+  toggleMergeAdvancedPanel(false);
 
   if (primarySel && primarySel.value) primarySel.dispatchEvent(new Event("change"));
   if (secondarySel && secondarySel.value) secondarySel.dispatchEvent(new Event("change"));
