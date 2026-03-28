@@ -151,6 +151,7 @@ The following diagrams are visual examples derived from the HTML layout structur
 - `templates/` – frontend pages
 - `static/js/` – frontend logic
 - `docs/WIKI.md` – full internal wiki (EN)
+- Source-level calculated fields are stored in source config (`calculated_fields`) and are automatically applied during source loading; this makes them available to all plugins (including cross-source lookup and multi-source merge) without redefining formulas per plugin request.
 
 Plugin visibility/enablement:
 - `GET /plugins/status` shows runtime status + license allow/deny flags.

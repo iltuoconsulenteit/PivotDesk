@@ -10,6 +10,7 @@ import shutil
 import subprocess
 import uuid
 import time
+from collections import OrderedDict
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -117,6 +118,12 @@ DEFAULT_SOURCES = {
     "default_source": "",
     "items": [],
 }
+
+SOURCE_DATAFRAME_CACHE_TTL_SEC = 90
+SOURCE_DATAFRAME_CACHE_MAX_ENTRIES = 12
+SOURCE_DATAFRAME_CACHE_MAX_TOTAL_MB = 256
+SOURCE_DATAFRAME_CACHE_MAX_ENTRY_MB = 64
+_SOURCE_DATAFRAME_CACHE: "OrderedDict[str, dict[str, Any]]" = OrderedDict()
 
 DEFAULT_LICENSE_SETTINGS = {
     "license_file": str(APPDATA_LICENSE_PATH),
@@ -1176,6 +1183,14 @@ def normalize_source_item(item: dict[str, Any]) -> dict[str, Any] | None:
         elif key in normalized["config"]:
             normalized[key] = normalized["config"].get(key)
 
+    calculated_fields = get_source_calculated_fields(item)
+    if calculated_fields:
+        normalized["calculated_fields"] = calculated_fields
+        normalized["config"]["calculated_fields"] = calculated_fields
+    else:
+        normalized.pop("calculated_fields", None)
+        normalized["config"].pop("calculated_fields", None)
+
     if bool(item.get("migration_placeholder")):
         normalized["migration_placeholder"] = True
     migration_note = str(item.get("migration_note", "")).strip()
@@ -1405,25 +1420,25 @@ def load_source_df(source_id: str | None) -> tuple[dict[str, Any], pd.DataFrame]
         if source_type != "csv":
             raise PermissionError("Licenza Free: sono consentite solo sorgenti CSV per la pivot a video.")
 
-    df = load_dataframe_from_source_with_fallback(src)
-
-    if df is None:
-        raise RuntimeError(f"Nessun dataframe restituito dal connector per la sorgente: {source_id}")
-
-    if not isinstance(df, pd.DataFrame):
-        raise RuntimeError(f"Il connector non ha restituito un DataFrame valido per: {source_id}")
-
-    df = df.copy()
-    df.columns = [str(c).strip() for c in df.columns]
-    return src, df.fillna("")
+    return src, load_dataframe_with_source_calculated_fields(src, use_fallback=True)
 
 
-def load_dataframe_for_plugin(source: dict[str, Any]) -> pd.DataFrame:
-    if is_free_license():
-        source_type = str(source.get("type", "")).strip().lower()
-        if source_type != "csv":
-            raise PermissionError("Licenza Free: i plugin dati remoti sono disponibili solo nelle versioni a pagamento.")
-    df = load_dataframe_from_source(source)
+def load_dataframe_with_source_calculated_fields(
+    source: dict[str, Any],
+    *,
+    use_fallback: bool = False,
+) -> pd.DataFrame:
+    source_calculated_fields = get_source_calculated_fields(source)
+    cache_key = _source_cache_key(source, source_calculated_fields)
+    now_ts = time.time()
+
+    _source_cache_cleanup(now_ts)
+    cached = _SOURCE_DATAFRAME_CACHE.get(cache_key)
+    if cached and (now_ts - float(cached.get("ts", 0.0))) <= SOURCE_DATAFRAME_CACHE_TTL_SEC:
+        _SOURCE_DATAFRAME_CACHE.move_to_end(cache_key, last=True)
+        return cached["df"].copy()
+
+    df = load_dataframe_from_source_with_fallback(source) if use_fallback else load_dataframe_from_source(source)
 
     if df is None:
         raise RuntimeError(
@@ -1435,9 +1450,31 @@ def load_dataframe_for_plugin(source: dict[str, Any]) -> pd.DataFrame:
             f"Il connector non ha restituito un DataFrame valido per: {source.get('id', '(senza id)')}"
         )
 
-    df = df.copy()
-    df.columns = [str(c).strip() for c in df.columns]
-    return df.fillna("")
+    out_df = df.copy()
+    out_df.columns = [str(c).strip() for c in out_df.columns]
+    out_df = out_df.fillna("")
+    out_df = apply_calculated_fields_to_dataframe(out_df, source_calculated_fields)
+
+    size_mb = _estimate_dataframe_size_mb(out_df)
+    if size_mb <= float(SOURCE_DATAFRAME_CACHE_MAX_ENTRY_MB):
+        _SOURCE_DATAFRAME_CACHE[cache_key] = {
+            "ts": now_ts,
+            "source_id": normalize_source_id(source.get("id")),
+            "size_mb": size_mb,
+            "df": out_df.copy(),
+        }
+        _SOURCE_DATAFRAME_CACHE.move_to_end(cache_key, last=True)
+        _source_cache_cleanup(now_ts)
+
+    return out_df
+
+
+def load_dataframe_for_plugin(source: dict[str, Any]) -> pd.DataFrame:
+    if is_free_license():
+        source_type = str(source.get("type", "")).strip().lower()
+        if source_type != "csv":
+            raise PermissionError("Licenza Free: i plugin dati remoti sono disponibili solo nelle versioni a pagamento.")
+    return load_dataframe_with_source_calculated_fields(source, use_fallback=False)
 
 
 def get_runtime_paths() -> dict[str, str]:
@@ -1554,6 +1591,19 @@ def sanitize_calculated_fields(items: list[dict[str, Any]] | None) -> list[dict[
     return out
 
 
+def get_source_calculated_fields(source: dict[str, Any] | None) -> list[dict[str, Any]]:
+    if not isinstance(source, dict):
+        return []
+    config = source.get("config") if isinstance(source.get("config"), dict) else {}
+    from_source = source.get("calculated_fields", [])
+    from_config = config.get("calculated_fields", [])
+
+    source_fields = sanitize_calculated_fields(from_source if isinstance(from_source, list) else [])
+    if source_fields:
+        return source_fields
+    return sanitize_calculated_fields(from_config if isinstance(from_config, list) else [])
+
+
 def apply_calculated_fields_to_dataframe(
     df: pd.DataFrame,
     calculated_fields: list[dict[str, Any]] | None,
@@ -1577,6 +1627,77 @@ def apply_calculated_fields_to_dataframe(
         out = out[existing_order + remaining]
 
     return out
+
+
+def _source_cache_invalidation_fingerprint(source: dict[str, Any]) -> str:
+    cfg = source.get("config") if isinstance(source.get("config"), dict) else {}
+    source_type = str(source.get("type", "")).strip().lower()
+    source_path = str(source.get("path") or cfg.get("path") or "").strip()
+
+    if source_type in {"csv", "xlsx", "excel", "ods"} and source_path:
+        try:
+            stat = Path(source_path).expanduser().stat()
+            return f"{stat.st_mtime_ns}:{stat.st_size}"
+        except Exception:
+            return "missing"
+    return "remote"
+
+
+def _source_cache_key(source: dict[str, Any], source_calculated_fields: list[dict[str, Any]]) -> str:
+    cfg = source.get("config") if isinstance(source.get("config"), dict) else {}
+    payload = {
+        "id": str(source.get("id", "")).strip(),
+        "type": str(source.get("type", "")).strip().lower(),
+        "path": str(source.get("path") or cfg.get("path") or "").strip(),
+        "sheet_name": str(source.get("sheet_name") or cfg.get("sheet_name") or cfg.get("sheet") or "").strip(),
+        "delimiter": str(source.get("delimiter") or cfg.get("delimiter") or "").strip(),
+        "encoding": str(source.get("encoding") or cfg.get("encoding") or "").strip(),
+        "skip_rows": int(source.get("skip_rows", cfg.get("skip_rows", 0)) or 0),
+        "query": str(cfg.get("query") or "").strip(),
+        "table": str(cfg.get("table") or "").strip(),
+        "connection_id": str(cfg.get("connection_id") or "").strip(),
+        "calc": source_calculated_fields,
+        "stamp": _source_cache_invalidation_fingerprint(source),
+    }
+    raw = json.dumps(payload, ensure_ascii=False, sort_keys=True)
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+def _estimate_dataframe_size_mb(df: pd.DataFrame) -> float:
+    try:
+        size_bytes = float(df.memory_usage(index=True, deep=True).sum())
+    except Exception:
+        size_bytes = 0.0
+    return size_bytes / (1024.0 * 1024.0)
+
+
+def _source_cache_cleanup(now_ts: float) -> None:
+    expired = [
+        key
+        for key, value in _SOURCE_DATAFRAME_CACHE.items()
+        if (now_ts - float(value.get("ts", 0.0))) > SOURCE_DATAFRAME_CACHE_TTL_SEC
+    ]
+    for key in expired:
+        _SOURCE_DATAFRAME_CACHE.pop(key, None)
+
+    max_total_mb = float(SOURCE_DATAFRAME_CACHE_MAX_TOTAL_MB)
+    total_mb = sum(float(item.get("size_mb", 0.0)) for item in _SOURCE_DATAFRAME_CACHE.values())
+
+    while _SOURCE_DATAFRAME_CACHE and (
+        len(_SOURCE_DATAFRAME_CACHE) > SOURCE_DATAFRAME_CACHE_MAX_ENTRIES or total_mb > max_total_mb
+    ):
+        _, removed = _SOURCE_DATAFRAME_CACHE.popitem(last=False)
+        total_mb -= float(removed.get("size_mb", 0.0))
+
+
+def clear_source_dataframe_cache(source_id: str | None = None) -> None:
+    if not source_id:
+        _SOURCE_DATAFRAME_CACHE.clear()
+        return
+    sid = normalize_source_id(source_id)
+    to_drop = [key for key, value in _SOURCE_DATAFRAME_CACHE.items() if value.get("source_id") == sid]
+    for key in to_drop:
+        _SOURCE_DATAFRAME_CACHE.pop(key, None)
 
 
 def normalize_preset_options(raw_options: dict[str, Any] | None) -> dict[str, Any]:
@@ -1963,6 +2084,9 @@ def build_source_from_payload(payload: dict[str, Any]) -> dict[str, Any]:
     except Exception:
         skip_rows = 0
     cfg_payload = payload.get("config") if isinstance(payload.get("config"), dict) else {}
+    source_calculated_fields = sanitize_calculated_fields(
+        payload.get("calculated_fields", cfg_payload.get("calculated_fields", []))
+    )
     config = {
         "path": path,
         "delimiter": delimiter,
@@ -1973,6 +2097,8 @@ def build_source_from_payload(payload: dict[str, Any]) -> dict[str, Any]:
     for key in ("url", "method", "json_path", "timeout_sec", "connection_id", "table", "query"):
         if key in cfg_payload and cfg_payload.get(key) not in (None, ""):
             config[key] = cfg_payload.get(key)
+    if source_calculated_fields:
+        config["calculated_fields"] = source_calculated_fields
 
     source = {
         "id": normalize_source_id(payload.get("id") or "preview") or "preview",
@@ -1985,6 +2111,8 @@ def build_source_from_payload(payload: dict[str, Any]) -> dict[str, Any]:
         "skip_rows": skip_rows,
         "config": config,
     }
+    if source_calculated_fields:
+        source["calculated_fields"] = source_calculated_fields
     return normalize_source_item(source) or source
 
 
@@ -2775,6 +2903,9 @@ async def sources_save(request: Request):
         path = str(payload.get("path", "")).strip()
         make_default = bool(payload.get("make_default", False))
         config = payload.get("config") if isinstance(payload.get("config"), dict) else {}
+        source_calculated_fields = sanitize_calculated_fields(
+            payload.get("calculated_fields", config.get("calculated_fields", []))
+        )
 
         if not src_id:
             return JSONResponse({"error": "ID sorgente obbligatorio"}, status_code=400)
@@ -2812,6 +2943,10 @@ async def sources_save(request: Request):
             config.pop("sheet_name", None)
 
         config["skip_rows"] = skip_rows
+        if source_calculated_fields:
+            config["calculated_fields"] = source_calculated_fields
+        else:
+            config.pop("calculated_fields", None)
 
         record = {
             "id": src_id,
@@ -2824,6 +2959,10 @@ async def sources_save(request: Request):
             "skip_rows": skip_rows,
             "config": config,
         }
+        if source_calculated_fields:
+            record["calculated_fields"] = source_calculated_fields
+        else:
+            record.pop("calculated_fields", None)
 
         if existing:
             existing.update(record)
@@ -2834,6 +2973,7 @@ async def sources_save(request: Request):
             data["default_source"] = src_id
 
         saved = save_sources_data(data)
+        clear_source_dataframe_cache(src_id)
         source_folder(src_id)
 
         return {
@@ -2865,6 +3005,7 @@ async def sources_delete(request: Request):
             data["default_source"] = items[0]["id"] if items else ""
 
         saved = save_sources_data(data)
+        clear_source_dataframe_cache(source_id)
 
         return {
             "ok": True,
@@ -3167,11 +3308,13 @@ async def source_preview_from_form(request: Request, limit: int = Query(20)):
         requires_path = src_type not in {"mysql"}
         if requires_path and not path:
             return JSONResponse({"error": "Percorso file obbligatorio per l'anteprima."}, status_code=400)
-        df = load_dataframe_from_source_with_fallback(source)
+        df = load_dataframe_with_source_calculated_fields(source, use_fallback=True)
+        source_calculated_fields = get_source_calculated_fields(source)
         calculated_fields = sanitize_calculated_fields(
             payload.get("calculated_fields", []) if isinstance(payload, dict) else []
         )
-        df = apply_calculated_fields_to_dataframe(df, calculated_fields)
+        if calculated_fields and calculated_fields != source_calculated_fields:
+            df = apply_calculated_fields_to_dataframe(df, calculated_fields)
         return build_dataframe_preview_payload(source, df, limit=limit)
     except Exception as exc:
         return JSONResponse({"error": str(exc)}, status_code=500)
