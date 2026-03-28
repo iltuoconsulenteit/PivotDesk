@@ -103,6 +103,8 @@ Change this password immediately in shared environments.
 - Calculated fields (server-side formula engine + UI assistant).
 - Numeric-safe filtering and optional subtotals/totals.
 - Chart modal (column/bar/line/pie) with print support.
+- Pivot export (Pro/Full): CSV, XLSX, ODS, HTML.
+- Chart export (Pro/Full): standalone HTML artifact (interactive-ready payload embedded as JSON + rendered chart image).
 - Chart extraction ignores interactive cell controls/icons so numeric values are detected correctly.
 - Drilldown/detail modal with column visibility presets.
 - Pivot print output excludes interactive UI controls (e.g., drilldown buttons and column filter inputs) for clean report exports.

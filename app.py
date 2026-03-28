@@ -10,6 +10,7 @@ import shutil
 import subprocess
 import uuid
 import time
+from io import BytesIO
 from collections import OrderedDict
 from datetime import datetime
 from pathlib import Path
@@ -17,7 +18,7 @@ from typing import Any
 
 import pandas as pd
 from fastapi import FastAPI, Query, Request, Form, UploadFile, File
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, FileResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, FileResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
@@ -3409,28 +3410,26 @@ async def preset_editor_delete(request: Request):
         return JSONResponse({"error": str(exc)}, status_code=500)
 
 
-@app.get("/pivot/run")
-def pivot_run(
-    pivot_id: str = Query(...),
+def _compute_pivot_result(
+    pivot_id: str,
     source_id: str | None = None,
     filters: str | None = None,
     view_options: str | None = None,
-):
-    try:
-        sid = normalize_source_id(source_id)
-        preset = find_preset_by_id(pivot_id, source_id=sid)
+) -> dict[str, Any]:
+    sid = normalize_source_id(source_id)
+    preset = find_preset_by_id(pivot_id, source_id=sid)
 
-        if not preset:
-            return JSONResponse({"error": f"Preset non trovato: {pivot_id}"}, status_code=404)
+    if not preset:
+        raise FileNotFoundError(f"Preset non trovato: {pivot_id}")
 
-        sid = sid or preset.get("source_id")
-        src, df = load_source_df(sid)
+    sid = sid or preset.get("source_id")
+    src, df = load_source_df(sid)
+    df = apply_calculated_fields_to_dataframe(df, preset.get("calculated_fields", []))
 
-        df = apply_calculated_fields_to_dataframe(df, preset.get("calculated_fields", []))
-
-        missing = validate_preset_columns(list(df.columns), preset)
-        if missing:
-            return JSONResponse(
+    missing = validate_preset_columns(list(df.columns), preset)
+    if missing:
+        raise ValueError(
+            json.dumps(
                 {
                     "error": "Colonne mancanti nella sorgente per questo preset",
                     "missing_columns": missing,
@@ -3439,47 +3438,132 @@ def pivot_run(
                     "preset_file": preset.get("_filename"),
                     "preset_options": preset.get("options", {}),
                 },
-                status_code=400,
+                ensure_ascii=False,
             )
-
-        flt = json.loads(filters) if filters else {}
-        runtime_view_options = json.loads(view_options) if view_options else {}
-
-        preset = dict(preset)
-        preset["options"] = {
-            **(preset.get("options", {}) or {}),
-            **(runtime_view_options or {}),
-        }
-
-        df = normalize_df(
-            df,
-            numeric_fields=preset.get("numeric_fields", []),
-            date_fields=preset.get("date_fields", []),
         )
 
-        df = apply_filters(df, flt)
+    flt = json.loads(filters) if filters else {}
+    runtime_view_options = json.loads(view_options) if view_options else {}
 
-        if df.empty:
-            return {
-                "source": src,
-                "preset": preset,
-                "preset_options": preset.get("options", {}),
-                "html": "<p>Nessun dato dopo i filtri o sorgente senza righe.</p>",
-                "rows": 0,
-            }
+    preset = dict(preset)
+    preset["options"] = {
+        **(preset.get("options", {}) or {}),
+        **(runtime_view_options or {}),
+    }
 
-        table = run_pivot(df, preset)
+    df = normalize_df(
+        df,
+        numeric_fields=preset.get("numeric_fields", []),
+        date_fields=preset.get("date_fields", []),
+    )
+    df = apply_filters(df, flt)
 
+    if df.empty:
         return {
             "source": src,
             "preset": preset,
             "preset_options": preset.get("options", {}),
-            "html": table_to_html(table),
-            "rows": len(table),
+            "table": None,
+            "html": "<p>Nessun dato dopo i filtri o sorgente senza righe.</p>",
+            "rows": 0,
         }
 
+    table = run_pivot(df, preset)
+    return {
+        "source": src,
+        "preset": preset,
+        "preset_options": preset.get("options", {}),
+        "table": table,
+        "html": table_to_html(table),
+        "rows": len(table),
+    }
+
+
+@app.get("/pivot/run")
+def pivot_run(
+    pivot_id: str = Query(...),
+    source_id: str | None = None,
+    filters: str | None = None,
+    view_options: str | None = None,
+):
+    try:
+        result = _compute_pivot_result(pivot_id=pivot_id, source_id=source_id, filters=filters, view_options=view_options)
+        result.pop("table", None)
+        return result
+    except FileNotFoundError as exc:
+        return JSONResponse({"error": str(exc)}, status_code=404)
+    except ValueError as exc:
+        try:
+            return JSONResponse(json.loads(str(exc)), status_code=400)
+        except Exception:
+            return JSONResponse({"error": str(exc)}, status_code=400)
     except Exception as exc:
         return JSONResponse({"error": str(exc)}, status_code=500)
+
+
+@app.get("/pivot/export")
+def pivot_export(
+    request: Request,
+    pivot_id: str = Query(...),
+    source_id: str | None = None,
+    filters: str | None = None,
+    view_options: str | None = None,
+    fmt: str = Query("csv"),
+):
+    if not require_login(request):
+        return JSONResponse({"error": "Non autenticato"}, status_code=401)
+    if not has_license_feature("print"):
+        return JSONResponse({"error": "Esportazione pivot disponibile solo con licenza Pro/Full attiva."}, status_code=403)
+    try:
+        fmt_norm = str(fmt or "csv").strip().lower()
+        if fmt_norm not in {"csv", "xlsx", "ods", "html"}:
+            return JSONResponse({"error": "Formato non supportato. Usa: csv, xlsx, ods, html."}, status_code=400)
+
+        result = _compute_pivot_result(pivot_id=pivot_id, source_id=source_id, filters=filters, view_options=view_options)
+        table = result.get("table")
+        if table is None:
+            return JSONResponse({"error": "Nessun dato da esportare dopo l'applicazione dei filtri."}, status_code=400)
+        if not isinstance(table, pd.DataFrame):
+            return JSONResponse({"error": "Formato pivot non valido per esportazione."}, status_code=500)
+
+        export_df = table.copy()
+        safe_name = sanitize_filename((result.get("preset", {}) or {}).get("id", "pivot_export")).rsplit(".", 1)[0]
+
+        if fmt_norm == "csv":
+            data = export_df.to_csv(index=False).encode("utf-8-sig")
+            headers = {"Content-Disposition": f'attachment; filename="{safe_name}.csv"'}
+            return Response(content=data, media_type="text/csv; charset=utf-8", headers=headers)
+
+        if fmt_norm == "html":
+            title = str((result.get("preset", {}) or {}).get("title", safe_name)).strip() or safe_name
+            html = (
+                "<!doctype html><html><head><meta charset='utf-8'>"
+                f"<title>{title}</title></head><body>"
+                f"<h2>{title}</h2>{table_to_html(export_df)}</body></html>"
+            )
+            headers = {"Content-Disposition": f'attachment; filename="{safe_name}.html"'}
+            return Response(content=html.encode("utf-8"), media_type="text/html; charset=utf-8", headers=headers)
+
+        output = BytesIO()
+        engine = "openpyxl" if fmt_norm == "xlsx" else "odf"
+        export_df.to_excel(output, index=False, engine=engine)
+        output.seek(0)
+        media_type = (
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            if fmt_norm == "xlsx"
+            else "application/vnd.oasis.opendocument.spreadsheet"
+        )
+        headers = {"Content-Disposition": f'attachment; filename="{safe_name}.{fmt_norm}"'}
+        return StreamingResponse(output, media_type=media_type, headers=headers)
+    except FileNotFoundError as exc:
+        return JSONResponse({"error": str(exc)}, status_code=404)
+    except ValueError as exc:
+        try:
+            return JSONResponse(json.loads(str(exc)), status_code=400)
+        except Exception:
+            return JSONResponse({"error": str(exc)}, status_code=400)
+    except Exception as exc:
+        return JSONResponse({"error": f"Errore esportazione pivot: {exc}"}, status_code=500)
 
 
 @app.get("/pivot/drilldown")

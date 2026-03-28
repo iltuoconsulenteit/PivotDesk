@@ -1164,6 +1164,10 @@ window.LICENSE_CONTEXT = {
           <button type="button" class="menu-btn" data-menu-target="menu-print" data-i18n="menu_print">Stampa</button>
           <div class="menu-dropdown hidden" id="menu-print">
             <button type="button" id="menuPrint" data-feature="print" data-i18n="menu_print_pivot">Stampa pivot</button>
+            <button type="button" id="menuExportPivotCsv" data-feature="print" data-i18n="menu_export_pivot_csv">Export pivot CSV</button>
+            <button type="button" id="menuExportPivotXlsx" data-feature="print" data-i18n="menu_export_pivot_xlsx">Export pivot XLSX</button>
+            <button type="button" id="menuExportPivotOds" data-feature="print" data-i18n="menu_export_pivot_ods">Export pivot ODS</button>
+            <button type="button" id="menuExportPivotHtml" data-feature="print" data-i18n="menu_export_pivot_html">Export pivot HTML</button>
           </div>
         </div>
 
@@ -1796,6 +1800,7 @@ window.LICENSE_CONTEXT = {
       <div class="builder-actions" style="justify-content:flex-start; margin-bottom:10px;">
         <button id="btnRenderChart" type="button" class="primary">Genera grafico</button>
         <button id="btnPrintChartModal" type="button" data-feature="print" title="Stampa grafico" aria-label="Stampa grafico">Stampa grafico</button>
+        <button id="btnExportChartHtml" type="button" data-feature="charts" title="Esporta grafico HTML" aria-label="Esporta grafico HTML" data-i18n="export_chart_html" data-i18n-title="export_chart_html" data-i18n-aria-label="export_chart_html">Export grafico HTML</button>
       </div>
       <div id="chartsStatus" class="small" style="margin-bottom:10px; color:#475467;">Nessuna pivot caricata.</div>
       <div class="chart-canvas-wrap">
@@ -2332,6 +2337,28 @@ function printPivotOnly(){
 }
 window.printPivotOnly = printPivotOnly;
 
+function exportPivotResult(fmt){
+  if (!hasFeature("print")) {
+    showLockedFeature("Export pivot", "print");
+    return;
+  }
+  const p = PRESETS.find(x => x.id === CURRENT);
+  if (!p || !CURRENT_SOURCE) {
+    setStatus("ERRORE: nessun preset attivo.");
+    return;
+  }
+  const filters = encodeURIComponent(JSON.stringify(getFilters() || {}));
+  const viewOptions = encodeURIComponent(JSON.stringify(getEffectiveViewOptions()));
+  const url =
+    "/pivot/export?pivot_id=" + encodeURIComponent(p.id) +
+    "&source_id=" + encodeURIComponent(CURRENT_SOURCE || "") +
+    "&filters=" + filters +
+    "&view_options=" + viewOptions +
+    "&fmt=" + encodeURIComponent(String(fmt || "csv").toLowerCase());
+  window.open(url, "_blank", "noopener,noreferrer");
+}
+window.exportPivotResult = exportPivotResult;
+
 function buildChartPrintHtml(){
   const p = PRESETS.find(x => x.id === CURRENT);
   CURRENT_HEADER_FILTERS = CURRENT_HEADER_FILTERS || {};
@@ -2387,6 +2414,50 @@ function printChartOnly(){
   }
 }
 window.printChartOnly = printChartOnly;
+
+function exportChartInteractiveHtml(){
+  if (!hasFeature("charts")) {
+    showLockedFeature("Export grafico HTML", "charts");
+    return;
+  }
+  const p = PRESETS.find(x => x.id === CURRENT);
+  const chartType = String(document.getElementById("chartTypeSelect")?.value || "column").trim();
+  const canvas = document.getElementById("chartsCanvas");
+  const imageDataUrl = canvas ? canvas.toDataURL("image/png") : "";
+  if (!imageDataUrl) {
+    setStatus("ERRORE: nessun grafico disponibile da esportare.");
+    return;
+  }
+
+  const payload = {
+    title: (p && (p.title || p.id)) || "Pivot chart",
+    chart_type: chartType,
+    generated_at: new Date().toISOString(),
+    source_title: getCurrentSourceTitle(),
+    filters: getActiveFiltersText(),
+    image_data_url: imageDataUrl
+  };
+
+  const html = `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(payload.title)} - chart export</title>
+<style>body{font-family:Arial,sans-serif;margin:20px;color:#111827}h1{margin:0 0 8px 0}.meta{color:#475467;font-size:13px;margin:4px 0}.card{border:1px solid #e4e7ec;border-radius:10px;padding:12px;max-width:1200px}img{max-width:100%;height:auto;display:block;border:1px solid #d0d5dd;border-radius:8px}</style>
+</head><body><h1>${escapeHtml(payload.title)}</h1><div class="meta"><strong>Source:</strong> ${escapeHtml(payload.source_title || "")}</div><div class="meta"><strong>Type:</strong> ${escapeHtml(payload.chart_type || "")}</div><div class="meta"><strong>Generated:</strong> ${escapeHtml(payload.generated_at || "")}</div>
+<div class="card"><img src="${payload.image_data_url}" alt="Pivot chart"/></div>
+<script type="application/json" id="pivot-chart-export">${escapeHtml(JSON.stringify(payload))}</script>
+</body></html>`;
+
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const base = sanitizeFilename((p && (p.id || p.title)) || "pivot_chart");
+  a.href = url;
+  a.download = (base.replace(/\.json$/i, "") || "pivot_chart") + ".html";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1200);
+}
+window.exportChartInteractiveHtml = exportChartInteractiveHtml;
 
 function openSettingsScreen(){
   document.getElementById("mainView").classList.add("hidden");
@@ -5743,6 +5814,7 @@ bindClick("btnCloseChartsModal", () => closeChartsModal());
 bindClick("chartsModal", ev => { if (ev && ev.target && ev.target.id === "chartsModal") closeChartsModal(); });
 bindClick("btnRenderChart", () => renderPivotChart());
 bindClick("btnPrintChartModal", () => printChartOnly());
+bindClick("btnExportChartHtml", () => exportChartInteractiveHtml());
 bindClick("btnCloseDrilldownModal", () => closeDrilldownModal());
 bindClick("drilldownModal", ev => { if (ev && ev.target && ev.target.id === "drilldownModal") closeDrilldownModal(); });
 bindClick("btnPrintDrilldownModal", () => printDrilldownOnly());
@@ -5879,6 +5951,10 @@ bindClick("btnLoadExcelSheets", async () => {
 });
 
 bindClick("btnCloseSettings", () => closeSettingsScreen());
+bindClick("menuExportPivotCsv", () => exportPivotResult("csv"));
+bindClick("menuExportPivotXlsx", () => exportPivotResult("xlsx"));
+bindClick("menuExportPivotOds", () => exportPivotResult("ods"));
+bindClick("menuExportPivotHtml", () => exportPivotResult("html"));
 bindClick("menuOpenSources", () => {
   try { resetSourceForm(); } catch (_) {}
   try { renderSourcesManager(); } catch (_) {}
