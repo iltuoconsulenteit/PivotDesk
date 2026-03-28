@@ -44,7 +44,21 @@
   "row_totals": "Row totals",
   "col_totals": "Column totals",
   "subtotals": "Subtotals",
-  "save_view": "Save view"
+  "save_view": "Save view",
+  "menu_export_backup": "Export backup",
+  "menu_restore_backup": "Restore backup",
+  "help_button": "❓ Help",
+  "help_open_title": "Open guide",
+  "hide": "Hide",
+  "show_data_preview": "Show data preview",
+  "layout_options": "Layout & options",
+  "chart_from_pivot": "Pivot chart",
+  "chart": "Chart",
+  "wiki_resize": "Drag to resize",
+  "wiki_quick_title": "PivotDesk quick wiki",
+  "close": "Close",
+  "width": "Width",
+  "wiki_loading": "Loading wiki..."
   ,"users_management": "User management"
   ,"users_management_subtitle": "Manage access and multi-user profiles in PivotDesk LAN environments."
   ,"open_pivotdesk": "Open PivotDesk"

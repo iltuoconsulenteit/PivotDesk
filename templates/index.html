@@ -1177,8 +1177,8 @@ window.LICENSE_CONTEXT = {
         <div class="menu-group">
           <button type="button" class="menu-btn" data-menu-target="menu-backup">Backup</button>
           <div class="menu-dropdown hidden" id="menu-backup">
-            <button type="button" id="menuExportBackup">Esporta backup</button>
-            <button type="button" id="menuRestoreBackup">Ripristina backup</button>
+            <button type="button" id="menuExportBackup" data-i18n="menu_export_backup">Esporta backup</button>
+            <button type="button" id="menuRestoreBackup" data-i18n="menu_restore_backup">Ripristina backup</button>
           </div>
         </div>
       </div>
@@ -1188,7 +1188,7 @@ window.LICENSE_CONTEXT = {
           <option value="it">Italiano</option>
           <option value="en">English</option>
         </select>
-        <button type="button" id="btnOpenWikiHelp" class="ghost-btn" title="Apri guida">
+        <button type="button" id="btnOpenWikiHelp" class="ghost-btn" title="Apri guida" data-i18n-title="help_open_title" data-i18n="help_button">
           ❓ Aiuto
         </button>
         {% if current_user and (current_user.role or "user") == "admin" %}
@@ -1207,14 +1207,14 @@ window.LICENSE_CONTEXT = {
         <label for="sourceSelect" class="section-title"><strong data-i18n="source_data">Sorgente dati</strong></label>
         <div class="compact-panel-head-actions">
           <button id="btnEditCurrentSourceInline" type="button" class="compact-head-btn" data-i18n="menu_edit_source">Modifica sorgente attiva</button>
-          <button type="button" class="compact-toggle" data-target="sourcePanel">Nascondi</button>
+          <button type="button" class="compact-toggle" data-target="sourcePanel" data-i18n="hide">Nascondi</button>
         </div>
       </div>
       <div class="compact-body" id="sourcePanel">
         <div class="field source-field">
           <div class="source-picker-row">
             <select id="sourceSelect"></select>
-            <button id="btnShowSourcePreview" type="button" class="source-list-btn" title="Mostra anteprima dati" aria-label="Mostra anteprima dati">📋</button>
+            <button id="btnShowSourcePreview" type="button" class="source-list-btn" title="Mostra anteprima dati" aria-label="Mostra anteprima dati" data-i18n-title="show_data_preview" data-i18n-aria-label="show_data_preview">📋</button>
           </div>
         </div>
       </div>
@@ -1225,7 +1225,7 @@ window.LICENSE_CONTEXT = {
         <div class="section-title" data-i18n="preset">Preset</div>
         <div class="compact-panel-head-actions">
           <button type="button" id="btnEditCurrentPresetInline" class="compact-head-btn" data-i18n="menu_edit_preset">Modifica preset attivo</button>
-          <button type="button" class="compact-toggle" data-target="presetPanel">Nascondi</button>
+          <button type="button" class="compact-toggle" data-target="presetPanel" data-i18n="hide">Nascondi</button>
         </div>
       </div>
       <div class="compact-body" id="presetPanel">
@@ -1236,7 +1236,7 @@ window.LICENSE_CONTEXT = {
     <div class="card compact-panel compact-col filters-col" data-collapsible="filtersPanel">
       <div class="compact-panel-head">
         <div class="section-title" data-i18n="page_filters">Filtri pagina</div>
-        <button type="button" class="compact-toggle" data-target="filtersPanel">Nascondi</button>
+        <button type="button" class="compact-toggle" data-target="filtersPanel" data-i18n="hide">Nascondi</button>
       </div>
       <div class="compact-body" id="filtersPanel">
         <div class="filters" id="filters"></div>
@@ -1245,8 +1245,8 @@ window.LICENSE_CONTEXT = {
 
     <div class="card compact-panel compact-col layout" id="pivotQuickbarPanel" data-collapsible="pivotQuickbar">
       <div class="compact-panel-head">
-        <div class="section-title">Layout & opzioni</div>
-        <button type="button" class="compact-toggle" data-target="pivotQuickbar">Nascondi</button>
+        <div class="section-title" data-i18n="layout_options">Layout & opzioni</div>
+        <button type="button" class="compact-toggle" data-target="pivotQuickbar" data-i18n="hide">Nascondi</button>
       </div>
       <div class="compact-body" id="pivotQuickbar">
         <div class="pivot-quickbar">
@@ -1279,7 +1279,7 @@ window.LICENSE_CONTEXT = {
               <span data-i18n="subtotals">Subtotali</span>
             </label>
 
-            <button type="button" id="btnOpenChartsNear" class="quick-toggle" title="Grafico da pivot" aria-label="Grafico da pivot">
+            <button type="button" id="btnOpenChartsNear" class="quick-toggle" title="Grafico da pivot" aria-label="Grafico da pivot" data-i18n-title="chart_from_pivot" data-i18n-aria-label="chart_from_pivot" data-i18n="chart">
               Grafico
             </button>
 
@@ -1303,20 +1303,20 @@ window.LICENSE_CONTEXT = {
 </div>
 
 <aside id="wikiDrawer" class="wiki-drawer" aria-hidden="true">
-  <div id="wikiResizer" class="wiki-resizer" title="Trascina per ridimensionare"></div>
+  <div id="wikiResizer" class="wiki-resizer" title="Trascina per ridimensionare" data-i18n-title="wiki_resize"></div>
   <div class="wiki-drawer-panel">
     <div class="wiki-drawer-head">
-      <strong>Wiki rapida PivotDesk</strong>
-      <button type="button" id="btnCloseWikiDrawer" class="ghost-btn">Chiudi</button>
+      <strong data-i18n="wiki_quick_title">Wiki rapida PivotDesk</strong>
+      <button type="button" id="btnCloseWikiDrawer" class="ghost-btn" data-i18n="close">Chiudi</button>
     </div>
     <div class="wiki-drawer-body">
       <div class="wiki-toolbar">
-        <label for="wikiWidthRange">Larghezza</label>
+        <label for="wikiWidthRange" data-i18n="width">Larghezza</label>
         <input id="wikiWidthRange" type="range" min="320" max="760" step="20" value="420" style="flex:1;">
         <button type="button" id="btnWikiIt" class="ghost-btn">IT</button>
         <button type="button" id="btnWikiEn" class="ghost-btn">EN</button>
       </div>
-      <div id="wikiContent" class="wiki-content">Caricamento wiki...</div>
+      <div id="wikiContent" class="wiki-content" data-i18n="wiki_loading">Caricamento wiki...</div>
     </div>
   </div>
 </aside>
@@ -2069,6 +2069,11 @@ function applyI18n(){
     const key = el.getAttribute("data-i18n-title");
     if (!key) return;
     el.setAttribute("title", translateText(key));
+  });
+  document.querySelectorAll("[data-i18n-aria-label]").forEach(el => {
+    const key = el.getAttribute("data-i18n-aria-label");
+    if (!key) return;
+    el.setAttribute("aria-label", translateText(key));
   });
   const btnV = document.getElementById("btnLayoutVertical");
   if (btnV) btnV.textContent = "↕ " + translateText("layout_vertical");
