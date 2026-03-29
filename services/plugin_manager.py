@@ -43,11 +43,15 @@ class PluginAPI:
         load_dataframe_from_source: Callable[..., Any] | None = None,
         get_sources_bundle: Callable[..., Any] | None = None,
         get_runtime_paths: Callable[..., Any] | None = None,
+        get_license_context: Callable[..., Any] | None = None,
+        compute_pivot_result: Callable[..., Any] | None = None,
     ) -> None:
         self.get_source = get_source
         self.load_dataframe_from_source = load_dataframe_from_source
         self.get_sources_bundle = get_sources_bundle
         self.get_runtime_paths = get_runtime_paths
+        self.get_license_context = get_license_context
+        self.compute_pivot_result = compute_pivot_result
 
 
 class PluginManager:

@@ -2135,6 +2135,21 @@ def list_excel_sheet_names(path: str) -> list[str]:
     with pd.ExcelFile(path) as workbook:
         return [str(name) for name in (workbook.sheet_names or [])]
 
+
+def plugin_compute_pivot_result(
+    *,
+    pivot_id: str,
+    source_id: str | None = None,
+    filters: str | None = None,
+    view_options: str | None = None,
+) -> dict[str, Any]:
+    return _compute_pivot_result(
+        pivot_id=pivot_id,
+        source_id=source_id,
+        filters=filters,
+        view_options=view_options,
+    )
+
 plugin_manager = PluginManager(
     get_plugin_roots(),
     enabled_map=load_plugins_enabled_map(),
@@ -2145,6 +2160,8 @@ plugin_api = PluginAPI(
     load_dataframe_from_source=load_dataframe_for_plugin,
     get_sources_bundle=load_sources_data,
     get_runtime_paths=get_runtime_paths,
+    get_license_context=get_license_context,
+    compute_pivot_result=plugin_compute_pivot_result,
 )
 
 plugin_manager.load_all(app, plugin_api)
