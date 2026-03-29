@@ -1166,6 +1166,9 @@ def normalize_source_item(item: dict[str, Any]) -> dict[str, Any] | None:
         "table",
         "query",
         "connection_id",
+        "spreadsheet_id",
+        "worksheet",
+        "range",
         "host",
         "port",
         "database",
@@ -1412,7 +1415,7 @@ def load_source_df(source_id: str | None) -> tuple[dict[str, Any], pd.DataFrame]
         raise FileNotFoundError(f"Sorgente non trovata: {source_id}")
     source_path = str(src.get("path") or src.get("config", {}).get("path") or "").strip()
     source_type = str(src.get("type", "")).strip().lower()
-    if not source_path and source_type not in {"mysql"}:
+    if not source_path and source_type not in {"mysql", "gsheet_account"}:
         raise FileNotFoundError(
             "La sorgente selezionata non ha ancora un percorso configurato. "
             "Apri 'Gestione sorgenti' e completa i parametri della sorgente migrata."
@@ -2095,7 +2098,18 @@ def build_source_from_payload(payload: dict[str, Any]) -> dict[str, Any]:
         "sheet_name": sheet_name,
         "skip_rows": skip_rows,
     }
-    for key in ("url", "method", "json_path", "timeout_sec", "connection_id", "table", "query"):
+    for key in (
+        "url",
+        "method",
+        "json_path",
+        "timeout_sec",
+        "connection_id",
+        "table",
+        "query",
+        "spreadsheet_id",
+        "worksheet",
+        "range",
+    ):
         if key in cfg_payload and cfg_payload.get(key) not in (None, ""):
             config[key] = cfg_payload.get(key)
     if source_calculated_fields:
@@ -3306,7 +3320,7 @@ async def source_preview_from_form(request: Request, limit: int = Query(20)):
         source = build_source_from_payload(payload if isinstance(payload, dict) else {})
         src_type = str(source.get("type", "")).strip().lower()
         path = str(source.get("path") or source.get("config", {}).get("path") or "").strip()
-        requires_path = src_type not in {"mysql"}
+        requires_path = src_type not in {"mysql", "gsheet_account"}
         if requires_path and not path:
             return JSONResponse({"error": "Percorso file obbligatorio per l'anteprima."}, status_code=400)
         df = load_dataframe_with_source_calculated_fields(source, use_fallback=True)

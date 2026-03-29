@@ -1563,6 +1563,7 @@ window.LICENSE_CONTEXT = {
           <option value="mysql">MySQL</option>
           <option value="http_json">HTTP JSON (HTTPS API)</option>
           <option value="gdrive">Google Drive / Google Sheet</option>
+          <option value="gsheet_account">Google Sheet (account OAuth)</option>
         </select>
       </div>
       <div class="field">
@@ -1606,6 +1607,25 @@ window.LICENSE_CONTEXT = {
       <div class="field">
         <label for="srcHttpTimeout">Timeout sec</label>
         <input id="srcHttpTimeout" type="number" min="1" step="1" value="15">
+      </div>
+    </div>
+
+    <div class="builder-top" id="srcGsheetAccountFields">
+      <div class="field">
+        <label for="srcGsheetConnectionId">Google connection_id</label>
+        <input id="srcGsheetConnectionId" placeholder="es. gmail_main">
+      </div>
+      <div class="field">
+        <label for="srcGsheetSpreadsheetId">Spreadsheet ID</label>
+        <input id="srcGsheetSpreadsheetId" placeholder="ID documento Google Sheet">
+      </div>
+      <div class="field">
+        <label for="srcGsheetWorksheet">Worksheet (opzionale)</label>
+        <input id="srcGsheetWorksheet" placeholder="es. Foglio1">
+      </div>
+      <div class="field">
+        <label for="srcGsheetRange">Range (opzionale)</label>
+        <input id="srcGsheetRange" placeholder="es. A1:Z5000">
       </div>
     </div>
 
@@ -3338,25 +3358,29 @@ function updateSourceFormVisibility(){
   const isMysql = srcType === "mysql";
   const isHttp = ["http_json", "api", "rest"].includes(srcType);
   const isGdrive = ["gdrive", "google_drive", "google_sheet"].includes(srcType);
+  const isGsheetAccount = ["gsheet_account", "google_sheet_account", "google_account_sheet"].includes(srcType);
   const btnLoadSheets = document.getElementById("btnLoadExcelSheets");
   const btnPick = document.getElementById("btnPickSourceFile");
   const btnPaste = document.getElementById("btnPasteSourcePath");
   const mysqlWrap = document.getElementById("srcMysqlFields");
   const httpWrap = document.getElementById("srcHttpFields");
+  const gsheetAccountWrap = document.getElementById("srcGsheetAccountFields");
   const pathLabel = document.getElementById("srcPathLabel");
 
   document.getElementById("srcDelimiter").disabled = !isCsv;
   document.getElementById("srcEncoding").disabled = !isCsv;
   document.getElementById("srcSheetName").disabled = !isXlsx;
   if (btnLoadSheets) btnLoadSheets.disabled = !isXlsx;
-  if (btnPick) btnPick.disabled = isMysql || isHttp;
-  if (btnPaste) btnPaste.disabled = isMysql;
+  if (btnPick) btnPick.disabled = isMysql || isHttp || isGsheetAccount;
+  if (btnPaste) btnPaste.disabled = isMysql || isGsheetAccount;
   if (mysqlWrap) mysqlWrap.classList.toggle("hidden", !isMysql);
   if (httpWrap) httpWrap.classList.toggle("hidden", !isHttp);
+  if (gsheetAccountWrap) gsheetAccountWrap.classList.toggle("hidden", !isGsheetAccount);
 
   if (pathLabel) {
     if (isHttp) pathLabel.textContent = "URL API HTTPS";
     else if (isGdrive) pathLabel.textContent = "URL Google Drive / Sheet";
+    else if (isGsheetAccount) pathLabel.textContent = "Percorso file (non usato per gsheet_account)";
     else if (isMysql) pathLabel.textContent = "Percorso file (non usato per MySQL)";
     else pathLabel.textContent = "Percorso file";
   }
@@ -3367,6 +3391,12 @@ function updateSourceFormVisibility(){
   }
   if (!isXlsx) {
     document.getElementById("srcSheetName").value = "";
+  }
+  if (!isGsheetAccount) {
+    document.getElementById("srcGsheetConnectionId").value = "";
+    document.getElementById("srcGsheetSpreadsheetId").value = "";
+    document.getElementById("srcGsheetWorksheet").value = "";
+    document.getElementById("srcGsheetRange").value = "";
   }
 }
 
@@ -3449,6 +3479,14 @@ function formatResolvedSourceInfo(src){
 
   if (["gdrive", "google_drive", "google_sheet"].includes(srcType)) {
     return "Google Drive/Sheet · " + String(cfg.url || src?.path || "");
+  }
+
+  if (["gsheet_account", "google_sheet_account", "google_account_sheet"].includes(srcType)) {
+    return (
+      "Google account Sheet · connection_id: " + String(cfg.connection_id || "-") +
+      " · spreadsheet_id: " + String(cfg.spreadsheet_id || "-") +
+      " · worksheet: " + String(cfg.worksheet || "-")
+    );
   }
 
   return "";
@@ -3602,6 +3640,12 @@ function collectSourceFormPayload(){
   if (["gdrive", "google_drive", "google_sheet"].includes(srcType)) {
     config.url = pathValue;
   }
+  if (["gsheet_account", "google_sheet_account", "google_account_sheet"].includes(srcType)) {
+    config.connection_id = document.getElementById("srcGsheetConnectionId").value.trim();
+    config.spreadsheet_id = document.getElementById("srcGsheetSpreadsheetId").value.trim();
+    config.worksheet = document.getElementById("srcGsheetWorksheet").value.trim();
+    config.range = document.getElementById("srcGsheetRange").value.trim();
+  }
   return {
     id: document.getElementById("srcId").value.trim() || "preview",
     title: document.getElementById("srcTitle").value.trim() || document.getElementById("srcId").value.trim() || "Anteprima sorgente",
@@ -3620,7 +3664,7 @@ let sourceFormPreviewTimer = null;
 async function previewSourceFromForm(force = false){
   const payload = collectSourceFormPayload();
   const type = String(payload.type || "").toLowerCase();
-  const needsPath = !["mysql"].includes(type);
+  const needsPath = !["mysql", "gsheet_account", "google_sheet_account", "google_account_sheet"].includes(type);
   if (needsPath && !payload.path) {
     const typeLabel = payload.type === "xlsx"
       ? "Excel · foglio: primo foglio"
@@ -3719,6 +3763,10 @@ function resetSourceForm(){
   document.getElementById("srcHttpMethod").value = "GET";
   document.getElementById("srcHttpJsonPath").value = "";
   document.getElementById("srcHttpTimeout").value = "15";
+  document.getElementById("srcGsheetConnectionId").value = "";
+  document.getElementById("srcGsheetSpreadsheetId").value = "";
+  document.getElementById("srcGsheetWorksheet").value = "";
+  document.getElementById("srcGsheetRange").value = "";
   document.getElementById("srcDefault").checked = false;
   setPickedFileLabel("Nessun file selezionato");
   updateSourceFormVisibility();
@@ -3741,6 +3789,10 @@ function loadSourceIntoForm(src){
   document.getElementById("srcHttpMethod").value = String(src.config?.method || "GET").toUpperCase();
   document.getElementById("srcHttpJsonPath").value = src.config?.json_path || "";
   document.getElementById("srcHttpTimeout").value = String(src.config?.timeout_sec || 15);
+  document.getElementById("srcGsheetConnectionId").value = src.config?.connection_id || "";
+  document.getElementById("srcGsheetSpreadsheetId").value = src.config?.spreadsheet_id || "";
+  document.getElementById("srcGsheetWorksheet").value = src.config?.worksheet || "";
+  document.getElementById("srcGsheetRange").value = src.config?.range || "";
   document.getElementById("srcResolvedInfo").value = formatResolvedSourceInfo(src);
   document.getElementById("srcDefault").checked = (src.id === (CURRENT_SOURCE || ""));
   setPickedFileLabel(src.path || src.config?.path || "File già salvato");

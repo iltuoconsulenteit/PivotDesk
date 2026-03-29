@@ -154,6 +154,7 @@ The following diagrams are visual examples derived from the HTML layout structur
 - `static/js/` – frontend logic
 - `docs/WIKI.md` – full internal wiki (EN)
 - Source-level calculated fields are stored in source config (`calculated_fields`) and are automatically applied during source loading; this makes them available to all plugins (including cross-source lookup and multi-source merge) without redefining formulas per plugin request.
+- Optional plugin `google_account_sheets` (disabled by default) enables OAuth device-flow authentication for private Google Drive Sheets and can be licensed as a Pro/Full add-on.
 
 Plugin visibility/enablement:
 - `GET /plugins/status` shows runtime status + license allow/deny flags.

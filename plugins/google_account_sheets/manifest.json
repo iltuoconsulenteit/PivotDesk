@@ -1,0 +1,13 @@
+{
+  "id": "google_account_sheets",
+  "name": "Google Account Sheets",
+  "version": "0.1.0",
+  "description": "OAuth device-flow access to private Google Drive Sheets (list docs/sheets for account-based sources).",
+  "enabled": false,
+  "frontend": {
+    "menu": [],
+    "panel": {
+      "title": "Google Account Sheets"
+    }
+  }
+}
