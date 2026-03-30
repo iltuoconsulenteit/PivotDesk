@@ -1478,6 +1478,7 @@ window.LICENSE_CONTEXT = {
         <div class="builder-head-left">
           <div class="section-title">Campi calcolati</div>
           <div class="small">Campi virtuali row-level da usare in Filtri, Righe, Colonne e Valori.</div>
+          <div class="small">Plugin Pivot: validi solo nel preset pivot corrente (stile Excel), non modificano la sorgente.</div>
         </div>
         <div>
           <button id="btnOpenCalculatedFieldModal" type="button">Nuovo campo calcolato</button>
@@ -1683,6 +1684,7 @@ window.LICENSE_CONTEXT = {
     <div class="card" style="margin-bottom:14px;">
       <div class="section-title">Campi calcolati sorgente</div>
       <div class="small" style="margin-bottom:8px;">Definisci campi calcolati applicati sempre alla sorgente (visibili anche nei plugin).</div>
+      <div class="small" style="margin-bottom:8px;">Plugin Sorgente: i campi vengono aggiunti ai dati della sorgente e poi risultano disponibili nella pivot come campi normali.</div>
       <textarea id="srcCalculatedFieldsJson" style="width:100%; min-height:120px;" placeholder='[{\"name\":\"totale\",\"formula\":\"amount + iva\",\"type\":\"number\",\"enabled\":true}]'></textarea>
       <div class="builder-actions" style="margin-top:8px;">
         <button id="btnSourceCalcAddRow" type="button">+ Campo</button>
