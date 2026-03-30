@@ -2481,17 +2481,29 @@ function printChartOnly(){
 }
 window.printChartOnly = printChartOnly;
 
-function exportChartInteractiveHtml(){
+async function exportChartInteractiveHtml(){
   if (!hasFeature("charts")) {
     showLockedFeature("Export grafico HTML", "charts");
     return;
   }
   const p = PRESETS.find(x => x.id === CURRENT);
   const chartType = String(document.getElementById("chartTypeSelect")?.value || "column").trim();
-  const canvas = document.getElementById("chartsCanvas");
-  const imageDataUrl = canvas ? canvas.toDataURL("image/png") : "";
+  let canvas = document.getElementById("chartsCanvas");
+  if (!canvas) {
+    openChartsModal();
+    try {
+      await renderPivotChart();
+    } catch (_e) {}
+    canvas = document.getElementById("chartsCanvas");
+  }
+  let imageDataUrl = "";
+  try {
+    imageDataUrl = canvas ? canvas.toDataURL("image/png") : "";
+  } catch (_e) {
+    imageDataUrl = "";
+  }
   if (!imageDataUrl) {
-    setStatus("ERRORE: nessun grafico disponibile da esportare.");
+    setStatus("ERRORE: nessun grafico disponibile da esportare. Apri prima il grafico e verifica i campi.");
     return;
   }
 
@@ -2991,6 +3003,14 @@ function openSourcesScreen(){
   bindSourceUiButtons();
   initSourcePluginBuilders().catch(() => {});
   window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function startNewSourceFlow(){
+  openSourcesScreen();
+  resetSourceForm();
+  const idInput = document.getElementById("srcId");
+  if (idInput) idInput.focus();
+  setStatus("Nuova sorgente.");
 }
 
 function openSourceEditorForCurrentSource(){
@@ -3928,6 +3948,9 @@ function renderSourcesManager(){
   const box = document.getElementById("sourcesList");
   box.innerHTML = "";
   (SOURCES || []).forEach(src => {
+    const sourceCalc = Array.isArray(src.calculated_fields)
+      ? src.calculated_fields
+      : (Array.isArray(src.config?.calculated_fields) ? src.config.calculated_fields : []);
     const row = document.createElement("div");
     row.className = "source-row";
 
@@ -3936,6 +3959,7 @@ function renderSourcesManager(){
     left.innerHTML =
       '<div class="source-row-title">' + escapeHtml(src.title || src.id) + '</div>' +
       '<div class="source-row-meta">ID: ' + escapeHtml(src.id) + ' · Tipo: ' + escapeHtml(src.type || "csv") + '</div>' +
+      '<div class="source-row-meta">Campi calcolati sorgente: ' + escapeHtml(String(sourceCalc.length || 0)) + '</div>' +
       '<div class="source-row-meta">' + escapeHtml(src.path || "") + '</div>' +
       '<div class="source-row-meta">' + escapeHtml(formatResolvedSourceInfo(src)) + '</div>';
 
@@ -6128,12 +6152,8 @@ bindClick("btnLicenseActivateNow", async () => {
 });
 
 bindClick("btnCloseSources", () => closeSourcesScreen());
-bindClick("btnSourceNew", () => resetSourceForm());
-bindClick("btnNewSourceInline", () => {
-  openSourcesScreen();
-  resetSourceForm();
-  setStatus("Nuova sorgente.");
-});
+bindClick("btnSourceNew", () => startNewSourceFlow());
+bindClick("btnNewSourceInline", () => startNewSourceFlow());
 bindClick("btnEditCurrentSourceInline", () => openSourceEditorForCurrentSource());
 bindClick("btnShowSourcePreview", () => showCurrentSourcePreview());
 bindClick("btnCloseSourcePreviewModal", () => closeSourcePreviewModal());
