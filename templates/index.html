@@ -2496,7 +2496,7 @@ function exportChartInteractiveHtml(){
 <style>body{font-family:Arial,sans-serif;margin:20px;color:#111827}h1{margin:0 0 8px 0}.meta{color:#475467;font-size:13px;margin:4px 0}.card{border:1px solid #e4e7ec;border-radius:10px;padding:12px;max-width:1200px}img{max-width:100%;height:auto;display:block;border:1px solid #d0d5dd;border-radius:8px}</style>
 </head><body><h1>${escapeHtml(payload.title)}</h1><div class="meta"><strong>Source:</strong> ${escapeHtml(payload.source_title || "")}</div><div class="meta"><strong>Type:</strong> ${escapeHtml(payload.chart_type || "")}</div><div class="meta"><strong>Generated:</strong> ${escapeHtml(payload.generated_at || "")}</div>
 <div class="card"><img src="${payload.image_data_url}" alt="Pivot chart"/></div>
-<script type="application/json" id="pivot-chart-export">${escapeHtml(JSON.stringify(payload))}</script>
+<script type="application/json" id="pivot-chart-export">${escapeHtml(JSON.stringify(payload))}<\\/script>
 </body></html>`;
 
   const blob = new Blob([html], { type: "text/html;charset=utf-8" });
