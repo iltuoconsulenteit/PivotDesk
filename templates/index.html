@@ -1234,7 +1234,8 @@ window.LICENSE_CONTEXT = {
       <div class="compact-panel-head">
         <label for="sourceSelect" class="section-title"><strong data-i18n="source_data">Sorgente dati</strong></label>
         <div class="compact-panel-head-actions">
-          <button id="btnEditCurrentSourceInline" type="button" class="compact-head-btn" data-i18n="menu_edit_source">Modifica sorgente attiva</button>
+          <button id="btnNewSourceInline" type="button" class="compact-head-btn" title="Nuova sorgente" aria-label="Nuova sorgente">＋</button>
+          <button id="btnEditCurrentSourceInline" type="button" class="compact-head-btn" title="Modifica sorgente attiva" aria-label="Modifica sorgente attiva">✎</button>
           <button type="button" class="compact-toggle" data-target="sourcePanel" data-i18n="hide">Nascondi</button>
         </div>
       </div>
@@ -1677,6 +1678,18 @@ window.LICENSE_CONTEXT = {
         <input id="srcDefault" type="checkbox">
         Imposta come sorgente predefinita
       </label>
+    </div>
+
+    <div class="card" style="margin-bottom:14px;">
+      <div class="section-title">Campi calcolati sorgente</div>
+      <div class="small" style="margin-bottom:8px;">Definisci campi calcolati applicati sempre alla sorgente (visibili anche nei plugin).</div>
+      <textarea id="srcCalculatedFieldsJson" style="width:100%; min-height:120px;" placeholder='[{\"name\":\"totale\",\"formula\":\"amount + iva\",\"type\":\"number\",\"enabled\":true}]'></textarea>
+      <div class="builder-actions" style="margin-top:8px;">
+        <button id="btnSourceCalcAddRow" type="button">+ Campo</button>
+        <button id="btnSourceCalcTemplate" type="button">Template JSON</button>
+        <button id="btnSourceCalcClear" type="button">Pulisci</button>
+      </div>
+      <div id="sourceCalcRows" style="display:grid; gap:8px; margin-top:8px;"></div>
     </div>
 
     <div class="builder-actions">
@@ -3616,6 +3629,99 @@ function renderSourceFormPreview(data){
   if (resolved && data && data.resolved_info) resolved.value = data.resolved_info;
 }
 
+function normalizeSourceCalcItems(items){
+  const list = Array.isArray(items) ? items : [];
+  return list
+    .filter(x => x && typeof x === "object")
+    .map(x => ({
+      name: String(x.name || "").trim(),
+      formula: String(x.formula || "").trim(),
+      type: String(x.type || "string").trim().toLowerCase() || "string",
+      enabled: x.enabled !== false
+    }))
+    .filter(x => x.name && x.formula);
+}
+
+function readSourceCalcItemsFromJson(){
+  const area = document.getElementById("srcCalculatedFieldsJson");
+  const raw = String(area?.value || "").trim();
+  if (!raw) return [];
+  let parsed = [];
+  try {
+    parsed = JSON.parse(raw);
+  } catch (_e) {
+    throw new Error("JSON campi calcolati sorgente non valido.");
+  }
+  return normalizeSourceCalcItems(parsed);
+}
+
+function renderSourceCalcRows(items){
+  const wrap = document.getElementById("sourceCalcRows");
+  if (!wrap) return;
+  const list = normalizeSourceCalcItems(items);
+  wrap.innerHTML = "";
+  if (!list.length) {
+    wrap.innerHTML = "<div class='small'>Nessun campo calcolato definito.</div>";
+    return;
+  }
+  list.forEach((row, idx) => {
+    const box = document.createElement("div");
+    box.style.border = "1px solid #d0d5dd";
+    box.style.borderRadius = "8px";
+    box.style.padding = "8px";
+    box.style.display = "grid";
+    box.style.gridTemplateColumns = "1fr 2fr auto auto";
+    box.style.gap = "8px";
+    box.innerHTML =
+      "<input data-calc-col='name' placeholder='nome campo'>" +
+      "<input data-calc-col='formula' placeholder='formula'>" +
+      "<select data-calc-col='type'><option value='string'>string</option><option value='number'>number</option><option value='date'>date</option><option value='bool'>bool</option></select>" +
+      "<label class='inline-check' style='margin:0; align-self:center;'><input data-calc-col='enabled' type='checkbox'>on</label>" +
+      "<button type='button' data-calc-remove style='grid-column:1 / -1; justify-self:end;'>Rimuovi</button>";
+    const nameEl = box.querySelector("[data-calc-col='name']");
+    const formulaEl = box.querySelector("[data-calc-col='formula']");
+    const typeEl = box.querySelector("[data-calc-col='type']");
+    const enabledEl = box.querySelector("[data-calc-col='enabled']");
+    nameEl.value = row.name || "";
+    formulaEl.value = row.formula || "";
+    typeEl.value = row.type || "string";
+    enabledEl.checked = row.enabled !== false;
+    box.querySelector("[data-calc-remove]").addEventListener("click", () => {
+      const current = readSourceCalcItemsFromJson();
+      current.splice(idx, 1);
+      const area = document.getElementById("srcCalculatedFieldsJson");
+      area.value = current.length ? JSON.stringify(current, null, 2) : "";
+      renderSourceCalcRows(current);
+    });
+    [nameEl, formulaEl, typeEl, enabledEl].forEach(el => {
+      el.addEventListener("input", syncSourceCalcRowsToJson);
+      el.addEventListener("change", syncSourceCalcRowsToJson);
+    });
+    wrap.appendChild(box);
+  });
+}
+
+function syncSourceCalcRowsToJson(){
+  const wrap = document.getElementById("sourceCalcRows");
+  const area = document.getElementById("srcCalculatedFieldsJson");
+  if (!wrap || !area) return;
+  const out = [];
+  wrap.querySelectorAll("div").forEach(box => {
+    const name = String(box.querySelector("[data-calc-col='name']")?.value || "").trim();
+    const formula = String(box.querySelector("[data-calc-col='formula']")?.value || "").trim();
+    const type = String(box.querySelector("[data-calc-col='type']")?.value || "string").trim().toLowerCase() || "string";
+    const enabled = !!box.querySelector("[data-calc-col='enabled']")?.checked;
+    if (name && formula) out.push({ name, formula, type, enabled });
+  });
+  area.value = out.length ? JSON.stringify(out, null, 2) : "";
+}
+
+function addSourceCalcRow(){
+  const current = readSourceCalcItemsFromJson();
+  current.push({ name: "", formula: "", type: "string", enabled: true });
+  renderSourceCalcRows(current);
+}
+
 function collectSourceFormPayload(){
   const srcType = String(document.getElementById("srcType").value || "csv").trim().toLowerCase();
   const pathValue = document.getElementById("srcPath").value.trim();
@@ -3646,6 +3752,13 @@ function collectSourceFormPayload(){
     config.worksheet = document.getElementById("srcGsheetWorksheet").value.trim();
     config.range = document.getElementById("srcGsheetRange").value.trim();
   }
+
+  const sourceCalculatedFields = readSourceCalcItemsFromJson();
+  if (sourceCalculatedFields.length) {
+    config.calculated_fields = sourceCalculatedFields;
+  } else {
+    delete config.calculated_fields;
+  }
   return {
     id: document.getElementById("srcId").value.trim() || "preview",
     title: document.getElementById("srcTitle").value.trim() || document.getElementById("srcId").value.trim() || "Anteprima sorgente",
@@ -3655,6 +3768,7 @@ function collectSourceFormPayload(){
     encoding: config.encoding,
     sheet_name: config.sheet_name,
     skip_rows: config.skip_rows,
+    calculated_fields: sourceCalculatedFields,
     config
   };
 }
@@ -3767,6 +3881,8 @@ function resetSourceForm(){
   document.getElementById("srcGsheetSpreadsheetId").value = "";
   document.getElementById("srcGsheetWorksheet").value = "";
   document.getElementById("srcGsheetRange").value = "";
+  document.getElementById("srcCalculatedFieldsJson").value = "";
+  renderSourceCalcRows([]);
   document.getElementById("srcDefault").checked = false;
   setPickedFileLabel("Nessun file selezionato");
   updateSourceFormVisibility();
@@ -3793,6 +3909,11 @@ function loadSourceIntoForm(src){
   document.getElementById("srcGsheetSpreadsheetId").value = src.config?.spreadsheet_id || "";
   document.getElementById("srcGsheetWorksheet").value = src.config?.worksheet || "";
   document.getElementById("srcGsheetRange").value = src.config?.range || "";
+  const sourceCalc = Array.isArray(src.calculated_fields)
+    ? src.calculated_fields
+    : (Array.isArray(src.config?.calculated_fields) ? src.config.calculated_fields : []);
+  document.getElementById("srcCalculatedFieldsJson").value = sourceCalc.length ? JSON.stringify(sourceCalc, null, 2) : "";
+  renderSourceCalcRows(sourceCalc);
   document.getElementById("srcResolvedInfo").value = formatResolvedSourceInfo(src);
   document.getElementById("srcDefault").checked = (src.id === (CURRENT_SOURCE || ""));
   setPickedFileLabel(src.path || src.config?.path || "File già salvato");
@@ -6008,6 +6129,11 @@ bindClick("btnLicenseActivateNow", async () => {
 
 bindClick("btnCloseSources", () => closeSourcesScreen());
 bindClick("btnSourceNew", () => resetSourceForm());
+bindClick("btnNewSourceInline", () => {
+  openSourcesScreen();
+  resetSourceForm();
+  setStatus("Nuova sorgente.");
+});
 bindClick("btnEditCurrentSourceInline", () => openSourceEditorForCurrentSource());
 bindClick("btnShowSourcePreview", () => showCurrentSourcePreview());
 bindClick("btnCloseSourcePreviewModal", () => closeSourcePreviewModal());
@@ -6074,6 +6200,29 @@ bindInput("srcSheetName", "change", async () => {
 bindClick("btnLoadExcelSheets", async () => {
   await loadExcelSheetsForForm();
   try { await previewSourceFromForm(true); } catch (_) {}
+});
+bindClick("btnSourceCalcAddRow", () => {
+  try {
+    addSourceCalcRow();
+  } catch (e) {
+    setStatus("ERRORE: " + e.message);
+  }
+});
+bindClick("btnSourceCalcTemplate", () => {
+  const sample = [{ name: "totale", formula: "amount + iva", type: "number", enabled: true }];
+  document.getElementById("srcCalculatedFieldsJson").value = JSON.stringify(sample, null, 2);
+  renderSourceCalcRows(sample);
+});
+bindClick("btnSourceCalcClear", () => {
+  document.getElementById("srcCalculatedFieldsJson").value = "";
+  renderSourceCalcRows([]);
+});
+bindInput("srcCalculatedFieldsJson", "input", () => {
+  try {
+    renderSourceCalcRows(readSourceCalcItemsFromJson());
+  } catch (_e) {
+    // continua ad editare JSON manualmente finché non è valido
+  }
 });
 
 bindClick("btnCloseSettings", () => closeSettingsScreen());
@@ -6158,6 +6307,7 @@ initCompactPanels();
 setWikiWidth(document.getElementById("wikiWidthRange")?.value || 420);
 initWikiResizer();
 setWikiLocale("it");
+renderSourceCalcRows([]);
 
 
 function parseSortableValue(text) {

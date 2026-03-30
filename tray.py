@@ -14,6 +14,11 @@ from pathlib import Path
 import pystray
 from PIL import Image
 
+try:
+    import tkinter as tk
+except Exception:
+    tk = None
+
 def is_frozen() -> bool:
     return getattr(sys, "frozen", False)
 
@@ -70,6 +75,7 @@ CONFIG_PATH = DATA_DIR / "config.json"
 _server_proc: subprocess.Popen | None = None
 _server_host: str | None = None
 _server_port: int | None = None
+_splash_root = None
 
 
 def _read_json(path: Path) -> dict | None:
@@ -234,6 +240,57 @@ def wait_http_health(host: str, port: int, timeout: int = 30) -> bool:
     return False
 
 
+def show_startup_splash() -> None:
+    global _splash_root
+    if not sys.platform.startswith("win"):
+        return
+    if tk is None:
+        return
+    if _splash_root is not None:
+        return
+    try:
+        root = tk.Tk()
+        root.title("PivotDesk")
+        root.overrideredirect(True)
+        root.attributes("-topmost", True)
+        width, height = 360, 120
+        x = max(0, (root.winfo_screenwidth() // 2) - (width // 2))
+        y = max(0, (root.winfo_screenheight() // 2) - (height // 2))
+        root.geometry(f"{width}x{height}+{x}+{y}")
+        frame = tk.Frame(root, bg="#0f172a")
+        frame.pack(fill="both", expand=True)
+        tk.Label(
+            frame,
+            text="PivotDesk",
+            fg="#f8fafc",
+            bg="#0f172a",
+            font=("Segoe UI", 16, "bold"),
+        ).pack(pady=(24, 4))
+        tk.Label(
+            frame,
+            text="Avvio in corso...",
+            fg="#cbd5e1",
+            bg="#0f172a",
+            font=("Segoe UI", 10),
+        ).pack()
+        _splash_root = root
+        threading.Thread(target=root.mainloop, daemon=True).start()
+    except Exception as e:
+        log(f"Splash non disponibile: {e}")
+        _splash_root = None
+
+
+def close_startup_splash() -> None:
+    global _splash_root
+    if _splash_root is None:
+        return
+    try:
+        _splash_root.after(0, _splash_root.destroy)
+    except Exception:
+        pass
+    _splash_root = None
+
+
 def build_server_command(host: str, port: int) -> list[str] | None:
     if is_frozen():
         exe_candidate = Path(sys.executable).resolve().parent / "PivotDesk.exe"
@@ -302,6 +359,7 @@ def start_server() -> None:
         log(f"Health OK su http://{host}:{port}/health")
     else:
         log(f"Health NON raggiungibile su http://{host}:{port}/health entro timeout")
+    close_startup_splash()
 
 
 def stop_server() -> None:
@@ -388,6 +446,7 @@ def main() -> None:
     log(f"Host runtime: {get_runtime_host()}")
     log(f"Porta runtime: {get_runtime_port()}")
 
+    show_startup_splash()
     start_server()
 
     t_open = threading.Thread(target=open_dashboard, daemon=True)
