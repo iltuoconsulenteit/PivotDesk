@@ -1544,6 +1544,13 @@ window.LICENSE_CONTEXT = {
       </div>
     </div>
 
+    <div class="plugin-tools-tabs" style="margin-bottom:10px;">
+      <button type="button" class="quick-toggle active" id="btnSourceTabBase">Configurazione base</button>
+      <button type="button" class="quick-toggle" id="btnSourceTabCalc">Campi calcolati</button>
+      <button type="button" class="quick-toggle" id="btnSourceTabPlugins">Plugin</button>
+    </div>
+
+    <div class="source-tab-panel" data-source-tab="base">
     <div class="builder-top">
       <div class="field">
         <label for="srcId">ID sorgente</label>
@@ -1680,8 +1687,9 @@ window.LICENSE_CONTEXT = {
         Imposta come sorgente predefinita
       </label>
     </div>
+    </div>
 
-    <div class="card" style="margin-bottom:14px;">
+    <div class="card source-tab-panel hidden" data-source-tab="calc" style="margin-bottom:14px;">
       <div class="section-title">Campi calcolati sorgente</div>
       <div class="small" style="margin-bottom:8px;">Definisci campi calcolati applicati sempre alla sorgente (visibili anche nei plugin).</div>
       <div class="small" style="margin-bottom:8px;">Plugin Sorgente: i campi vengono aggiunti ai dati della sorgente e poi risultano disponibili nella pivot come campi normali.</div>
@@ -1694,10 +1702,10 @@ window.LICENSE_CONTEXT = {
       <div id="sourceCalcRows" style="display:grid; gap:8px; margin-top:8px;"></div>
     </div>
 
-    <div class="builder-actions">
-      <button id="btnSourceNew" type="button">Nuova sorgente</button>
-      <button id="btnSourceSave" type="button" class="primary">Salva sorgente</button>
-      <button id="btnSourceDelete" type="button" class="danger">Elimina sorgente</button>
+    <div class="builder-actions" style="position:sticky; bottom:0; background:#fff; padding-top:8px; z-index:4;">
+      <button id="btnSourceNew" type="button">➕ Nuova sorgente</button>
+      <button id="btnSourceSave" type="button" class="primary">💾 Salva sorgente</button>
+      <button id="btnSourceDelete" type="button" class="danger">🗑️ Elimina sorgente</button>
     </div>
 
     <div class="card" style="margin-top:16px; margin-bottom:16px;">
@@ -1724,7 +1732,7 @@ window.LICENSE_CONTEXT = {
       <div id="sourcesList"></div>
     </div>
 
-    <div class="card" style="margin-top:16px;">
+    <div class="card source-tab-panel hidden" data-source-tab="plugins" style="margin-top:16px;">
       <div class="section-title">Plugin sorgenti (lookup / merge)</div>
       <div class="small" style="margin-bottom:10px; color:#475467;">Utility guidate: seleziona un tool e compila solo i campi necessari. Le opzioni avanzate restano nascoste di default.</div>
       <div class="plugin-tools-tabs">
@@ -2092,6 +2100,7 @@ let CURRENT = null;
 let CURRENT_SOURCE = null;
 let CURRENT_FIELDS = [];
 let CURRENT_SOURCE_EDIT = null;
+let SOURCE_CALC_DRAFT = [];
 let BUILDER_MODE = "new";
 let BUILDER_EDITING_ID = null;
 let SETTINGS = {
@@ -3010,8 +3019,26 @@ function openSourcesScreen(){
   document.getElementById("sourcesScreen").classList.add("active");
   renderSourcesManager();
   bindSourceUiButtons();
+  setSourceManagerTab("base");
   initSourcePluginBuilders().catch(() => {});
   window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function setSourceManagerTab(tab){
+  const key = String(tab || "base").trim().toLowerCase();
+  const active = ["base", "calc", "plugins"].includes(key) ? key : "base";
+  document.querySelectorAll(".source-tab-panel[data-source-tab]").forEach(panel => {
+    panel.classList.toggle("hidden", panel.getAttribute("data-source-tab") !== active);
+  });
+  const map = {
+    base: document.getElementById("btnSourceTabBase"),
+    calc: document.getElementById("btnSourceTabCalc"),
+    plugins: document.getElementById("btnSourceTabPlugins"),
+  };
+  Object.entries(map).forEach(([k, btn]) => {
+    if (!btn) return;
+    btn.classList.toggle("active", k === active);
+  });
 }
 
 function startNewSourceFlow(){
@@ -3687,10 +3714,18 @@ function readSourceCalcItemsFromJson(){
 function renderSourceCalcRows(items){
   const wrap = document.getElementById("sourceCalcRows");
   if (!wrap) return;
-  const list = normalizeSourceCalcItems(items);
+  SOURCE_CALC_DRAFT = (Array.isArray(items) ? items : []).map(x => ({
+    name: String(x?.name || "").trim(),
+    formula: String(x?.formula || "").trim(),
+    type: String(x?.type || "string").trim().toLowerCase() || "string",
+    enabled: x?.enabled !== false
+  }));
+  const list = SOURCE_CALC_DRAFT;
   wrap.innerHTML = "";
   if (!list.length) {
     wrap.innerHTML = "<div class='small'>Nessun campo calcolato definito.</div>";
+    const area = document.getElementById("srcCalculatedFieldsJson");
+    if (area) area.value = "";
     return;
   }
   list.forEach((row, idx) => {
@@ -3716,39 +3751,41 @@ function renderSourceCalcRows(items){
     typeEl.value = row.type || "string";
     enabledEl.checked = row.enabled !== false;
     box.querySelector("[data-calc-remove]").addEventListener("click", () => {
-      const current = readSourceCalcItemsFromJson();
-      current.splice(idx, 1);
-      const area = document.getElementById("srcCalculatedFieldsJson");
-      area.value = current.length ? JSON.stringify(current, null, 2) : "";
-      renderSourceCalcRows(current);
+      SOURCE_CALC_DRAFT.splice(idx, 1);
+      renderSourceCalcRows(SOURCE_CALC_DRAFT);
+      syncSourceCalcRowsToJson();
     });
-    [nameEl, formulaEl, typeEl, enabledEl].forEach(el => {
-      el.addEventListener("input", syncSourceCalcRowsToJson);
-      el.addEventListener("change", syncSourceCalcRowsToJson);
+    nameEl.addEventListener("input", () => {
+      SOURCE_CALC_DRAFT[idx].name = String(nameEl.value || "").trim();
+      syncSourceCalcRowsToJson();
+    });
+    formulaEl.addEventListener("input", () => {
+      SOURCE_CALC_DRAFT[idx].formula = String(formulaEl.value || "").trim();
+      syncSourceCalcRowsToJson();
+    });
+    typeEl.addEventListener("change", () => {
+      SOURCE_CALC_DRAFT[idx].type = String(typeEl.value || "string").trim().toLowerCase() || "string";
+      syncSourceCalcRowsToJson();
+    });
+    enabledEl.addEventListener("change", () => {
+      SOURCE_CALC_DRAFT[idx].enabled = !!enabledEl.checked;
+      syncSourceCalcRowsToJson();
     });
     wrap.appendChild(box);
   });
+  syncSourceCalcRowsToJson();
 }
 
 function syncSourceCalcRowsToJson(){
-  const wrap = document.getElementById("sourceCalcRows");
   const area = document.getElementById("srcCalculatedFieldsJson");
-  if (!wrap || !area) return;
-  const out = [];
-  wrap.querySelectorAll("div").forEach(box => {
-    const name = String(box.querySelector("[data-calc-col='name']")?.value || "").trim();
-    const formula = String(box.querySelector("[data-calc-col='formula']")?.value || "").trim();
-    const type = String(box.querySelector("[data-calc-col='type']")?.value || "string").trim().toLowerCase() || "string";
-    const enabled = !!box.querySelector("[data-calc-col='enabled']")?.checked;
-    if (name && formula) out.push({ name, formula, type, enabled });
-  });
+  if (!area) return;
+  const out = normalizeSourceCalcItems(SOURCE_CALC_DRAFT);
   area.value = out.length ? JSON.stringify(out, null, 2) : "";
 }
 
 function addSourceCalcRow(){
-  const current = readSourceCalcItemsFromJson();
-  current.push({ name: "", formula: "", type: "string", enabled: true });
-  renderSourceCalcRows(current);
+  SOURCE_CALC_DRAFT.push({ name: "", formula: "", type: "string", enabled: true });
+  renderSourceCalcRows(SOURCE_CALC_DRAFT);
 }
 
 function collectSourceFormPayload(){
@@ -3782,7 +3819,7 @@ function collectSourceFormPayload(){
     config.range = document.getElementById("srcGsheetRange").value.trim();
   }
 
-  const sourceCalculatedFields = readSourceCalcItemsFromJson();
+  const sourceCalculatedFields = normalizeSourceCalcItems(SOURCE_CALC_DRAFT);
   if (sourceCalculatedFields.length) {
     config.calculated_fields = sourceCalculatedFields;
   } else {
@@ -6161,6 +6198,9 @@ bindClick("btnLicenseActivateNow", async () => {
 });
 
 bindClick("btnCloseSources", () => closeSourcesScreen());
+bindClick("btnSourceTabBase", () => setSourceManagerTab("base"));
+bindClick("btnSourceTabCalc", () => setSourceManagerTab("calc"));
+bindClick("btnSourceTabPlugins", () => setSourceManagerTab("plugins"));
 bindClick("btnSourceNew", () => startNewSourceFlow());
 bindClick("btnNewSourceInline", () => startNewSourceFlow());
 bindClick("btnEditCurrentSourceInline", () => openSourceEditorForCurrentSource());
