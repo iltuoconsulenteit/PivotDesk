@@ -1534,7 +1534,9 @@ window.LICENSE_CONTEXT = {
           <button id="btnBuilderClear" type="button">Svuota costruttore</button>
           <button id="btnBuilderLoadCurrent" type="button">Carica preset corrente</button>
           <button id="btnBuilderSave" type="button" class="primary">Salva preset</button>
+          <button id="btnCloseBuilderBottom" type="button">Chiudi</button>
         </div>
+        <div id="builderActionStatus" class="small" style="margin-top:8px; color:#175cd3;"></div>
 
         <div class="small" style="margin-top:10px;">
           Trascina i campi nelle aree. In “Valori” ogni misura deve avere una label unica.
@@ -1719,7 +1721,9 @@ window.LICENSE_CONTEXT = {
       <button id="btnSourceNew" type="button">➕ Nuova sorgente</button>
       <button id="btnSourceSave" type="button" class="primary">💾 Salva sorgente</button>
       <button id="btnSourceDelete" type="button" class="danger">🗑️ Elimina sorgente</button>
+      <button id="btnCloseSourcesBottom" type="button">Chiudi</button>
     </div>
+    <div id="sourceActionStatus" class="small" style="margin-top:8px; color:#175cd3;"></div>
 
     <div class="card" style="margin-top:16px; margin-bottom:16px;">
       <div class="builder-head" style="margin-bottom:10px;">
@@ -2239,6 +2243,15 @@ function setStatus(t){
 }
 window.setStatus = setStatus;
 
+function setScreenActionStatus(scope, text){
+  const id = scope === "builder" ? "builderActionStatus" : "sourceActionStatus";
+  const el = document.getElementById(id);
+  if (!el) return;
+  const msg = String(text || "").trim();
+  el.textContent = msg;
+  el.classList.toggle("hidden", !msg);
+}
+
 function sanitizeFilename(value){
   let name = String(value || "").trim();
   name = name.replace(/\\/g, "/");
@@ -2560,9 +2573,19 @@ function exportChartInteractiveHtml(){
   const base = sanitizeFilename((p && (p.id || p.title)) || "pivot_chart");
   a.href = url;
   a.download = (base.replace(/\.json$/i, "") || "pivot_chart") + ".html";
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+  try {
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setStatus("Export HTML grafico completato.");
+  } catch (_e) {
+    const w = window.open(url, "_blank");
+    if (!w) {
+      setStatus("ERRORE: esportazione HTML bloccata dal browser. Consenti popup/download e riprova.");
+    } else {
+      setStatus("Export HTML aperto in una nuova scheda (fallback).");
+    }
+  }
   setTimeout(() => URL.revokeObjectURL(url), 1200);
 }
 window.exportChartInteractiveHtml = exportChartInteractiveHtml;
@@ -2988,6 +3011,7 @@ function openBuilderScreen(){
   document.getElementById("sourcesScreen").classList.remove("active");
   document.getElementById("settingsScreen").classList.remove("active");
   document.getElementById("builderScreen").classList.add("active");
+  setScreenActionStatus("builder", "");
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
@@ -3035,6 +3059,7 @@ function openSourcesScreen(){
   renderSourcesManager();
   bindSourceUiButtons();
   setSourceManagerTab("base");
+  setScreenActionStatus("source", "");
   initSourcePluginBuilders().catch(() => {});
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
@@ -4079,6 +4104,7 @@ async function saveSourceFromForm(){
     await loadSourcePreview(BUILDER_SOURCE);
   }
   setStatus("Sorgente dati salvata correttamente.");
+  setScreenActionStatus("source", "✅ Sorgente salvata correttamente.");
 }
 
 async function deleteSourceFromForm(){
@@ -4117,6 +4143,7 @@ async function deleteSourceFromForm(){
   populateBuilderSourceSelect();
   refreshBuilderSourceInfo();
   setStatus("Sorgente dati eliminata correttamente.");
+  setScreenActionStatus("source", "✅ Sorgente eliminata correttamente.");
 }
 
 async function deleteCurrentPreset(){
@@ -5900,6 +5927,7 @@ async function saveBuilderPreset(){
   };
 
   setStatus(BUILDER_MODE === "edit" ? "Aggiornamento preset in corso..." : "Salvataggio preset in corso...");
+  setScreenActionStatus("builder", BUILDER_MODE === "edit" ? "Aggiornamento preset in corso..." : "Salvataggio preset in corso...");
 
   const res = await api("/preset-editor/save", {
     method: "POST",
@@ -5917,6 +5945,12 @@ async function saveBuilderPreset(){
     BUILDER_MODE === "edit"
       ? "Preset aggiornato: " + (res.filename || cleanFilename)
       : "Preset salvato: " + (res.filename || cleanFilename)
+  );
+  setScreenActionStatus(
+    "builder",
+    BUILDER_MODE === "edit"
+      ? "✅ Preset aggiornato: " + (res.filename || cleanFilename)
+      : "✅ Preset salvato: " + (res.filename || cleanFilename)
   );
 
   closeBuilderScreen();
@@ -6165,6 +6199,7 @@ bindInput("appLanguageSelect", "change", () => {
 });
 
 bindClick("btnCloseBuilder", () => closeBuilderScreen());
+bindClick("btnCloseBuilderBottom", () => closeBuilderScreen());
 bindClick("btnNewPivotInline", () => openBuilderForNew());
 bindClick("btnEditCurrentPresetInline", () => openBuilderForCurrentPreset());
 bindClick("btnBuilderSwapRowsCols", () => {
@@ -6278,6 +6313,7 @@ bindClick("btnLicenseActivateNow", async () => {
 });
 
 bindClick("btnCloseSources", () => closeSourcesScreen());
+bindClick("btnCloseSourcesBottom", () => closeSourcesScreen());
 bindClick("btnSourceTabBase", () => setSourceManagerTab("base"));
 bindClick("btnSourceTabCalc", () => setSourceManagerTab("calc"));
 bindClick("btnSourceTabPlugins", () => setSourceManagerTab("plugins"));
