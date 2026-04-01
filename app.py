@@ -3493,7 +3493,8 @@ def _compute_pivot_result(
         numeric_fields=preset.get("numeric_fields", []),
         date_fields=preset.get("date_fields", []),
     )
-    df = apply_filters(df, flt)
+    case_sensitive = bool(preset.get("options", {}).get("case_sensitive", False))
+    df = apply_filters(df, flt, case_sensitive=case_sensitive)
 
     if df.empty:
         return {
@@ -3640,8 +3641,10 @@ def pivot_drilldown(
         if not isinstance(subtotal_filters, dict):
             subtotal_filters = {}
 
+        options = preset.get("options", {}) if isinstance(preset.get("options"), dict) else {}
+        case_sensitive = bool(options.get("case_sensitive", load_settings_data().get("pivot_case_sensitive", False)))
         effective_filters = {**global_filters, **subtotal_filters}
-        filtered = apply_filters(df, effective_filters)
+        filtered = apply_filters(df, effective_filters, case_sensitive=case_sensitive)
 
         cols = [str(c) for c in filtered.columns]
         total_rows = len(filtered)

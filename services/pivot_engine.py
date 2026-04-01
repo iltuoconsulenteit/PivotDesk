@@ -63,7 +63,11 @@ def normalize_df(
     return out
 
 
-def apply_filters(df: pd.DataFrame, filters: dict[str, Any] | None = None) -> pd.DataFrame:
+def apply_filters(
+    df: pd.DataFrame,
+    filters: dict[str, Any] | None = None,
+    case_sensitive: bool = True,
+) -> pd.DataFrame:
     if not filters:
         return df
 
@@ -94,7 +98,11 @@ def apply_filters(df: pd.DataFrame, filters: dict[str, Any] | None = None) -> pd
                 out = out[series_num == float(target_num)]
                 continue
 
-        out = out[out[field].astype(str).str.strip() == value_str]
+        series = out[field].astype(str).str.strip()
+        if case_sensitive:
+            out = out[series == value_str]
+        else:
+            out = out[series.str.lower() == value_str.lower()]
 
     return out
 

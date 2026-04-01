@@ -152,6 +152,17 @@
       cursor:pointer;
       line-height:1.2;
     }
+    .compact-head-btn.icon{
+      width:30px;
+      height:30px;
+      padding:0;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      font-size:14px;
+      font-weight:700;
+      background:#f8fafc;
+    }
     .compact-toggle{
       border:1px solid #d0d5dd;
       background:#fff;
@@ -1234,8 +1245,8 @@ window.LICENSE_CONTEXT = {
       <div class="compact-panel-head">
         <label for="sourceSelect" class="section-title"><strong data-i18n="source_data">Sorgente dati</strong></label>
         <div class="compact-panel-head-actions">
-          <button id="btnNewSourceInline" type="button" class="compact-head-btn" title="Nuova sorgente" aria-label="Nuova sorgente">＋</button>
-          <button id="btnEditCurrentSourceInline" type="button" class="compact-head-btn" title="Modifica sorgente attiva" aria-label="Modifica sorgente attiva">✎</button>
+          <button id="btnNewSourceInline" type="button" class="compact-head-btn icon" title="Nuova sorgente" aria-label="Nuova sorgente">＋</button>
+          <button id="btnEditCurrentSourceInline" type="button" class="compact-head-btn icon" title="Modifica sorgente attiva" aria-label="Modifica sorgente attiva">✎</button>
           <button type="button" class="compact-toggle" data-target="sourcePanel" data-i18n="hide">Nascondi</button>
         </div>
       </div>
@@ -1253,7 +1264,8 @@ window.LICENSE_CONTEXT = {
       <div class="compact-panel-head">
         <div class="section-title" data-i18n="preset">Preset</div>
         <div class="compact-panel-head-actions">
-          <button type="button" id="btnEditCurrentPresetInline" class="compact-head-btn" data-i18n="menu_edit_preset">Modifica preset attivo</button>
+          <button type="button" id="btnNewPivotInline" class="compact-head-btn icon" title="Nuovo preset pivot" aria-label="Nuovo preset pivot">＋</button>
+          <button type="button" id="btnEditCurrentPresetInline" class="compact-head-btn icon" title="Modifica preset attivo" aria-label="Modifica preset attivo">✎</button>
           <button type="button" class="compact-toggle" data-target="presetPanel" data-i18n="hide">Nascondi</button>
         </div>
       </div>
@@ -6086,6 +6098,7 @@ bindInput("appLanguageSelect", "change", () => {
 });
 
 bindClick("btnCloseBuilder", () => closeBuilderScreen());
+bindClick("btnNewPivotInline", () => openBuilderForNew());
 bindClick("btnEditCurrentPresetInline", () => openBuilderForCurrentPreset());
 bindClick("btnBuilderSwapRowsCols", () => {
   const rows = [].concat(BUILDER.rows || []);
