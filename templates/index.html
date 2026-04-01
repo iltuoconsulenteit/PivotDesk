@@ -1707,6 +1707,7 @@ window.LICENSE_CONTEXT = {
       <div class="small" style="margin-bottom:8px;">Plugin Sorgente: i campi vengono aggiunti ai dati della sorgente e poi risultano disponibili nella pivot come campi normali.</div>
       <textarea id="srcCalculatedFieldsJson" style="width:100%; min-height:120px;" placeholder='[{\"name\":\"totale\",\"formula\":\"amount + iva\",\"type\":\"number\",\"enabled\":true}]'></textarea>
       <div class="builder-actions" style="margin-top:8px;">
+        <button id="btnSourceCalcWizard" type="button">🧮 Assistente formule</button>
         <button id="btnSourceCalcAddRow" type="button">+ Campo</button>
         <button id="btnSourceCalcTemplate" type="button">Template JSON</button>
         <button id="btnSourceCalcClear" type="button">Pulisci</button>
@@ -2113,6 +2114,8 @@ let CURRENT_SOURCE = null;
 let CURRENT_FIELDS = [];
 let CURRENT_SOURCE_EDIT = null;
 let SOURCE_CALC_DRAFT = [];
+let CALC_MODAL_CONTEXT = "pivot";
+let SOURCE_CALC_EDIT_INDEX = null;
 let BUILDER_MODE = "new";
 let BUILDER_EDITING_ID = null;
 let SETTINGS = {
@@ -2508,7 +2511,7 @@ function printChartOnly(){
 }
 window.printChartOnly = printChartOnly;
 
-async function exportChartInteractiveHtml(){
+function exportChartInteractiveHtml(){
   if (!hasFeature("charts")) {
     showLockedFeature("Export grafico HTML", "charts");
     return;
@@ -2519,7 +2522,7 @@ async function exportChartInteractiveHtml(){
   if (!canvas) {
     openChartsModal();
     try {
-      await renderPivotChart();
+      renderPivotChart();
     } catch (_e) {}
     canvas = document.getElementById("chartsCanvas");
   }
@@ -3753,6 +3756,7 @@ function renderSourceCalcRows(items){
       "<input data-calc-col='formula' placeholder='formula'>" +
       "<select data-calc-col='type'><option value='string'>string</option><option value='number'>number</option><option value='date'>date</option><option value='bool'>bool</option></select>" +
       "<label class='inline-check' style='margin:0; align-self:center;'><input data-calc-col='enabled' type='checkbox'>on</label>" +
+      "<button type='button' data-calc-edit style='grid-column:1 / span 2;'>Assistente</button>" +
       "<button type='button' data-calc-remove style='grid-column:1 / -1; justify-self:end;'>Rimuovi</button>";
     const nameEl = box.querySelector("[data-calc-col='name']");
     const formulaEl = box.querySelector("[data-calc-col='formula']");
@@ -3762,6 +3766,9 @@ function renderSourceCalcRows(items){
     formulaEl.value = row.formula || "";
     typeEl.value = row.type || "string";
     enabledEl.checked = row.enabled !== false;
+    box.querySelector("[data-calc-edit]").addEventListener("click", () => {
+      openSourceCalculatedFieldModal(idx);
+    });
     box.querySelector("[data-calc-remove]").addEventListener("click", () => {
       SOURCE_CALC_DRAFT.splice(idx, 1);
       renderSourceCalcRows(SOURCE_CALC_DRAFT);
@@ -5233,6 +5240,15 @@ function getBuilderAvailableFields(){
   return Array.from(new Set(base.concat(calc)));
 }
 
+function getCalcModalAvailableFields(){
+  const base = Array.isArray(CURRENT_FIELDS) ? CURRENT_FIELDS.slice() : [];
+  if (CALC_MODAL_CONTEXT === "source") {
+    const srcCalc = normalizeSourceCalcItems(SOURCE_CALC_DRAFT).map(x => x.name);
+    return Array.from(new Set(base.concat(srcCalc)));
+  }
+  return getBuilderAvailableFields();
+}
+
 function renderCalculatedFieldsMiniList(){
   const box = document.getElementById("calculatedFieldsMiniList");
   if (!box) return;
@@ -5261,7 +5277,7 @@ function renderCalculatedFormulaExamples(){
   if (!box) return;
 
   box.innerHTML = "";
-  const available = getBuilderAvailableFields().filter(Boolean);
+  const available = getCalcModalAvailableFields().filter(Boolean);
   available.forEach(field => {
     const btn = document.createElement("button");
     btn.type = "button";
@@ -5436,6 +5452,8 @@ function setAllCalcFunctionCategories(expanded){
 }
 
 function openCalculatedFieldModal(index = null){
+  CALC_MODAL_CONTEXT = "pivot";
+  SOURCE_CALC_EDIT_INDEX = null;
   CALC_EDIT_INDEX = Number.isInteger(index) ? index : null;
   const modal = document.getElementById("calcFieldModal");
   const status = document.getElementById("calcFieldStatus");
@@ -5460,10 +5478,40 @@ function openCalculatedFieldModal(index = null){
   modal.style.display = "flex";
 }
 
+function openSourceCalculatedFieldModal(index = null){
+  CALC_MODAL_CONTEXT = "source";
+  CALC_EDIT_INDEX = null;
+  SOURCE_CALC_EDIT_INDEX = Number.isInteger(index) ? index : null;
+  const modal = document.getElementById("calcFieldModal");
+  const status = document.getElementById("calcFieldStatus");
+  const delBtn = document.getElementById("btnDeleteCalculatedField");
+  if (!modal) return;
+  const items = normalizeSourceCalcItems(SOURCE_CALC_DRAFT);
+  const item = SOURCE_CALC_EDIT_INDEX !== null ? (items[SOURCE_CALC_EDIT_INDEX] || null) : null;
+  document.getElementById("calcFieldName").value = item ? (item.name || "") : "";
+  document.getElementById("calcFieldType").value = item ? (item.type || "string") : "string";
+  document.getElementById("calcFieldFormula").value = item ? (item.formula || "") : "";
+  CALC_SELECTED_FUNCTION = CALC_FUNCTION_LIBRARY[0] || null;
+  CALC_FUNCTION_CATEGORY_STATE = {};
+  renderCalculatedFormulaExamples();
+  renderCalculatedFunctionLibrary();
+  renderSelectedFunctionDetails();
+  initCalculatedFormulaDnD();
+  if (status) {
+    status.textContent = item
+      ? "Modifica il campo calcolato sorgente e salva per aggiornare la sorgente."
+      : "Assistente formule sorgente: il campo sarà disponibile in tutte le pivot di questa sorgente.";
+  }
+  if (delBtn) delBtn.style.display = item ? "" : "none";
+  modal.style.display = "flex";
+}
+
 function closeCalculatedFieldModal(){
   const modal = document.getElementById("calcFieldModal");
   if (modal) modal.style.display = "none";
   CALC_EDIT_INDEX = null;
+  SOURCE_CALC_EDIT_INDEX = null;
+  CALC_MODAL_CONTEXT = "pivot";
 }
 
 function insertFieldReferenceInFormula(fieldName){
@@ -5525,44 +5573,63 @@ function saveCalculatedFieldFromModal(){
     throw new Error("Inserisci la formula del campo calcolato");
   }
 
-  const items = normalizeCalculatedFields(BUILDER.calculated_fields);
-  const duplicateIndex = items.findIndex((x, idx) => x.name.toLowerCase() === name.toLowerCase() && idx !== CALC_EDIT_INDEX);
-  if (duplicateIndex >= 0) {
+  const items = CALC_MODAL_CONTEXT === "source"
+    ? normalizeSourceCalcItems(SOURCE_CALC_DRAFT)
+    : normalizeCalculatedFields(BUILDER.calculated_fields);
+  const editingIndex = CALC_MODAL_CONTEXT === "source" ? SOURCE_CALC_EDIT_INDEX : CALC_EDIT_INDEX;
+  const duplicateIndexFixed = items.findIndex((x, idx) => x.name.toLowerCase() === name.toLowerCase() && idx !== editingIndex);
+  if (duplicateIndexFixed >= 0) {
     if (status) status.textContent = "Esiste già un campo calcolato con questo nome.";
     throw new Error("Esiste già un campo calcolato con questo nome");
   }
 
   const payload = { name, type, formula };
-  if (CALC_EDIT_INDEX !== null && items[CALC_EDIT_INDEX]) items[CALC_EDIT_INDEX] = payload;
+  if (editingIndex !== null && items[editingIndex]) items[editingIndex] = payload;
   else items.push(payload);
 
-  BUILDER.calculated_fields = items;
-  renderFieldsSidebar();
-  renderBuilder();
-  if (BUILDER_SOURCE) loadSourcePreview(BUILDER_SOURCE).catch(() => {});
+  if (CALC_MODAL_CONTEXT === "source") {
+    SOURCE_CALC_DRAFT = items;
+    renderSourceCalcRows(items);
+    setSourceManagerTab("calc");
+  } else {
+    BUILDER.calculated_fields = items;
+    renderFieldsSidebar();
+    renderBuilder();
+    if (BUILDER_SOURCE) loadSourcePreview(BUILDER_SOURCE).catch(() => {});
+  }
   closeCalculatedFieldModal();
   setStatus("Campo calcolato salvato: " + name);
 }
 
 function deleteCalculatedFieldFromModal(){
-  if (CALC_EDIT_INDEX === null) return;
-  const items = normalizeCalculatedFields(BUILDER.calculated_fields);
-  const removed = items[CALC_EDIT_INDEX];
+  const idx = CALC_MODAL_CONTEXT === "source" ? SOURCE_CALC_EDIT_INDEX : CALC_EDIT_INDEX;
+  if (idx === null) return;
+  const items = CALC_MODAL_CONTEXT === "source"
+    ? normalizeSourceCalcItems(SOURCE_CALC_DRAFT)
+    : normalizeCalculatedFields(BUILDER.calculated_fields);
+  const removed = items[idx];
   if (!removed) return;
-  BUILDER.filters = BUILDER.filters.filter(x => x !== removed.name);
-  BUILDER.rows = BUILDER.rows.filter(x => x !== removed.name);
-  BUILDER.cols = BUILDER.cols.filter(x => x !== removed.name);
-  BUILDER.values = BUILDER.values.filter(x => x.field !== removed.name);
-  items.splice(CALC_EDIT_INDEX, 1);
-  BUILDER.calculated_fields = items;
-  renderFieldsSidebar();
-  renderBuilder();
-  if (BUILDER_SOURCE) loadSourcePreview(BUILDER_SOURCE).catch(() => {});
+  items.splice(idx, 1);
+  if (CALC_MODAL_CONTEXT === "source") {
+    SOURCE_CALC_DRAFT = items;
+    renderSourceCalcRows(items);
+    setSourceManagerTab("calc");
+  } else {
+    BUILDER.filters = BUILDER.filters.filter(x => x !== removed.name);
+    BUILDER.rows = BUILDER.rows.filter(x => x !== removed.name);
+    BUILDER.cols = BUILDER.cols.filter(x => x !== removed.name);
+    BUILDER.values = BUILDER.values.filter(x => x.field !== removed.name);
+    BUILDER.calculated_fields = items;
+    renderFieldsSidebar();
+    renderBuilder();
+    if (BUILDER_SOURCE) loadSourcePreview(BUILDER_SOURCE).catch(() => {});
+  }
   closeCalculatedFieldModal();
   setStatus("Campo calcolato eliminato: " + removed.name);
 }
 
 window.openCalculatedFieldModal = openCalculatedFieldModal;
+window.openSourceCalculatedFieldModal = openSourceCalculatedFieldModal;
 window.closeCalculatedFieldModal = closeCalculatedFieldModal;
 window.deleteCalculatedFieldByIndex = function(index){
   CALC_EDIT_INDEX = Number.isInteger(index) ? index : null;
@@ -6286,6 +6353,13 @@ bindClick("btnLoadExcelSheets", async () => {
 bindClick("btnSourceCalcAddRow", () => {
   try {
     addSourceCalcRow();
+  } catch (e) {
+    setStatus("ERRORE: " + e.message);
+  }
+});
+bindClick("btnSourceCalcWizard", () => {
+  try {
+    openSourceCalculatedFieldModal();
   } catch (e) {
     setStatus("ERRORE: " + e.message);
   }
