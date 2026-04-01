@@ -113,6 +113,7 @@ DEFAULT_CONFIG = {
 DEFAULT_SETTINGS = {
     "print_show_logos": True,
     "language": "en",
+    "pivot_case_sensitive": False,
 }
 
 DEFAULT_SOURCES = {
@@ -490,6 +491,7 @@ def load_settings_data() -> dict[str, Any]:
     out["language"] = str(out.get("language", "en")).strip().lower()
     if out["language"] not in {"it", "en"}:
         out["language"] = "en"
+    out["pivot_case_sensitive"] = bool(out.get("pivot_case_sensitive", False))
     return out
 
 
@@ -500,6 +502,7 @@ def save_settings_data(payload: dict[str, Any]) -> dict[str, Any]:
     if lang not in {"it", "en"}:
         lang = "en"
     data["language"] = lang
+    data["pivot_case_sensitive"] = bool(data.get("pivot_case_sensitive", False))
     write_json(SETTINGS_PATH, data)
     return data
 
@@ -3477,10 +3480,13 @@ def _compute_pivot_result(
     runtime_view_options = json.loads(view_options) if view_options else {}
 
     preset = dict(preset)
+    app_settings = load_settings_data()
     preset["options"] = {
         **(preset.get("options", {}) or {}),
         **(runtime_view_options or {}),
     }
+    if "case_sensitive" not in preset["options"]:
+        preset["options"]["case_sensitive"] = bool(app_settings.get("pivot_case_sensitive", False))
 
     df = normalize_df(
         df,

@@ -1794,6 +1794,10 @@ window.LICENSE_CONTEXT = {
         <input id="settingPrintShowLogos" type="checkbox">
         <label for="settingPrintShowLogos" style="margin:0;" data-i18n="settings_print_logos">Mostra i loghi nella stampa</label>
       </div>
+      <div class="settings-line">
+        <input id="settingPivotCaseSensitive" type="checkbox">
+        <label for="settingPivotCaseSensitive" style="margin:0;">Pivot case-sensitive (A ≠ a)</label>
+      </div>
     </div>
 
     <div class="settings-backup-box" style="margin-top:12px;">
@@ -2556,6 +2560,7 @@ function closeSettingsScreen(){
 
 function renderSettingsForm(){
   document.getElementById("settingPrintShowLogos").checked = !!SETTINGS.print_show_logos;
+  document.getElementById("settingPivotCaseSensitive").checked = !!SETTINGS.pivot_case_sensitive;
   const langSelect = document.getElementById("settingLanguage");
   if (langSelect) langSelect.value = (SETTINGS.language || "en");
   const topLang = document.getElementById("appLanguageSelect");
@@ -2630,8 +2635,9 @@ async function savePluginsConfigFromSettings(){
 
 async function loadSettings(){
   const j = await api("/settings");
-  SETTINGS = j.settings || { print_show_logos: true, language: "en" };
+  SETTINGS = j.settings || { print_show_logos: true, language: "en", pivot_case_sensitive: false };
   if (!SETTINGS.language) SETTINGS.language = "en";
+  SETTINGS.pivot_case_sensitive = !!SETTINGS.pivot_case_sensitive;
   try {
     await loadPluginsStatus();
   } catch (_e) {
@@ -2643,7 +2649,8 @@ async function loadSettings(){
 async function saveSettingsFromForm(){
   const payload = {
     print_show_logos: document.getElementById("settingPrintShowLogos").checked,
-    language: (document.getElementById("settingLanguage").value || "en").toLowerCase()
+    language: (document.getElementById("settingLanguage").value || "en").toLowerCase(),
+    pivot_case_sensitive: document.getElementById("settingPivotCaseSensitive").checked
   };
   const j = await api("/settings/save", {
     method: "POST",

@@ -109,7 +109,23 @@ def _options_from_preset(preset: dict[str, Any]) -> dict[str, Any]:
         "sort_enabled": bool(raw.get("sort_enabled", False)),
         "sort_field": str(raw.get("sort_field", "")).strip(),
         "sort_direction": str(raw.get("sort_direction", "asc")).strip().lower() or "asc",
+        "case_sensitive": bool(raw.get("case_sensitive", False)),
     }
+
+
+def _normalize_case_for_dimensions(df: pd.DataFrame, fields: list[str], case_sensitive: bool) -> pd.DataFrame:
+    if case_sensitive:
+        return df
+    out = df.copy()
+    for field in fields:
+        if field not in out.columns:
+            continue
+        series = out[field]
+        mask = series.notna()
+        if not mask.any():
+            continue
+        out.loc[mask, field] = series.loc[mask].astype(str).str.lower()
+    return out
 
 
 def _build_requested_values(values: list[dict[str, Any]]) -> list[dict[str, str]]:
@@ -498,6 +514,7 @@ def run_pivot(df: pd.DataFrame, preset: dict[str, Any]) -> pd.DataFrame:
         return pd.DataFrame()
 
     options = _options_from_preset(preset)
+    working_df = _normalize_case_for_dimensions(df, rows + cols, options.get("case_sensitive", False))
     requested_values = _build_requested_values(values)
 
     if not requested_values:
@@ -507,7 +524,7 @@ def run_pivot(df: pd.DataFrame, preset: dict[str, Any]) -> pd.DataFrame:
 
     for req in requested_values:
         table = _pivot_single_value(
-            df=df,
+            df=working_df,
             rows=rows,
             cols=cols,
             req=req,

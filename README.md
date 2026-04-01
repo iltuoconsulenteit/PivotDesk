@@ -102,6 +102,7 @@ Change this password immediately in shared environments.
 - Pivot builder with saved presets.
 - Calculated fields (server-side formula engine + UI assistant).
 - Numeric-safe filtering and optional subtotals/totals.
+- Pivot text grouping is case-insensitive by default (`A` and `a` are grouped together), with a global setting to enable case-sensitive mode when needed.
 - Chart modal (column/bar/line/pie) with print support.
 - Pivot export (Pro/Full): CSV, XLSX, ODS, HTML.
 - Chart export (Pro/Full): standalone HTML artifact (interactive-ready payload embedded as JSON + rendered chart image).
