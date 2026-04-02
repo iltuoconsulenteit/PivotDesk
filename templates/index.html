@@ -1639,7 +1639,6 @@ window.LICENSE_CONTEXT = {
           <div class="small" style="margin:0; color:#475467;">Connessione Google account (OAuth) per selezionare spreadsheet e worksheet.</div>
           <div style="display:flex; gap:8px; flex-wrap:wrap;">
             <button id="btnGsheetQuickConnect" type="button">🔐 Connetti account Google</button>
-            <button id="btnGsheetWizard" type="button">🧙 Wizard Google Sheet</button>
           </div>
         </div>
       </div>
@@ -1661,7 +1660,7 @@ window.LICENSE_CONTEXT = {
       </div>
     </div>
 
-    <div class="builder-top">
+    <div class="builder-top" id="srcCsvOptions">
       <div class="field">
         <label for="srcDelimiter">Delimitatore CSV</label>
         <select id="srcDelimiter">
@@ -1684,8 +1683,8 @@ window.LICENSE_CONTEXT = {
       </div>
     </div>
 
-    <div class="builder-top">
-      <div class="field">
+    <div class="builder-top" id="srcSheetSkipOptions">
+      <div class="field" id="srcSheetNameWrap">
         <label for="srcSheetName">Foglio Excel</label>
         <select id="srcSheetName">
           <option value="">Primo foglio (automatico)</option>
@@ -2011,7 +2010,6 @@ window.LICENSE_CONTEXT = {
         </div>
       </div>
       <div class="builder-actions" style="justify-content:flex-start; margin-bottom:8px;">
-        <button id="btnGswQuickConnect" type="button" class="primary">Connetti account Google</button>
         <button id="btnGswStartAuth" type="button">Avvia device auth</button>
         <button id="btnGswPollAuth" type="button">Verifica autorizzazione</button>
         <button id="btnGswLoadSpreadsheets" type="button">Carica spreadsheet</button>
@@ -3529,27 +3527,37 @@ function updateSourceFormVisibility(){
   const srcType = String(document.getElementById("srcType").value || "csv").trim().toLowerCase();
   const isCsv = srcType === "csv";
   const isXlsx = srcType === "xlsx";
+  const isOds = srcType === "ods";
   const isMysql = srcType === "mysql";
   const isHttp = ["http_json", "api", "rest"].includes(srcType);
   const isGdrive = ["gdrive", "google_drive", "google_sheet"].includes(srcType);
   const isGsheetAccount = ["gsheet_account", "google_sheet_account", "google_account_sheet"].includes(srcType);
+  const showSheetSkipOptions = isCsv || isXlsx || isOds || isGdrive || isGsheetAccount;
   const btnLoadSheets = document.getElementById("btnLoadExcelSheets");
   const btnPick = document.getElementById("btnPickSourceFile");
   const btnPaste = document.getElementById("btnPasteSourcePath");
   const mysqlWrap = document.getElementById("srcMysqlFields");
   const httpWrap = document.getElementById("srcHttpFields");
   const gsheetAccountWrap = document.getElementById("srcGsheetAccountFields");
+  const csvWrap = document.getElementById("srcCsvOptions");
+  const sheetSkipWrap = document.getElementById("srcSheetSkipOptions");
+  const sheetNameWrap = document.getElementById("srcSheetNameWrap");
+  const resolvedInfoWrap = document.getElementById("srcResolvedInfoWrap");
   const pathLabel = document.getElementById("srcPathLabel");
 
   document.getElementById("srcDelimiter").disabled = !isCsv;
   document.getElementById("srcEncoding").disabled = !isCsv;
-  document.getElementById("srcSheetName").disabled = !isXlsx;
-  if (btnLoadSheets) btnLoadSheets.disabled = !isXlsx;
+  document.getElementById("srcSheetName").disabled = !(isXlsx || isOds);
+  if (btnLoadSheets) btnLoadSheets.disabled = !(isXlsx || isOds);
   if (btnPick) btnPick.disabled = isMysql || isHttp || isGsheetAccount;
   if (btnPaste) btnPaste.disabled = isMysql || isGsheetAccount;
-  if (mysqlWrap) mysqlWrap.classList.toggle("hidden", !isMysql);
-  if (httpWrap) httpWrap.classList.toggle("hidden", !isHttp);
-  if (gsheetAccountWrap) gsheetAccountWrap.classList.toggle("hidden", !isGsheetAccount);
+  if (mysqlWrap) mysqlWrap.style.display = isMysql ? "" : "none";
+  if (httpWrap) httpWrap.style.display = isHttp ? "" : "none";
+  if (gsheetAccountWrap) gsheetAccountWrap.style.display = isGsheetAccount ? "" : "none";
+  if (csvWrap) csvWrap.style.display = isCsv ? "" : "none";
+  if (sheetSkipWrap) sheetSkipWrap.style.display = showSheetSkipOptions ? "" : "none";
+  if (sheetNameWrap) sheetNameWrap.style.display = (isXlsx || isOds) ? "" : "none";
+  if (resolvedInfoWrap) resolvedInfoWrap.style.display = (isCsv || isXlsx || isOds || isGdrive) ? "" : "none";
 
   if (pathLabel) {
     if (isHttp) pathLabel.textContent = "URL API HTTPS";
@@ -3563,7 +3571,7 @@ function updateSourceFormVisibility(){
     document.getElementById("srcDelimiter").value = "";
     document.getElementById("srcEncoding").value = "";
   }
-  if (!isXlsx) {
+  if (!(isXlsx || isOds)) {
     document.getElementById("srcSheetName").value = "";
   }
   if (!isGsheetAccount) {
@@ -6558,7 +6566,6 @@ bindClick("btnGsheetQuickConnect", async () => {
     setGsheetWizardStatus("ERRORE: " + e.message);
   }
 });
-bindClick("btnGsheetWizard", () => openGsheetWizardFromSource());
 bindClick("btnCloseGsheetWizard", () => closeGsheetWizard());
 bindClick("gsheetWizardModal", ev => {
   if (ev && ev.target && ev.target.id === "gsheetWizardModal") closeGsheetWizard();
@@ -6566,13 +6573,6 @@ bindClick("gsheetWizardModal", ev => {
 bindClick("btnGswStartAuth", async () => {
   try {
     await gsheetWizardStartAuth();
-  } catch (e) {
-    setGsheetWizardStatus("ERRORE: " + e.message);
-  }
-});
-bindClick("btnGswQuickConnect", async () => {
-  try {
-    await gsheetWizardQuickConnect();
   } catch (e) {
     setGsheetWizardStatus("ERRORE: " + e.message);
   }
