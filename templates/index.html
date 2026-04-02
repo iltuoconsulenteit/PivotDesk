@@ -1634,6 +1634,15 @@ window.LICENSE_CONTEXT = {
     </div>
 
     <div class="builder-top" id="srcGsheetAccountFields">
+      <div class="field" style="grid-column:1 / -1;">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+          <div class="small" style="margin:0; color:#475467;">Connessione Google account (OAuth) per selezionare spreadsheet e worksheet.</div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button id="btnGsheetQuickConnect" type="button">🔐 Connetti account Google</button>
+            <button id="btnGsheetWizard" type="button">🧙 Wizard Google Sheet</button>
+          </div>
+        </div>
+      </div>
       <div class="field">
         <label for="srcGsheetConnectionId">Google connection_id</label>
         <input id="srcGsheetConnectionId" placeholder="es. gmail_main">
@@ -1649,9 +1658,6 @@ window.LICENSE_CONTEXT = {
       <div class="field">
         <label for="srcGsheetRange">Range (opzionale)</label>
         <input id="srcGsheetRange" placeholder="es. A1:Z5000">
-      </div>
-      <div class="field" style="align-self:end;">
-        <button id="btnGsheetWizard" type="button">🧙 Wizard Google Sheet</button>
       </div>
     </div>
 
@@ -1988,6 +1994,10 @@ window.LICENSE_CONTEXT = {
     <div class="license-modal-body">
       <div class="license-modal-grid" style="grid-template-columns:repeat(2,minmax(0,1fr));">
         <div class="field">
+          <label for="gswGoogleEmail">Google email (opzionale)</label>
+          <input id="gswGoogleEmail" placeholder="es. nome@gmail.com">
+        </div>
+        <div class="field">
           <label for="gswConnectionId">Connection ID</label>
           <input id="gswConnectionId" placeholder="es. gmail_main">
         </div>
@@ -2001,6 +2011,7 @@ window.LICENSE_CONTEXT = {
         </div>
       </div>
       <div class="builder-actions" style="justify-content:flex-start; margin-bottom:8px;">
+        <button id="btnGswQuickConnect" type="button" class="primary">Connetti account Google</button>
         <button id="btnGswStartAuth" type="button">Avvia device auth</button>
         <button id="btnGswPollAuth" type="button">Verifica autorizzazione</button>
         <button id="btnGswLoadSpreadsheets" type="button">Carica spreadsheet</button>
@@ -3674,16 +3685,45 @@ function setGsheetWizardStatus(msg){
   if (el) el.textContent = String(msg || "");
 }
 
+function normalizeConnectionIdFromEmail(email){
+  const raw = String(email || "").trim().toLowerCase();
+  const base = raw.includes("@") ? raw.split("@")[0] : raw;
+  const normalized = base.replace(/[^a-z0-9_-]/g, "_").replace(/_+/g, "_").replace(/^_+|_+$/g, "");
+  return normalized || "gmail_main";
+}
+
 function openGsheetWizardFromSource(){
   const modal = document.getElementById("gsheetWizardModal");
   if (!modal) return;
   document.getElementById("gswConnectionId").value = document.getElementById("srcGsheetConnectionId").value || "";
+  document.getElementById("gswGoogleEmail").value = "";
   document.getElementById("gswSpreadsheetSelect").innerHTML = '<option value="">Seleziona spreadsheet...</option>';
   document.getElementById("gswWorksheetSelect").innerHTML = '<option value="">Seleziona worksheet...</option>';
   setGsheetWizardStatus("");
   const hint = document.getElementById("gswAuthHint");
   if (hint) hint.textContent = "";
   modal.style.display = "flex";
+}
+
+async function gsheetWizardQuickConnect(){
+  let email = String(document.getElementById("gswGoogleEmail").value || "").trim();
+  if (!email) {
+    email = window.prompt("Inserisci l'email Google da collegare (es. nome@gmail.com):", "") || "";
+  }
+  const normalizedConnection = normalizeConnectionIdFromEmail(email);
+  const connectionEl = document.getElementById("gswConnectionId");
+  if (connectionEl && !String(connectionEl.value || "").trim()) {
+    connectionEl.value = normalizedConnection;
+  }
+  const clientId = String(document.getElementById("gswClientId").value || "").trim();
+  const clientSecret = String(document.getElementById("gswClientSecret").value || "").trim();
+  if (!clientId || !clientSecret) {
+    throw new Error("Per avviare OAuth servono client_id e client_secret Google.");
+  }
+  await gsheetWizardStartAuth();
+  try {
+    window.open("https://accounts.google.com", "_blank");
+  } catch (_e) {}
 }
 
 function closeGsheetWizard(){
@@ -6472,6 +6512,14 @@ bindClick("btnNewSourceInline", () => startNewSourceFlow());
 bindClick("btnEditCurrentSourceInline", () => openSourceEditorForCurrentSource());
 bindClick("btnShowSourcePreview", () => showCurrentSourcePreview());
 bindClick("btnCloseSourcePreviewModal", () => closeSourcePreviewModal());
+bindClick("btnGsheetQuickConnect", async () => {
+  try {
+    openGsheetWizardFromSource();
+    await gsheetWizardQuickConnect();
+  } catch (e) {
+    setGsheetWizardStatus("ERRORE: " + e.message);
+  }
+});
 bindClick("btnGsheetWizard", () => openGsheetWizardFromSource());
 bindClick("btnCloseGsheetWizard", () => closeGsheetWizard());
 bindClick("gsheetWizardModal", ev => {
@@ -6480,6 +6528,13 @@ bindClick("gsheetWizardModal", ev => {
 bindClick("btnGswStartAuth", async () => {
   try {
     await gsheetWizardStartAuth();
+  } catch (e) {
+    setGsheetWizardStatus("ERRORE: " + e.message);
+  }
+});
+bindClick("btnGswQuickConnect", async () => {
+  try {
+    await gsheetWizardQuickConnect();
   } catch (e) {
     setGsheetWizardStatus("ERRORE: " + e.message);
   }
