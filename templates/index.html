@@ -1650,6 +1650,9 @@ window.LICENSE_CONTEXT = {
         <label for="srcGsheetRange">Range (opzionale)</label>
         <input id="srcGsheetRange" placeholder="es. A1:Z5000">
       </div>
+      <div class="field" style="align-self:end;">
+        <button id="btnGsheetWizard" type="button">🧙 Wizard Google Sheet</button>
+      </div>
     </div>
 
     <div class="builder-top">
@@ -1967,6 +1970,57 @@ window.LICENSE_CONTEXT = {
         <thead></thead>
         <tbody></tbody>
       </table>
+    </div>
+  </div>
+</div>
+
+<div id="gsheetWizardModal" class="license-modal-overlay">
+  <div class="license-modal" style="max-width:920px;">
+    <div class="license-modal-head">
+      <div>
+        <div class="section-title">Wizard Google Sheet (OAuth account)</div>
+        <div class="small">Connetti account Google, scegli spreadsheet e foglio, poi applica alla sorgente.</div>
+      </div>
+      <div class="license-modal-head-actions">
+        <button id="btnCloseGsheetWizard" type="button">Chiudi</button>
+      </div>
+    </div>
+    <div class="license-modal-body">
+      <div class="license-modal-grid" style="grid-template-columns:repeat(2,minmax(0,1fr));">
+        <div class="field">
+          <label for="gswConnectionId">Connection ID</label>
+          <input id="gswConnectionId" placeholder="es. gmail_main">
+        </div>
+        <div class="field">
+          <label for="gswClientId">Google Client ID</label>
+          <input id="gswClientId" placeholder="OAuth Client ID">
+        </div>
+        <div class="field" style="grid-column:1 / -1;">
+          <label for="gswClientSecret">Google Client Secret</label>
+          <input id="gswClientSecret" placeholder="OAuth Client Secret">
+        </div>
+      </div>
+      <div class="builder-actions" style="justify-content:flex-start; margin-bottom:8px;">
+        <button id="btnGswStartAuth" type="button">Avvia device auth</button>
+        <button id="btnGswPollAuth" type="button">Verifica autorizzazione</button>
+        <button id="btnGswLoadSpreadsheets" type="button">Carica spreadsheet</button>
+      </div>
+      <div id="gswAuthHint" class="small" style="margin-bottom:8px; color:#475467;"></div>
+      <div class="license-modal-grid" style="grid-template-columns:repeat(2,minmax(0,1fr));">
+        <div class="field">
+          <label for="gswSpreadsheetSelect">Spreadsheet</label>
+          <select id="gswSpreadsheetSelect"></select>
+        </div>
+        <div class="field">
+          <label for="gswWorksheetSelect">Worksheet</label>
+          <select id="gswWorksheetSelect"></select>
+        </div>
+      </div>
+      <div class="builder-actions" style="justify-content:flex-start;">
+        <button id="btnGswLoadWorksheets" type="button">Carica worksheets</button>
+        <button id="btnGswApplySource" type="button" class="primary">Applica alla sorgente</button>
+      </div>
+      <div id="gswStatus" class="small" style="margin-top:8px; color:#175cd3;"></div>
     </div>
   </div>
 </div>
@@ -3613,6 +3667,102 @@ async function pickSourceFilePath(){
 function setPickedFileLabel(text){
   const el = document.getElementById("srcPickedFileLabel");
   if (el) el.textContent = text || "Nessun file selezionato";
+}
+
+function setGsheetWizardStatus(msg){
+  const el = document.getElementById("gswStatus");
+  if (el) el.textContent = String(msg || "");
+}
+
+function openGsheetWizardFromSource(){
+  const modal = document.getElementById("gsheetWizardModal");
+  if (!modal) return;
+  document.getElementById("gswConnectionId").value = document.getElementById("srcGsheetConnectionId").value || "";
+  document.getElementById("gswSpreadsheetSelect").innerHTML = '<option value="">Seleziona spreadsheet...</option>';
+  document.getElementById("gswWorksheetSelect").innerHTML = '<option value="">Seleziona worksheet...</option>';
+  setGsheetWizardStatus("");
+  const hint = document.getElementById("gswAuthHint");
+  if (hint) hint.textContent = "";
+  modal.style.display = "flex";
+}
+
+function closeGsheetWizard(){
+  const modal = document.getElementById("gsheetWizardModal");
+  if (modal) modal.style.display = "none";
+}
+
+async function gsheetWizardStartAuth(){
+  const connection_id = String(document.getElementById("gswConnectionId").value || "").trim();
+  const client_id = String(document.getElementById("gswClientId").value || "").trim();
+  const client_secret = String(document.getElementById("gswClientSecret").value || "").trim();
+  if (!connection_id || !client_id || !client_secret) throw new Error("Compila connection_id, client_id e client_secret.");
+  const res = await api("/plugin/google-account-sheets/device/start", {
+    method: "POST",
+    body: JSON.stringify({ connection_id, client_id, client_secret })
+  });
+  const hint = document.getElementById("gswAuthHint");
+  if (hint) {
+    hint.textContent = "Apri " + String(res.verification_url || "") + " e inserisci codice: " + String(res.user_code || "");
+  }
+  setGsheetWizardStatus("Device auth avviata.");
+}
+
+async function gsheetWizardPollAuth(){
+  const connection_id = String(document.getElementById("gswConnectionId").value || "").trim();
+  if (!connection_id) throw new Error("connection_id obbligatorio.");
+  await api("/plugin/google-account-sheets/device/poll", {
+    method: "POST",
+    body: JSON.stringify({ connection_id })
+  });
+  setGsheetWizardStatus("Autorizzazione completata.");
+}
+
+async function gsheetWizardLoadSpreadsheets(){
+  const connection_id = String(document.getElementById("gswConnectionId").value || "").trim();
+  if (!connection_id) throw new Error("connection_id obbligatorio.");
+  const res = await api("/plugin/google-account-sheets/spreadsheets?connection_id=" + encodeURIComponent(connection_id));
+  const sel = document.getElementById("gswSpreadsheetSelect");
+  sel.innerHTML = '<option value="">Seleziona spreadsheet...</option>';
+  (res.items || []).forEach(item => {
+    const opt = document.createElement("option");
+    opt.value = String(item.id || "");
+    opt.textContent = String(item.name || item.id || "");
+    sel.appendChild(opt);
+  });
+  setGsheetWizardStatus("Spreadsheet caricati: " + String((res.items || []).length));
+}
+
+async function gsheetWizardLoadWorksheets(){
+  const connection_id = String(document.getElementById("gswConnectionId").value || "").trim();
+  const spreadsheet_id = String(document.getElementById("gswSpreadsheetSelect").value || "").trim();
+  if (!connection_id || !spreadsheet_id) throw new Error("Seleziona connection_id e spreadsheet.");
+  const res = await api(
+    "/plugin/google-account-sheets/worksheets?connection_id=" + encodeURIComponent(connection_id) +
+    "&spreadsheet_id=" + encodeURIComponent(spreadsheet_id)
+  );
+  const sel = document.getElementById("gswWorksheetSelect");
+  sel.innerHTML = '<option value="">Worksheet predefinito</option>';
+  (res.items || []).forEach(item => {
+    const opt = document.createElement("option");
+    opt.value = String(item.title || "");
+    opt.textContent = String(item.title || "");
+    sel.appendChild(opt);
+  });
+  setGsheetWizardStatus("Worksheets caricati: " + String((res.items || []).length));
+}
+
+function gsheetWizardApplyToSource(){
+  const connectionId = String(document.getElementById("gswConnectionId").value || "").trim();
+  const spreadsheetId = String(document.getElementById("gswSpreadsheetSelect").value || "").trim();
+  const worksheet = String(document.getElementById("gswWorksheetSelect").value || "").trim();
+  if (!connectionId || !spreadsheetId) throw new Error("Seleziona almeno connection_id e spreadsheet.");
+  document.getElementById("srcType").value = "gsheet_account";
+  document.getElementById("srcGsheetConnectionId").value = connectionId;
+  document.getElementById("srcGsheetSpreadsheetId").value = spreadsheetId;
+  document.getElementById("srcGsheetWorksheet").value = worksheet;
+  updateSourceFormVisibility();
+  closeGsheetWizard();
+  setStatus("Wizard Google Sheet applicato alla sorgente.");
 }
 
 function clearSourcePreview(message = "Nessuna sorgente selezionata."){
@@ -6322,6 +6472,46 @@ bindClick("btnNewSourceInline", () => startNewSourceFlow());
 bindClick("btnEditCurrentSourceInline", () => openSourceEditorForCurrentSource());
 bindClick("btnShowSourcePreview", () => showCurrentSourcePreview());
 bindClick("btnCloseSourcePreviewModal", () => closeSourcePreviewModal());
+bindClick("btnGsheetWizard", () => openGsheetWizardFromSource());
+bindClick("btnCloseGsheetWizard", () => closeGsheetWizard());
+bindClick("gsheetWizardModal", ev => {
+  if (ev && ev.target && ev.target.id === "gsheetWizardModal") closeGsheetWizard();
+});
+bindClick("btnGswStartAuth", async () => {
+  try {
+    await gsheetWizardStartAuth();
+  } catch (e) {
+    setGsheetWizardStatus("ERRORE: " + e.message);
+  }
+});
+bindClick("btnGswPollAuth", async () => {
+  try {
+    await gsheetWizardPollAuth();
+  } catch (e) {
+    setGsheetWizardStatus("ERRORE: " + e.message);
+  }
+});
+bindClick("btnGswLoadSpreadsheets", async () => {
+  try {
+    await gsheetWizardLoadSpreadsheets();
+  } catch (e) {
+    setGsheetWizardStatus("ERRORE: " + e.message);
+  }
+});
+bindClick("btnGswLoadWorksheets", async () => {
+  try {
+    await gsheetWizardLoadWorksheets();
+  } catch (e) {
+    setGsheetWizardStatus("ERRORE: " + e.message);
+  }
+});
+bindClick("btnGswApplySource", () => {
+  try {
+    gsheetWizardApplyToSource();
+  } catch (e) {
+    setGsheetWizardStatus("ERRORE: " + e.message);
+  }
+});
 bindClick("sourcePreviewModal", ev => {
   if (ev && ev.target && ev.target.id === "sourcePreviewModal") closeSourcePreviewModal();
 });
