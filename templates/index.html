@@ -1567,17 +1567,6 @@ window.LICENSE_CONTEXT = {
     <div class="source-tab-panel" data-source-tab="base">
     <div class="builder-top">
       <div class="field">
-        <label for="srcId">ID sorgente</label>
-        <input id="srcId" placeholder="es. fogliocassa">
-      </div>
-      <div class="field">
-        <label for="srcTitle">Titolo</label>
-        <input id="srcTitle" placeholder="es. Foglio Cassa">
-      </div>
-    </div>
-
-    <div class="builder-top">
-      <div class="field">
         <label for="srcType">Tipo sorgente</label>
         <select id="srcType">
           <option value="csv">CSV</option>
@@ -1597,6 +1586,17 @@ window.LICENSE_CONTEXT = {
           <button id="btnPasteSourcePath" type="button">Incolla percorso</button>
           <span id="srcPickedFileLabel" class="small">Nessun file selezionato</span>
         </div>
+      </div>
+    </div>
+
+    <div class="builder-top">
+      <div class="field">
+        <label for="srcId">ID sorgente</label>
+        <input id="srcId" placeholder="es. fogliocassa">
+      </div>
+      <div class="field">
+        <label for="srcTitle">Titolo</label>
+        <input id="srcTitle" placeholder="es. Foglio Cassa">
       </div>
     </div>
 
@@ -3680,6 +3680,31 @@ function setPickedFileLabel(text){
   if (el) el.textContent = text || "Nessun file selezionato";
 }
 
+function inferSourceIdentityFromPath(pathValue){
+  const raw = String(pathValue || "").trim();
+  if (!raw) return { id: "", title: "" };
+  const filename = raw.split(/[\\/]/).pop() || "";
+  const basename = filename.replace(/\.[^.]+$/, "");
+  const normalizedId = basename
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  return {
+    id: normalizedId || "",
+    title: basename || normalizedId || ""
+  };
+}
+
+function autoFillSourceIdentityFromPath(pathValue){
+  const idEl = document.getElementById("srcId");
+  const titleEl = document.getElementById("srcTitle");
+  if (!idEl || !titleEl) return;
+  const inferred = inferSourceIdentityFromPath(pathValue);
+  if (!idEl.value.trim() && inferred.id) idEl.value = inferred.id;
+  if (!titleEl.value.trim() && inferred.title) titleEl.value = inferred.title;
+}
+
 function setGsheetWizardStatus(msg){
   const el = document.getElementById("gswStatus");
   if (el) el.textContent = String(msg || "");
@@ -3706,23 +3731,25 @@ function openGsheetWizardFromSource(){
 }
 
 async function gsheetWizardQuickConnect(){
-  let email = String(document.getElementById("gswGoogleEmail").value || "").trim();
-  if (!email) {
-    email = window.prompt("Inserisci l'email Google da collegare (es. nome@gmail.com):", "") || "";
-  }
-  const normalizedConnection = normalizeConnectionIdFromEmail(email);
+  const email = String(document.getElementById("gswGoogleEmail").value || "").trim();
+  const normalizedConnection = email ? normalizeConnectionIdFromEmail(email) : "";
   const connectionEl = document.getElementById("gswConnectionId");
-  if (connectionEl && !String(connectionEl.value || "").trim()) {
+  if (connectionEl && normalizedConnection && !String(connectionEl.value || "").trim()) {
     connectionEl.value = normalizedConnection;
+  }
+  if (!String(connectionEl?.value || "").trim()) {
+    throw new Error("Inserisci email Google o connection_id.");
   }
   const clientId = String(document.getElementById("gswClientId").value || "").trim();
   const clientSecret = String(document.getElementById("gswClientSecret").value || "").trim();
   if (!clientId || !clientSecret) {
     throw new Error("Per avviare OAuth servono client_id e client_secret Google.");
   }
-  await gsheetWizardStartAuth();
+  const data = await gsheetWizardStartAuth();
+  const verifyUrl = String(data?.verification_url || data?.verification_uri || "").trim();
   try {
-    window.open("https://accounts.google.com", "_blank");
+    if (verifyUrl) window.open(verifyUrl, "_blank");
+    else window.open("https://accounts.google.com", "_blank");
   } catch (_e) {}
 }
 
@@ -3742,9 +3769,10 @@ async function gsheetWizardStartAuth(){
   });
   const hint = document.getElementById("gswAuthHint");
   if (hint) {
-    hint.textContent = "Apri " + String(res.verification_url || "") + " e inserisci codice: " + String(res.user_code || "");
+    hint.textContent = "Apri " + String(res.verification_url || res.verification_uri || "") + " e inserisci codice: " + String(res.user_code || "");
   }
   setGsheetWizardStatus("Device auth avviata.");
+  return res;
 }
 
 async function gsheetWizardPollAuth(){
@@ -3800,6 +3828,14 @@ function gsheetWizardApplyToSource(){
   document.getElementById("srcGsheetConnectionId").value = connectionId;
   document.getElementById("srcGsheetSpreadsheetId").value = spreadsheetId;
   document.getElementById("srcGsheetWorksheet").value = worksheet;
+  const titleSel = document.getElementById("gswSpreadsheetSelect");
+  const spreadsheetName = String(titleSel?.options?.[titleSel.selectedIndex]?.textContent || "").trim();
+  if (!document.getElementById("srcId").value.trim()) {
+    document.getElementById("srcId").value = normalizeConnectionIdFromEmail(spreadsheetName || spreadsheetId);
+  }
+  if (!document.getElementById("srcTitle").value.trim() && spreadsheetName) {
+    document.getElementById("srcTitle").value = spreadsheetName;
+  }
   updateSourceFormVisibility();
   closeGsheetWizard();
   setStatus("Wizard Google Sheet applicato alla sorgente.");
@@ -6282,6 +6318,7 @@ function bindSourceUiButtons(){
         }
         document.getElementById("srcPath").value = info.path || "";
         document.getElementById("srcType").value = info.source_type || "csv";
+        autoFillSourceIdentityFromPath(info.path || "");
         document.getElementById("srcResolvedInfo").value = info.resolved_info || "";
         updateSourceFormVisibility();
         if (String(info.source_type || "").toLowerCase() === "xlsx") {
@@ -6319,6 +6356,7 @@ function bindSourceUiButtons(){
       const sourceType = (lower.endsWith(".xlsx") || lower.endsWith(".xls") || lower.endsWith(".xlsm")) ? "xlsx" : "csv";
       document.getElementById("srcPath").value = path;
       document.getElementById("srcType").value = sourceType;
+      autoFillSourceIdentityFromPath(path);
       updateSourceFormVisibility();
       if (sourceType === "xlsx") {
         await loadExcelSheetsForForm().catch(() => {});
@@ -6619,6 +6657,7 @@ bindInput("srcSkipRows", "input", async () => {
   try { await previewSourceFromForm(); } catch (_) {}
 });
 bindInput("srcPath", "input", async () => {
+  autoFillSourceIdentityFromPath(document.getElementById("srcPath").value || "");
   if (String(document.getElementById("srcType").value || "").toLowerCase() === "xlsx") {
     await loadExcelSheetsForForm().catch(() => {});
   }
