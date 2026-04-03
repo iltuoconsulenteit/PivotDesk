@@ -7,7 +7,8 @@
 <link rel="icon" type="image/png" href="/static/img/pivotdesk-icon.png">
 <link rel="stylesheet" href="/static/css/app.css">
   <style>
-    .hidden{
+    .hidden,
+    .source-tab-panel.hidden{
       display:none !important;
     }
     .userbar{
@@ -3799,7 +3800,9 @@ async function gsheetSourceQuickConnect(){
     setStatus("Autorizzazione Google avviata. Completa il consenso nella scheda aperta, poi clicca 'Verifica autorizzazione'.");
     return;
   } catch (e) {
-    throw e;
+    const msg = String(e?.message || "Connessione Google non disponibile.");
+    setStatus("ERRORE: " + msg + " Configura credenziali OAuth globali e riprova.");
+    return;
   }
 }
 
@@ -4168,7 +4171,17 @@ let sourceFormPreviewTimer = null;
 async function previewSourceFromForm(force = false){
   const payload = collectSourceFormPayload();
   const type = String(payload.type || "").toLowerCase();
+  const isGsheetAccount = ["gsheet_account", "google_sheet_account", "google_account_sheet"].includes(type);
   const needsPath = !["mysql", "gsheet_account", "google_sheet_account", "google_account_sheet"].includes(type);
+  if (isGsheetAccount) {
+    const cfg = payload.config || {};
+    const hasConnection = String(cfg.connection_id || "").trim().length > 0;
+    const hasSpreadsheet = String(cfg.spreadsheet_id || "").trim().length > 0;
+    if (!hasConnection || !hasSpreadsheet) {
+      clearSourceFormPreview("Completa connessione Google e seleziona Spreadsheet per vedere l'anteprima.");
+      return;
+    }
+  }
   if (needsPath && !payload.path) {
     const typeLabel = payload.type === "xlsx"
       ? "Excel · foglio: primo foglio"
