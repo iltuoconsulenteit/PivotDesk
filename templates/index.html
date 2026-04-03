@@ -1560,6 +1560,7 @@ window.LICENSE_CONTEXT = {
 
     <div class="plugin-tools-tabs" style="margin-bottom:10px;">
       <button type="button" class="quick-toggle active" id="btnSourceTabBase">Configurazione base</button>
+      <button type="button" class="quick-toggle" id="btnSourceTabCatalog">Sorgenti disponibili</button>
       <button type="button" class="quick-toggle" id="btnSourceTabCalc">Campi calcolati</button>
       <button type="button" class="quick-toggle" id="btnSourceTabPlugins">Plugin</button>
     </div>
@@ -1574,11 +1575,14 @@ window.LICENSE_CONTEXT = {
           <option value="ods">OpenDocument (ODS)</option>
           <option value="mysql">MySQL</option>
           <option value="http_json">HTTP JSON (HTTPS API)</option>
-          <option value="gdrive">Google Drive / Google Sheet</option>
+          <option value="gdrive">Google Drive (file condiviso)</option>
           <option value="gsheet_account">Google Sheet (account OAuth)</option>
         </select>
+        <div id="gsheetQuickConnectTopWrap" style="margin-top:10px; display:none;">
+          <button id="btnGsheetQuickConnect" type="button">🔐 Connetti account Google</button>
+        </div>
       </div>
-      <div class="field">
+      <div class="field" id="srcPathFields">
         <label for="srcPath" id="srcPathLabel">Percorso file</label>
         <input id="srcPath" placeholder="es. C:\dati\fogliocassa.csv">
         <div style="margin-top:10px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
@@ -1635,12 +1639,7 @@ window.LICENSE_CONTEXT = {
 
     <div class="builder-top" id="srcGsheetAccountFields">
       <div class="field" style="grid-column:1 / -1;">
-        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
-          <div class="small" style="margin:0; color:#475467;">Connessione Google account (OAuth) per selezionare spreadsheet e worksheet.</div>
-          <div style="display:flex; gap:8px; flex-wrap:wrap;">
-            <button id="btnGsheetQuickConnect" type="button">🔐 Connetti account Google</button>
-          </div>
-        </div>
+        <div class="small" style="margin:0; color:#475467;">Connessione Google account (OAuth) per selezionare spreadsheet e worksheet.</div>
       </div>
       <div class="field">
         <label for="srcGsheetConnectionId">Google connection_id</label>
@@ -1709,6 +1708,19 @@ window.LICENSE_CONTEXT = {
         Imposta come sorgente predefinita
       </label>
     </div>
+    </div>
+
+    <div class="card source-tab-panel hidden" data-source-tab="catalog" style="margin-bottom:14px;">
+      <div class="section-title">Sorgenti disponibili</div>
+      <div class="small" style="margin-bottom:12px;">Scegli il tipo in “Configurazione base” per mostrare solo i campi necessari.</div>
+      <ul style="margin:0; padding-left:20px; color:#344054;">
+        <li><strong>CSV</strong> — file locale con delimitatore/encoding automatici o manuali.</li>
+        <li><strong>Excel XLSX / ODS</strong> — file locale con scelta foglio.</li>
+        <li><strong>MySQL</strong> — connessione + tabella o query SELECT.</li>
+        <li><strong>HTTP JSON</strong> — endpoint HTTPS con parsing via <code>json_path</code>.</li>
+        <li><strong>Google Drive</strong> — URL file condiviso (export CSV/XLSX).</li>
+        <li><strong>Google Sheet (account OAuth)</strong> — login account, selezione spreadsheet/worksheet.</li>
+      </ul>
     </div>
 
     <div class="card source-tab-panel hidden" data-source-tab="calc" style="margin-bottom:14px;">
@@ -3129,12 +3141,13 @@ function openSourcesScreen(){
 
 function setSourceManagerTab(tab){
   const key = String(tab || "base").trim().toLowerCase();
-  const active = ["base", "calc", "plugins"].includes(key) ? key : "base";
+  const active = ["base", "catalog", "calc", "plugins"].includes(key) ? key : "base";
   document.querySelectorAll(".source-tab-panel[data-source-tab]").forEach(panel => {
     panel.classList.toggle("hidden", panel.getAttribute("data-source-tab") !== active);
   });
   const map = {
     base: document.getElementById("btnSourceTabBase"),
+    catalog: document.getElementById("btnSourceTabCatalog"),
     calc: document.getElementById("btnSourceTabCalc"),
     plugins: document.getElementById("btnSourceTabPlugins"),
   };
@@ -3536,6 +3549,8 @@ function updateSourceFormVisibility(){
   const btnLoadSheets = document.getElementById("btnLoadExcelSheets");
   const btnPick = document.getElementById("btnPickSourceFile");
   const btnPaste = document.getElementById("btnPasteSourcePath");
+  const pathWrap = document.getElementById("srcPathFields");
+  const gsheetQuickConnectTopWrap = document.getElementById("gsheetQuickConnectTopWrap");
   const mysqlWrap = document.getElementById("srcMysqlFields");
   const httpWrap = document.getElementById("srcHttpFields");
   const gsheetAccountWrap = document.getElementById("srcGsheetAccountFields");
@@ -3551,6 +3566,8 @@ function updateSourceFormVisibility(){
   if (btnLoadSheets) btnLoadSheets.disabled = !(isXlsx || isOds);
   if (btnPick) btnPick.disabled = isMysql || isHttp || isGsheetAccount;
   if (btnPaste) btnPaste.disabled = isMysql || isGsheetAccount;
+  if (pathWrap) pathWrap.style.display = (isMysql || isGsheetAccount) ? "none" : "";
+  if (gsheetQuickConnectTopWrap) gsheetQuickConnectTopWrap.style.display = isGsheetAccount ? "" : "none";
   if (mysqlWrap) mysqlWrap.style.display = isMysql ? "" : "none";
   if (httpWrap) httpWrap.style.display = isHttp ? "" : "none";
   if (gsheetAccountWrap) gsheetAccountWrap.style.display = isGsheetAccount ? "" : "none";
@@ -6551,6 +6568,7 @@ bindClick("btnLicenseActivateNow", async () => {
 bindClick("btnCloseSources", () => closeSourcesScreen());
 bindClick("btnCloseSourcesBottom", () => closeSourcesScreen());
 bindClick("btnSourceTabBase", () => setSourceManagerTab("base"));
+bindClick("btnSourceTabCatalog", () => setSourceManagerTab("catalog"));
 bindClick("btnSourceTabCalc", () => setSourceManagerTab("calc"));
 bindClick("btnSourceTabPlugins", () => setSourceManagerTab("plugins"));
 bindClick("btnSourceNew", () => startNewSourceFlow());
