@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import time
 from pathlib import Path
 from typing import Any
 from urllib import parse, request, error
 
-from services.config_loader import DATA_DIR
+from services.config_loader import DATA_DIR, load_config
 
 PLUGIN_DIR = DATA_DIR / "plugins" / "google_account_sheets"
 CONNECTIONS_DIR = PLUGIN_DIR / "connections"
@@ -87,6 +88,24 @@ def _token_path(connection_id: str) -> Path:
     return _connection_dir(connection_id) / "token.json"
 
 
+def _default_oauth_credentials() -> tuple[str, str]:
+    env_client_id = str(os.environ.get("PIVOTDESK_GOOGLE_CLIENT_ID", "")).strip()
+    env_client_secret = str(os.environ.get("PIVOTDESK_GOOGLE_CLIENT_SECRET", "")).strip()
+    if env_client_id and env_client_secret:
+        return env_client_id, env_client_secret
+
+    try:
+        cfg = load_config()
+    except Exception:
+        cfg = {}
+    google_oauth = cfg.get("google_oauth") if isinstance(cfg, dict) else {}
+    if not isinstance(google_oauth, dict):
+        google_oauth = {}
+    cfg_client_id = str(google_oauth.get("client_id", "")).strip()
+    cfg_client_secret = str(google_oauth.get("client_secret", "")).strip()
+    return cfg_client_id, cfg_client_secret
+
+
 def save_client_credentials(connection_id: str, client_id: str, client_secret: str) -> dict[str, Any]:
     cid = _normalize_connection_id(connection_id)
     payload = {
@@ -110,7 +129,14 @@ def start_device_authorization_from_saved(connection_id: str) -> dict[str, Any]:
     cid = _normalize_connection_id(connection_id)
     creds = _read_json(_credentials_path(cid), {})
     if not creds.get("client_id") or not creds.get("client_secret"):
-        raise RuntimeError("Credenziali OAuth mancanti per connection_id. Apri wizard e salva client_id/client_secret.")
+        default_client_id, default_client_secret = _default_oauth_credentials()
+        if default_client_id and default_client_secret:
+            creds = save_client_credentials(cid, default_client_id, default_client_secret)
+        else:
+            raise RuntimeError(
+                "Credenziali OAuth mancanti. Configura PIVOTDESK_GOOGLE_CLIENT_ID/PIVOTDESK_GOOGLE_CLIENT_SECRET "
+                "oppure config.google_oauth.client_id/client_secret."
+            )
     data = _http_post_form(
         DEVICE_CODE_URL,
         {

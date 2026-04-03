@@ -7,6 +7,9 @@
 <link rel="icon" type="image/png" href="/static/img/pivotdesk-icon.png">
 <link rel="stylesheet" href="/static/css/app.css">
   <style>
+    .hidden{
+      display:none !important;
+    }
     .userbar{
       display:grid;
       grid-template-columns:auto minmax(0, 1fr) auto;
@@ -3796,12 +3799,8 @@ async function gsheetSourceQuickConnect(){
     setStatus("Autorizzazione Google avviata. Completa il consenso nella scheda aperta, poi clicca 'Verifica autorizzazione'.");
     return;
   } catch (e) {
-    const msg = String(e?.message || "");
-    const needWizard = msg.toLowerCase().includes("credenziali oauth mancanti") || msg.toLowerCase().includes("client_id");
-    if (!needWizard) throw e;
+    throw e;
   }
-  openGsheetWizardFromSource();
-  setGsheetWizardStatus("Inserisci client_id/client_secret una sola volta, poi riconnetti.");
 }
 
 function closeGsheetWizard(){
