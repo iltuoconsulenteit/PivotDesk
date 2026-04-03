@@ -103,6 +103,14 @@ def save_client_credentials(connection_id: str, client_id: str, client_secret: s
 
 def start_device_authorization(connection_id: str, client_id: str, client_secret: str) -> dict[str, Any]:
     creds = save_client_credentials(connection_id, client_id, client_secret)
+    return start_device_authorization_from_saved(creds["connection_id"])
+
+
+def start_device_authorization_from_saved(connection_id: str) -> dict[str, Any]:
+    cid = _normalize_connection_id(connection_id)
+    creds = _read_json(_credentials_path(cid), {})
+    if not creds.get("client_id") or not creds.get("client_secret"):
+        raise RuntimeError("Credenziali OAuth mancanti per connection_id. Apri wizard e salva client_id/client_secret.")
     data = _http_post_form(
         DEVICE_CODE_URL,
         {
@@ -114,7 +122,7 @@ def start_device_authorization(connection_id: str, client_id: str, client_secret
         raise RuntimeError(f"Risposta Google non valida: {data}")
 
     device_payload = {
-        "connection_id": creds["connection_id"],
+        "connection_id": cid,
         "device_code": data.get("device_code", ""),
         "user_code": data.get("user_code", ""),
         "verification_url": data.get("verification_url") or data.get("verification_uri", ""),
@@ -123,7 +131,7 @@ def start_device_authorization(connection_id: str, client_id: str, client_secret
         "interval": int(data.get("interval", 5) or 5),
         "created_at": int(time.time()),
     }
-    _write_json(_device_path(creds["connection_id"]), device_payload)
+    _write_json(_device_path(cid), device_payload)
     return device_payload
 
 

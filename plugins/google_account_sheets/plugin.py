@@ -8,6 +8,7 @@ from services.google_account_sheets import (
     list_worksheets,
     poll_device_authorization,
     start_device_authorization,
+    start_device_authorization_from_saved,
 )
 
 
@@ -38,6 +39,14 @@ def register(app, plugin_api, manifest):
     def device_start(payload: DeviceStartPayload):
         try:
             data = start_device_authorization(payload.connection_id, payload.client_id, payload.client_secret)
+            return {"ok": True, **data}
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @router.post("/device/start-saved")
+    def device_start_saved(payload: DevicePollPayload):
+        try:
+            data = start_device_authorization_from_saved(payload.connection_id)
             return {"ok": True, **data}
         except Exception as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc

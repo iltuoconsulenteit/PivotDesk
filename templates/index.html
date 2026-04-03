@@ -3778,6 +3778,32 @@ async function gsheetWizardQuickConnect(){
   } catch (_e) {}
 }
 
+async function gsheetSourceQuickConnect(){
+  const srcConnectionEl = document.getElementById("srcGsheetConnectionId");
+  const srcConnection = String(srcConnectionEl?.value || "").trim();
+  const connection_id = srcConnection || "gmail_main";
+  if (srcConnectionEl && !srcConnection) srcConnectionEl.value = connection_id;
+  try {
+    const data = await api("/plugin/google-account-sheets/device/start-saved", {
+      method: "POST",
+      body: JSON.stringify({ connection_id })
+    });
+    const verifyUrl = String(
+      data?.verification_url_complete || data?.verification_url || data?.verification_uri || ""
+    ).trim();
+    if (!verifyUrl) throw new Error("URL autorizzazione Google non disponibile.");
+    window.open(verifyUrl, "_blank");
+    setStatus("Autorizzazione Google avviata. Completa il consenso nella scheda aperta, poi clicca 'Verifica autorizzazione'.");
+    return;
+  } catch (e) {
+    const msg = String(e?.message || "");
+    const needWizard = msg.toLowerCase().includes("credenziali oauth mancanti") || msg.toLowerCase().includes("client_id");
+    if (!needWizard) throw e;
+  }
+  openGsheetWizardFromSource();
+  setGsheetWizardStatus("Inserisci client_id/client_secret una sola volta, poi riconnetti.");
+}
+
 function closeGsheetWizard(){
   const modal = document.getElementById("gsheetWizardModal");
   if (modal) modal.style.display = "none";
@@ -3796,6 +3822,10 @@ async function gsheetWizardStartAuth(){
   if (hint) {
     hint.textContent = "Apri " + String(res.verification_url || res.verification_uri || "") + " e inserisci codice: " + String(res.user_code || "");
   }
+  const verifyUrl = String(res.verification_url_complete || res.verification_url || res.verification_uri || "").trim();
+  try {
+    if (verifyUrl) window.open(verifyUrl, "_blank");
+  } catch (_e) {}
   setGsheetWizardStatus("Device auth avviata.");
   return res;
 }
@@ -6578,10 +6608,9 @@ bindClick("btnShowSourcePreview", () => showCurrentSourcePreview());
 bindClick("btnCloseSourcePreviewModal", () => closeSourcePreviewModal());
 bindClick("btnGsheetQuickConnect", async () => {
   try {
-    openGsheetWizardFromSource();
-    await gsheetWizardQuickConnect();
+    await gsheetSourceQuickConnect();
   } catch (e) {
-    setGsheetWizardStatus("ERRORE: " + e.message);
+    setStatus("ERRORE: " + e.message);
   }
 });
 bindClick("btnCloseGsheetWizard", () => closeGsheetWizard());
