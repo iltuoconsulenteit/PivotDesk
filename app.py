@@ -3343,6 +3343,14 @@ async def source_preview_from_form(request: Request, limit: int = Query(20)):
         requires_path = src_type not in {"mysql", "gsheet_account"}
         if requires_path and not path:
             return JSONResponse({"error": "Percorso file obbligatorio per l'anteprima."}, status_code=400)
+        if src_type == "gsheet_account":
+            cfg = source.get("config") if isinstance(source.get("config"), dict) else {}
+            connection_id = str(cfg.get("connection_id", "")).strip()
+            spreadsheet_id = str(cfg.get("spreadsheet_id", "")).strip()
+            if not connection_id:
+                return JSONResponse({"error": "connection_id Google obbligatorio per l'anteprima."}, status_code=400)
+            if not spreadsheet_id:
+                return JSONResponse({"error": "spreadsheet_id Google obbligatorio per l'anteprima."}, status_code=400)
         df = load_dataframe_with_source_calculated_fields(source, use_fallback=True)
         source_calculated_fields = get_source_calculated_fields(source)
         calculated_fields = sanitize_calculated_fields(
@@ -3351,6 +3359,8 @@ async def source_preview_from_form(request: Request, limit: int = Query(20)):
         if calculated_fields and calculated_fields != source_calculated_fields:
             df = apply_calculated_fields_to_dataframe(df, calculated_fields)
         return build_dataframe_preview_payload(source, df, limit=limit)
+    except (ValueError, RuntimeError) as exc:
+        return JSONResponse({"error": str(exc)}, status_code=400)
     except Exception as exc:
         return JSONResponse({"error": str(exc)}, status_code=500)
 
