@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import csv
+import logging
 import os
 import sys
 import platform
@@ -30,6 +31,13 @@ from plugins.calculated_fields.backend import (
     apply_calculated_fields,
     build_calculated_definitions,
 )
+
+logger = logging.getLogger("pivotdesk.app")
+if not logging.getLogger().handlers:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+    )
 
 try:
     from licensing.license_manager_multistore import (
@@ -3335,6 +3343,7 @@ async def source_preview_from_form(request: Request, limit: int = Query(20)):
     current_user = require_login(request)
     if not current_user:
         return JSONResponse({"error": "Non autenticato"}, status_code=401)
+    payload: dict[str, Any] = {}
     try:
         payload = await request.json()
         source = build_source_from_payload(payload if isinstance(payload, dict) else {})
@@ -3360,8 +3369,17 @@ async def source_preview_from_form(request: Request, limit: int = Query(20)):
             df = apply_calculated_fields_to_dataframe(df, calculated_fields)
         return build_dataframe_preview_payload(source, df, limit=limit)
     except (ValueError, RuntimeError) as exc:
+        logger.warning("source-preview/form validation error: %s", exc)
         return JSONResponse({"error": str(exc)}, status_code=400)
     except Exception as exc:
+        source_id = str(payload.get("id", "")) if isinstance(payload, dict) else ""
+        source_type = str(payload.get("type", "")) if isinstance(payload, dict) else ""
+        logger.exception(
+            "source-preview/form unexpected error (source_id=%s, source_type=%s): %s",
+            source_id,
+            source_type,
+            exc,
+        )
         return JSONResponse({"error": str(exc)}, status_code=500)
 
 @app.get("/fields")
