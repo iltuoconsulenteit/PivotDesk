@@ -4,6 +4,7 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from services.google_account_sheets import (
+    has_oauth_credentials,
     list_spreadsheets,
     list_worksheets,
     poll_device_authorization,
@@ -48,6 +49,13 @@ def register(app, plugin_api, manifest):
         try:
             data = start_device_authorization_from_saved(payload.connection_id)
             return {"ok": True, **data}
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @router.get("/device/status")
+    def device_status(connection_id: str = Query(...)):
+        try:
+            return {"ok": True, "ready": has_oauth_credentials(connection_id)}
         except Exception as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 

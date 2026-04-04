@@ -106,6 +106,15 @@ def _default_oauth_credentials() -> tuple[str, str]:
     return cfg_client_id, cfg_client_secret
 
 
+def has_oauth_credentials(connection_id: str) -> bool:
+    cid = _normalize_connection_id(connection_id)
+    creds = _read_json(_credentials_path(cid), {})
+    if creds.get("client_id") and creds.get("client_secret"):
+        return True
+    default_client_id, default_client_secret = _default_oauth_credentials()
+    return bool(default_client_id and default_client_secret)
+
+
 def save_client_credentials(connection_id: str, client_id: str, client_secret: str) -> dict[str, Any]:
     cid = _normalize_connection_id(connection_id)
     payload = {

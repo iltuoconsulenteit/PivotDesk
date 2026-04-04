@@ -3739,6 +3739,15 @@ function setGsheetWizardStatus(msg){
   if (el) el.textContent = String(msg || "");
 }
 
+function openExternalUrlWithPrompt(url){
+  const target = String(url || "").trim();
+  if (!target) return false;
+  const ok = window.confirm("Aprire la pagina esterna di autorizzazione Google?\n\n" + target);
+  if (!ok) return false;
+  window.open(target, "_blank");
+  return true;
+}
+
 function normalizeConnectionIdFromEmail(email){
   const raw = String(email || "").trim().toLowerCase();
   const base = raw.includes("@") ? raw.split("@")[0] : raw;
@@ -3786,8 +3795,15 @@ async function gsheetSourceQuickConnect(){
   const srcConnectionEl = document.getElementById("srcGsheetConnectionId");
   const srcConnection = String(srcConnectionEl?.value || "").trim();
   const connection_id = srcConnection || "gmail_main";
+  const btn = document.getElementById("btnGsheetQuickConnect");
   if (srcConnectionEl && !srcConnection) srcConnectionEl.value = connection_id;
+  if (btn) btn.disabled = true;
   try {
+    const status = await api("/plugin/google-account-sheets/device/status?connection_id=" + encodeURIComponent(connection_id));
+    if (!status?.ready) {
+      setStatus("Configura prima credenziali OAuth globali (PIVOTDESK_GOOGLE_CLIENT_ID / PIVOTDESK_GOOGLE_CLIENT_SECRET).");
+      return;
+    }
     const data = await api("/plugin/google-account-sheets/device/start-saved", {
       method: "POST",
       body: JSON.stringify({ connection_id })
@@ -3796,13 +3812,15 @@ async function gsheetSourceQuickConnect(){
       data?.verification_url_complete || data?.verification_url || data?.verification_uri || ""
     ).trim();
     if (!verifyUrl) throw new Error("URL autorizzazione Google non disponibile.");
-    window.open(verifyUrl, "_blank");
+    openExternalUrlWithPrompt(verifyUrl);
     setStatus("Autorizzazione Google avviata. Completa il consenso nella scheda aperta, poi clicca 'Verifica autorizzazione'.");
     return;
   } catch (e) {
     const msg = String(e?.message || "Connessione Google non disponibile.");
     setStatus("ERRORE: " + msg + " Configura credenziali OAuth globali e riprova.");
     return;
+  } finally {
+    if (btn) btn.disabled = false;
   }
 }
 
@@ -3826,7 +3844,7 @@ async function gsheetWizardStartAuth(){
   }
   const verifyUrl = String(res.verification_url_complete || res.verification_url || res.verification_uri || "").trim();
   try {
-    if (verifyUrl) window.open(verifyUrl, "_blank");
+    if (verifyUrl) openExternalUrlWithPrompt(verifyUrl);
   } catch (_e) {}
   setGsheetWizardStatus("Device auth avviata.");
   return res;
