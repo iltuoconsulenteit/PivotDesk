@@ -1806,11 +1806,18 @@ window.LICENSE_CONTEXT = {
           <div id="mergeAdvancedPanel" class="hidden">
             <div class="small" style="margin-bottom:8px;">Config JSON sources (array con source_id e column_map)</div>
             <textarea id="mergeSourcesJson" style="width:100%; min-height:140px;" placeholder='[{\"source_id\":\"s1\",\"column_map\":{\"iban\":\"IBAN\"}},{\"source_id\":\"s2\",\"column_map\":{\"iban\":\"iban\",\"importo\":\"amount\"}}]'></textarea>
+            <div class="field" style="margin-top:8px;">
+              <label for="mergeOutputColumns">Colonne output (comma, opzionale)</label>
+              <input id="mergeOutputColumns" placeholder="es. iban,importo,_source" disabled>
+            </div>
           </div>
-          <div class="field"><label for="mergeOutputColumns">Colonne output (comma, opzionale)</label><input id="mergeOutputColumns" placeholder="es. iban,importo,_source"></div>
           <div class="builder-top" style="margin-top:6px;">
-            <div class="field"><label for="mergeNewSourceId">Nuovo source_id merge</label><input id="mergeNewSourceId" placeholder="es. merge_banche_2026"></div>
-            <div class="field"><label for="mergeNewSourceTitle">Titolo nuova sorgente</label><input id="mergeNewSourceTitle" placeholder="es. Merge banche 2026"></div>
+            <div class="field">
+              <label>source_id merge (automatico)</label>
+              <input id="mergeNewSourceId" type="hidden">
+              <input id="mergeNewSourceIdPreview" readonly placeholder="Generato automaticamente">
+            </div>
+            <div class="field"><label for="mergeNewSourceTitle">Titolo nuova sorgente (suggerito)</label><input id="mergeNewSourceTitle" placeholder="Suggerito automaticamente"></div>
           </div>
           <div class="builder-actions">
             <button id="btnRunMultiMerge" type="button">Esegui merge</button>
@@ -3368,7 +3375,10 @@ async function addMergeSourceBlock(initial = null){
       "<button type='button' data-merge-remove-map>×</button>";
     mapWrap.appendChild(row);
     row.querySelector("[data-merge-target]").value = targetVal;
-    row.querySelector("[data-merge-remove-map]").onclick = () => row.remove();
+    row.querySelector("[data-merge-remove-map]").onclick = () => {
+      row.remove();
+      suggestMergeSourceIdentity(false);
+    };
     const fields = await loadSourceFields(sourceSel.value);
     const sel = row.querySelector("[data-merge-source-field]");
     sel.innerHTML = '<option value="">Seleziona campo...</option>';
@@ -3382,7 +3392,10 @@ async function addMergeSourceBlock(initial = null){
   };
 
   block.querySelector("[data-merge-add-map]").onclick = () => addMapRow();
-  block.querySelector("[data-merge-remove-block]").onclick = () => block.remove();
+  block.querySelector("[data-merge-remove-block]").onclick = () => {
+    block.remove();
+    suggestMergeSourceIdentity(false);
+  };
   sourceSel.onchange = () => {
     const rows = Array.from(block.querySelectorAll("[data-merge-source-field]"));
     loadSourceFields(sourceSel.value).then(fields => {
@@ -3398,6 +3411,7 @@ async function addMergeSourceBlock(initial = null){
         if (curr && fields.includes(curr)) sel.value = curr;
       });
     });
+    suggestMergeSourceIdentity(false);
   };
 
   if (initial && initial.column_map && typeof initial.column_map === "object") {
@@ -3410,6 +3424,7 @@ async function addMergeSourceBlock(initial = null){
   } else {
     await addMapRow();
   }
+  suggestMergeSourceIdentity(false);
 }
 
 function buildMergeSourcesJsonFromBuilder(){
@@ -3430,6 +3445,24 @@ function buildMergeSourcesJsonFromBuilder(){
   return out;
 }
 
+function suggestMergeSourceIdentity(force = false){
+  const idEl = document.getElementById("mergeNewSourceId");
+  const idPreviewEl = document.getElementById("mergeNewSourceIdPreview");
+  const titleEl = document.getElementById("mergeNewSourceTitle");
+  if (!idEl || !idPreviewEl || !titleEl) return;
+  const items = buildMergeSourcesJsonFromBuilder();
+  const sourceIds = items.map(x => String(x?.source_id || "").trim()).filter(Boolean).slice(0, 3);
+  const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+  const base = sourceIds.length ? sourceIds.join("_") : "sources";
+  const normalized = ("merge_" + base + "_" + stamp).toLowerCase().replace(/[^a-z0-9_]/g, "_").replace(/_+/g, "_");
+  if (force || !String(idEl.value || "").trim()) idEl.value = normalized;
+  idPreviewEl.value = idEl.value;
+  if (force || !String(titleEl.value || "").trim()) {
+    const label = sourceIds.length ? sourceIds.join(" + ") : "sorgenti";
+    titleEl.value = "Merge " + label + " " + stamp;
+  }
+}
+
 function setPluginToolTab(tab){
   const key = String(tab || "lookup").toLowerCase() === "merge" ? "merge" : "lookup";
   const lookupPane = document.getElementById("pluginToolLookup");
@@ -3447,9 +3480,11 @@ function setPluginToolTab(tab){
 function toggleMergeAdvancedPanel(forceOpen){
   const panel = document.getElementById("mergeAdvancedPanel");
   const btn = document.getElementById("btnToggleMergeAdvanced");
+  const outputCols = document.getElementById("mergeOutputColumns");
   if (!panel || !btn) return;
   const nextOpen = (typeof forceOpen === "boolean") ? forceOpen : panel.classList.contains("hidden");
   panel.classList.toggle("hidden", !nextOpen);
+  if (outputCols) outputCols.disabled = !nextOpen;
   btn.textContent = nextOpen ? "Nascondi opzioni avanzate" : "Mostra opzioni avanzate";
 }
 
@@ -3497,8 +3532,10 @@ function buildMultiMergePayloadFromUi(){
     sources = buildMergeSourcesJsonFromBuilder();
   }
   if (!Array.isArray(sources) || !sources.length) throw new Error("Il JSON deve contenere un array di sorgenti.");
-  const outputColumns = String(document.getElementById("mergeOutputColumns")?.value || "")
-    .split(",").map(x => x.trim()).filter(Boolean);
+  const outputColumnsInput = document.getElementById("mergeOutputColumns");
+  const outputColumns = outputColumnsInput && !outputColumnsInput.disabled
+    ? String(outputColumnsInput.value || "").split(",").map(x => x.trim()).filter(Boolean)
+    : [];
   return {
     sources,
     output_columns: outputColumns,
@@ -3509,15 +3546,17 @@ function buildMultiMergePayloadFromUi(){
 
 async function saveMultiSourceMergeAsSourceFromUi(){
   const base = buildMultiMergePayloadFromUi();
+  suggestMergeSourceIdentity(false);
   const source_id = String(document.getElementById("mergeNewSourceId")?.value || "").trim();
   const source_title = String(document.getElementById("mergeNewSourceTitle")?.value || "").trim();
-  if (!source_id || !source_title) throw new Error("Compila source_id e titolo per la nuova sorgente merge.");
+  if (!source_id) throw new Error("Impossibile generare source_id merge.");
+  const finalTitle = source_title || "Merge " + source_id;
   const res = await api("/plugin/multi-source-merge/build-and-save-source", {
     method: "POST",
     body: JSON.stringify({
       ...base,
       source_id,
-      source_title,
+      source_title: finalTitle,
       set_default: false
     })
   });
