@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import csv
+import json
 import re
+from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
@@ -45,6 +47,21 @@ class MergeMapSuggestionRequest(BaseModel):
     source_id: str
     template_columns: list[str] = Field(default_factory=list)
     calculated_fields: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class MergeTemplateCreateRequest(BaseModel):
+    template_id: str = Field(..., min_length=2)
+    title: str = Field(..., min_length=2)
+    columns: list[str] = Field(default_factory=list)
+    include_source_tag: bool = True
+    overwrite: bool = False
+
+
+class MergeTemplateBuildRequest(BaseModel):
+    template_id: str = Field(..., min_length=2)
+    sources: list[MergeSourceConfig] = Field(default_factory=list)
+    include_source_tag: bool | None = None
+    limit: int = Field(default=1000, ge=1, le=20000)
 
 
 def _apply_calc(df, defs: list[dict[str, Any]]):
@@ -139,6 +156,42 @@ def _build_map_suggestions(df_columns: list[str], template_columns: list[str]) -
     return out
 
 
+def _normalize_template_id(value: str) -> str:
+    clean = re.sub(r"[^a-zA-Z0-9_.-]+", "_", str(value or "").strip()).strip("._-")
+    return clean[:80]
+
+
+def _templates_path() -> Path:
+    return DATA_DIR / "merge_templates.json"
+
+
+def _load_templates() -> list[dict[str, Any]]:
+    path = _templates_path()
+    if not path.exists():
+        return []
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+        items = raw.get("templates", []) if isinstance(raw, dict) else []
+        return [i for i in items if isinstance(i, dict)]
+    except Exception:
+        return []
+
+
+def _save_templates(items: list[dict[str, Any]]) -> None:
+    path = _templates_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {"templates": items}
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def _find_template(items: list[dict[str, Any]], template_id: str) -> dict[str, Any] | None:
+    wanted = str(template_id or "").strip()
+    for item in items:
+        if str(item.get("template_id", "")).strip() == wanted:
+            return item
+    return None
+
+
 def _build_merge_result(plugin_api, payload: MultiMergeRequest) -> dict[str, Any]:
     if not payload.sources:
         raise HTTPException(status_code=400, detail="sources obbligatorio")
@@ -215,6 +268,81 @@ def register(app, plugin_api, manifest):
             "template_columns": payload.template_columns,
             "suggestions": suggestions,
         }
+
+    @router.get("/template/list")
+    def list_templates():
+        items = _load_templates()
+        return {"ok": True, "templates": items, "count": len(items)}
+
+    @router.get("/template/{template_id}")
+    def get_template(template_id: str):
+        items = _load_templates()
+        found = _find_template(items, template_id)
+        if not found:
+            raise HTTPException(status_code=404, detail="template non trovato")
+        return {"ok": True, "template": found}
+
+    @router.post("/template/save")
+    def save_template(payload: MergeTemplateCreateRequest):
+        template_id = _normalize_template_id(payload.template_id)
+        if not template_id:
+            raise HTTPException(status_code=400, detail="template_id non valido")
+        columns = [str(c).strip() for c in payload.columns if str(c).strip()]
+        if not columns:
+            raise HTTPException(status_code=400, detail="columns obbligatorio")
+        item = {
+            "template_id": template_id,
+            "title": str(payload.title or template_id).strip(),
+            "columns": columns,
+            "include_source_tag": bool(payload.include_source_tag),
+        }
+        items = _load_templates()
+        existing_idx = -1
+        for idx, row in enumerate(items):
+            if str(row.get("template_id", "")).strip() == template_id:
+                existing_idx = idx
+                break
+        if existing_idx >= 0 and not payload.overwrite:
+            raise HTTPException(status_code=409, detail="template già esistente (usa overwrite=true)")
+        if existing_idx >= 0:
+            items[existing_idx] = item
+        else:
+            items.append(item)
+        _save_templates(items)
+        return {"ok": True, "template": item}
+
+    @router.delete("/template/{template_id}")
+    def delete_template(template_id: str):
+        items = _load_templates()
+        before = len(items)
+        items = [i for i in items if str(i.get("template_id", "")).strip() != str(template_id or "").strip()]
+        if len(items) == before:
+            raise HTTPException(status_code=404, detail="template non trovato")
+        _save_templates(items)
+        return {"ok": True, "deleted": template_id}
+
+    @router.post("/build-from-template")
+    def build_from_template(payload: MergeTemplateBuildRequest):
+        if not payload.sources:
+            raise HTTPException(status_code=400, detail="sources obbligatorio")
+        items = _load_templates()
+        tpl = _find_template(items, payload.template_id)
+        if not tpl:
+            raise HTTPException(status_code=404, detail="template non trovato")
+        req = MultiMergeRequest(
+            sources=payload.sources,
+            output_columns=[str(c) for c in (tpl.get("columns") or []) if str(c).strip()],
+            include_source_tag=(
+                bool(payload.include_source_tag)
+                if payload.include_source_tag is not None
+                else bool(tpl.get("include_source_tag", True))
+            ),
+            limit=payload.limit,
+        )
+        result = _build_merge_result(plugin_api, req)
+        result["template_id"] = payload.template_id
+        result["template"] = tpl
+        return result
 
     @router.post("/build-and-save-source")
     def merge_and_save_source(payload: MultiMergeSaveRequest):
