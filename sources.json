@@ -1,0 +1,14 @@
+{
+  "default_source": "demo_sales",
+  "sources": [
+    {
+      "id": "demo_sales",
+      "title": "Demo Sales CSV",
+      "type": "csv",
+      "path": "demo/demo_sales.csv",
+      "delimiter": ",",
+      "encoding": "utf-8",
+      "options": {}
+    }
+  ]
+}

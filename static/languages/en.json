@@ -1,0 +1,101 @@
+{
+  "settings_title": "Settings",
+  "settings_subtitle": "General application and print configuration.",
+  "settings_close": "Close settings",
+  "settings_language_label": "Interface language",
+  "settings_print_logos": "Show logos in print",
+  "settings_save": "Save settings",
+  "brand_subtitle": "CSV viewer and server-side multi-measure pivot",
+  "license_label_prefix": "License:",
+  "license_active": "ACTIVE",
+  "details": "Details",
+  "developed_by": "developed by",
+  "user_space_active": "Personal workspace active.",
+  "manage_users": "User management",
+  "logout": "Logout",
+  "menu_data": "Data",
+  "menu_reload": "Reload",
+  "menu_manage_sources": "Manage data sources",
+  "menu_toggle_columns": "Show/Hide CSV columns",
+  "menu_pivot": "Pivot",
+  "menu_open_builder": "Open pivot builder",
+  "menu_edit_preset": "Edit active preset",
+  "menu_edit_source": "Edit active source",
+  "menu_delete_preset": "Delete active preset",
+  "menu_view": "View",
+  "menu_layout_vertical": "Vertical measures layout",
+  "menu_layout_horizontal": "Horizontal measures layout",
+  "menu_row_totals_toggle": "Toggle row totals",
+  "menu_col_totals_toggle": "Toggle column totals",
+  "menu_subtotals_toggle": "Toggle subtotals",
+  "menu_print": "Print",
+  "menu_print_pivot": "Print pivot",
+  "menu_settings": "Settings",
+  "menu_global_settings": "Global settings",
+  "source_data": "Data source",
+  "csv_columns_available": "CSV available columns",
+  "preset": "Preset",
+  "page_filters": "Page filters",
+  "pivot_layout": "Pivot layout",
+  "layout_vertical": "Vertical",
+  "layout_horizontal": "Horizontal",
+  "layout_vertical_title": "Vertical layout",
+  "layout_horizontal_title": "Horizontal layout",
+  "row_totals": "Row totals",
+  "col_totals": "Column totals",
+  "subtotals": "Subtotals",
+  "save_view": "Save view",
+  "menu_export_backup": "Export backup",
+  "menu_restore_backup": "Restore backup",
+  "menu_export_pivot_csv": "Export pivot CSV",
+  "menu_export_pivot_xlsx": "Export pivot XLSX",
+  "menu_export_pivot_ods": "Export pivot ODS",
+  "menu_export_pivot_html": "Export pivot HTML",
+  "export_chart_html": "Export chart HTML",
+  "help_button": "❓ Help",
+  "help_open_title": "Open guide",
+  "hide": "Hide",
+  "show_data_preview": "Show data preview",
+  "layout_options": "Layout & options",
+  "chart_from_pivot": "Pivot chart",
+  "chart": "Chart",
+  "wiki_resize": "Drag to resize",
+  "wiki_quick_title": "PivotDesk quick wiki",
+  "close": "Close",
+  "width": "Width",
+  "wiki_loading": "Loading wiki..."
+  ,"users_management": "User management"
+  ,"users_management_subtitle": "Manage access and multi-user profiles in PivotDesk LAN environments."
+  ,"open_pivotdesk": "Open PivotDesk"
+  ,"create_user": "Create user"
+  ,"create_user_subtitle": "Create a new local account. Each user has separate data sources, presets, settings and uploaded files."
+  ,"display_name": "Display name"
+  ,"role": "Role"
+  ,"initial_password": "Initial password"
+  ,"create": "Create"
+  ,"registered_users": "Registered users"
+  ,"registered_users_subtitle": "From here you can inspect role/status, reset password, or temporarily disable a user."
+  ,"name": "Name"
+  ,"enabled": "Enabled"
+  ,"actions": "Actions"
+  ,"admin_cannot_disable_self": "The current administrator cannot disable their own account."
+  ,"request_error": "Request error"
+  ,"yes": "Yes"
+  ,"no": "No"
+  ,"reset_password": "Reset password"
+  ,"disable": "Disable"
+  ,"enable": "Enable"
+  ,"new_password_for": "New password for"
+  ,"password_reset_ok": "Password reset completed."
+  ,"user_status_updated": "User status updated."
+  ,"user_created_ok": "User created successfully."
+  ,"login_multiuser_title": "Multi-user access"
+  ,"login_multiuser_subtitle": "Sign in to your PivotDesk workspace. Each user has separate sources, presets, and uploads, also when the app runs on LAN."
+  ,"login_welcome": "Welcome to PivotDesk"
+  ,"login_enter_credentials": "Enter your credentials to continue."
+  ,"logout_success": "Logout completed successfully."
+  ,"username": "Username"
+  ,"password": "Password"
+  ,"login": "Login"
+  ,"first_access_note": "First access: user <strong>admin</strong>, password <strong>admin</strong>."
+}

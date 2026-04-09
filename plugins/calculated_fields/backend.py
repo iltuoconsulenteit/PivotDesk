@@ -28,12 +28,21 @@ Supported syntax:
     to_number(x)
     to_text(x)
     round(x, digits?)
+    minutes_diff(end_time, start_time)
+    hours_diff(end_time, start_time)
+    if_else(condition, true_value, false_value)
+    gte(a, b), gt(a, b), lte(a, b), lt(a, b), eq(a, b), neq(a, b)
+    token_after(text, marker, case_sensitive?)
+
+Supported operators:
+- >=, <=, ==, !=, >, <
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, time
+from functools import lru_cache
 import math
 import re
 from typing import Any, Callable
@@ -104,6 +113,65 @@ def _parse_date(value: Any) -> date | None:
         return datetime.fromisoformat(text.replace("Z", "+00:00")).date()
     except ValueError:
         return None
+
+
+def _parse_time(value: Any) -> time | None:
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value.time()
+    if isinstance(value, time):
+        return value
+
+    text = _normalize_spaces(_to_text(value))
+    if not text:
+        return None
+    text = text.strip("'\"")
+
+    # Excel-like fractional day (e.g. 0.5 -> 12:00:00)
+    numeric = _to_number(value)
+    if numeric is not None and 0 <= numeric < 1:
+        total_seconds = int(round(numeric * 24 * 60 * 60))
+        total_seconds = total_seconds % (24 * 60 * 60)
+        hh = total_seconds // 3600
+        mm = (total_seconds % 3600) // 60
+        ss = total_seconds % 60
+        return time(hour=hh, minute=mm, second=ss)
+
+    known_formats = (
+        "%H:%M",
+        "%H:%M:%S",
+        "%H:%M:%S.%f",
+        "%H:%M:%S,%f",
+        "%H.%M",
+        "%H.%M.%S",
+        "%I:%M %p",
+        "%I:%M:%S %p",
+    )
+    for fmt in known_formats:
+        try:
+            return datetime.strptime(text, fmt).time()
+        except ValueError:
+            pass
+
+    # Try ISO-like datetime values and use the time component.
+    try:
+        return datetime.fromisoformat(text.replace("Z", "+00:00")).time()
+    except ValueError:
+        pass
+
+    # Fallback: extract first time-like token from longer text.
+    token_match = re.search(r"(\d{1,2}[:.]\d{2}(?::\d{2}(?:[.,]\d{1,6})?)?(?:\s*[APap][Mm])?)", text)
+    if token_match:
+        token = token_match.group(1).strip().replace(".", ":")
+        token_formats = ("%H:%M", "%H:%M:%S", "%H:%M:%S.%f", "%I:%M %p", "%I:%M:%S %p")
+        for fmt in token_formats:
+            try:
+                return datetime.strptime(token, fmt).time()
+            except ValueError:
+                pass
+
+    return None
 
 
 def _to_number(value: Any) -> float | None:
@@ -244,6 +312,115 @@ def fn_round(value: Any, digits: Any = 0) -> float | None:
     return round(number, int(digits_n or 0))
 
 
+def fn_minutes_diff(end_value: Any, start_value: Any) -> float | None:
+    end_t = _parse_time(end_value)
+    start_t = _parse_time(start_value)
+    if end_t is None or start_t is None:
+        return None
+    end_minutes = (end_t.hour * 60) + end_t.minute + (end_t.second / 60)
+    start_minutes = (start_t.hour * 60) + start_t.minute + (start_t.second / 60)
+    diff = end_minutes - start_minutes
+    if diff < 0:
+        diff += 24 * 60
+    return diff
+
+
+def fn_hours_diff(end_value: Any, start_value: Any) -> float | None:
+    diff = fn_minutes_diff(end_value, start_value)
+    if diff is None:
+        return None
+    return diff / 60
+
+
+def _compare_values(left: Any, right: Any) -> tuple[Any, Any] | None:
+    left_num = _to_number(left)
+    right_num = _to_number(right)
+    if left_num is not None and right_num is not None:
+        return left_num, right_num
+    if isinstance(left, bool) and isinstance(right, bool):
+        return left, right
+    if left is None or right is None:
+        return None
+    return _to_text(left), _to_text(right)
+
+
+def fn_gte(left: Any, right: Any) -> bool:
+    values = _compare_values(left, right)
+    return False if values is None else values[0] >= values[1]
+
+
+def fn_gt(left: Any, right: Any) -> bool:
+    values = _compare_values(left, right)
+    return False if values is None else values[0] > values[1]
+
+
+def fn_lte(left: Any, right: Any) -> bool:
+    values = _compare_values(left, right)
+    return False if values is None else values[0] <= values[1]
+
+
+def fn_lt(left: Any, right: Any) -> bool:
+    values = _compare_values(left, right)
+    return False if values is None else values[0] < values[1]
+
+
+def fn_eq(left: Any, right: Any) -> bool:
+    values = _compare_values(left, right)
+    if values is None:
+        return left is None and right is None
+    return values[0] == values[1]
+
+
+def fn_neq(left: Any, right: Any) -> bool:
+    return not fn_eq(left, right)
+
+
+def fn_if_else(condition: Any, true_value: Any, false_value: Any) -> Any:
+    return true_value if bool(condition) else false_value
+
+
+def fn_token_after(text: Any, marker: Any, case_sensitive: Any = False) -> str:
+    """
+    Return the first token that appears after `marker`.
+
+    Examples:
+    - token_after("... CRO: 12345 ABI: 03069", "CRO:") -> "12345"
+    - token_after("Pagamento #IBAN IT60X0542811101000000123456", "#IBAN") -> "IT60X0542811101000000123456"
+    """
+    text_s = _to_text(text)
+    marker_s = _to_text(marker)
+    if not marker_s:
+        return ""
+
+    is_case_sensitive = False
+    if isinstance(case_sensitive, bool):
+        is_case_sensitive = case_sensitive
+    else:
+        case_sensitive_s = _to_text(case_sensitive).strip().lower()
+        is_case_sensitive = case_sensitive_s in {"1", "true", "yes", "y", "si", "sì"}
+
+    if is_case_sensitive:
+        idx = text_s.find(marker_s)
+    else:
+        idx = text_s.lower().find(marker_s.lower())
+    if idx < 0:
+        return ""
+
+    tail = text_s[idx + len(marker_s):]
+    tail = tail.lstrip()
+    if not tail:
+        return ""
+
+    # stop at first whitespace or common separator
+    separators = set(" \t\r\n,;|()[]{}")
+    out: list[str] = []
+    for ch in tail:
+        if ch in separators:
+            break
+        out.append(ch)
+    return "".join(out).strip()
+
+
 SAFE_FUNCTIONS: dict[str, Callable[..., Any]] = {
     "after": fn_after,
     "after_last": fn_after_last,
@@ -261,7 +438,68 @@ SAFE_FUNCTIONS: dict[str, Callable[..., Any]] = {
     "to_number": fn_to_number,
     "to_text": fn_to_text,
     "round": fn_round,
+    "minutes_diff": fn_minutes_diff,
+    "hours_diff": fn_hours_diff,
+    "gte": fn_gte,
+    "gt": fn_gt,
+    "lte": fn_lte,
+    "lt": fn_lt,
+    "eq": fn_eq,
+    "neq": fn_neq,
+    "if_else": fn_if_else,
+    "token_after": fn_token_after,
 }
+
+
+def _split_binary(expr: str, operators: tuple[str, ...]) -> tuple[str, str, str] | None:
+    depth_round = 0
+    depth_square = 0
+    quote: str | None = None
+    escape = False
+
+    idx = 0
+    while idx < len(expr):
+        ch = expr[idx]
+        if quote:
+            if escape:
+                escape = False
+            elif ch == "\\":
+                escape = True
+            elif ch == quote:
+                quote = None
+            idx += 1
+            continue
+
+        if ch in ("'", '"'):
+            quote = ch
+            idx += 1
+            continue
+        if ch == "(":
+            depth_round += 1
+            idx += 1
+            continue
+        if ch == ")":
+            depth_round -= 1
+            idx += 1
+            continue
+        if ch == "[":
+            depth_square += 1
+            idx += 1
+            continue
+        if ch == "]":
+            depth_square -= 1
+            idx += 1
+            continue
+
+        if depth_round == 0 and depth_square == 0:
+            for op in operators:
+                if expr.startswith(op, idx):
+                    left = expr[:idx].strip()
+                    right = expr[idx + len(op):].strip()
+                    if left and right:
+                        return left, op, right
+        idx += 1
+    return None
 
 
 def _split_args(arg_text: str) -> list[str]:
@@ -410,19 +648,21 @@ def _parse_func(expr: str) -> tuple[str, list[str]] | None:
     return name, args
 
 
-def evaluate_formula(formula: str, row: dict[str, Any]) -> Any:
-    expr = _strip_outer_parens((formula or "").strip())
-    if not expr:
-        raise FormulaError("Formula vuota.")
-
+def _compile_expr(expr: str) -> tuple[str, Any]:
+    expr = _strip_outer_parens(expr)
     field_match = FIELD_REF_RE.fullmatch(expr)
     if field_match:
         field_name = field_match.group(1).strip()
-        return row.get(field_name)
+        return ("field", field_name)
 
     literal = _parse_literal(expr)
     if literal is not None or expr.lower() == "null":
-        return literal
+        return ("literal", literal)
+
+    binary = _split_binary(expr, (">=", "<=", "==", "!=", ">", "<"))
+    if binary:
+        left_expr, op, right_expr = binary
+        return ("binary", op, _compile_expr(left_expr), _compile_expr(right_expr))
 
     func = _parse_func(expr)
     if func:
@@ -430,7 +670,40 @@ def evaluate_formula(formula: str, row: dict[str, Any]) -> Any:
         fn = SAFE_FUNCTIONS.get(name.lower())
         if fn is None:
             raise FormulaError(f"Funzione non consentita: {name}")
-        args = [evaluate_formula(arg_expr, row) for arg_expr in arg_exprs]
+        compiled_args = tuple(_compile_expr(arg_expr) for arg_expr in arg_exprs)
+        return ("func", name, fn, compiled_args)
+
+    raise FormulaError(f"Sintassi formula non riconosciuta: {expr}")
+
+
+def _eval_compiled(compiled: tuple[str, Any], row: dict[str, Any]) -> Any:
+    kind = compiled[0]
+
+    if kind == "field":
+        return row.get(compiled[1])
+
+    if kind == "literal":
+        return compiled[1]
+
+    if kind == "binary":
+        _, op, left_compiled, right_compiled = compiled
+        left = _eval_compiled(left_compiled, row)
+        right = _eval_compiled(right_compiled, row)
+        if op == ">=":
+            return fn_gte(left, right)
+        if op == "<=":
+            return fn_lte(left, right)
+        if op == "==":
+            return fn_eq(left, right)
+        if op == "!=":
+            return fn_neq(left, right)
+        if op == ">":
+            return fn_gt(left, right)
+        return fn_lt(left, right)
+
+    if kind == "func":
+        _, name, fn, arg_nodes = compiled
+        args = [_eval_compiled(arg_node, row) for arg_node in arg_nodes]
         try:
             return fn(*args)
         except TypeError as exc:
@@ -438,13 +711,29 @@ def evaluate_formula(formula: str, row: dict[str, Any]) -> Any:
         except Exception as exc:  # pragma: no cover - defensive
             raise FormulaError(f"Errore in {name}: {exc}") from exc
 
-    raise FormulaError(f"Sintassi formula non riconosciuta: {expr}")
+    raise FormulaError("Nodo formula non supportato.")
+
+
+@lru_cache(maxsize=512)
+def _compile_formula(formula: str) -> tuple[str, Any]:
+    expr = _strip_outer_parens((formula or "").strip())
+    if not expr:
+        raise FormulaError("Formula vuota.")
+    return _compile_expr(expr)
+
+
+def evaluate_formula(formula: str, row: dict[str, Any]) -> Any:
+    compiled = _compile_formula(formula or "")
+    return _eval_compiled(compiled, row)
 
 
 def cast_output(value: Any, field_type: str) -> Any:
     kind = (field_type or "string").strip().lower()
     if kind == "number":
-        return _to_number(value)
+        number = _to_number(value)
+        if number is None:
+            return None
+        return int(number) if float(number).is_integer() else number
     if kind == "date":
         d = _parse_date(value)
         return d.isoformat() if d else None

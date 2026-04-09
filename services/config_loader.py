@@ -97,7 +97,7 @@ def _normalize_sources(data: dict[str, Any]) -> dict[str, Any]:
         if not title:
             title = sid
 
-        if stype not in {"csv", "excel", "database", "xlsx", "ods", "mysql"}:
+        if stype not in {"csv", "excel", "database", "xlsx", "ods", "mysql", "gsheet_account"}:
             stype = "csv"
 
         item = {
@@ -218,7 +218,7 @@ def upsert_source(payload: dict[str, Any]) -> dict[str, Any]:
     if not title:
         title = sid
 
-    if stype not in {"csv", "excel", "database", "xlsx", "ods", "mysql"}:
+    if stype not in {"csv", "excel", "database", "xlsx", "ods", "mysql", "gsheet_account"}:
         raise ValueError(f"Tipo sorgente non supportato: {stype}")
 
     if stype in {"csv", "excel", "xlsx", "ods"} and not path:
