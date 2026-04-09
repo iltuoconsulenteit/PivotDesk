@@ -1,0 +1,20 @@
+<svg xmlns='http://www.w3.org/2000/svg' width='1100' height='620' viewBox='0 0 1100 620'>
+<style>
+  .bg{fill:#f5f7fb}.card{fill:#fff;stroke:#d0d5dd;stroke-width:2;rx:12;ry:12}
+  .title{font:700 16px Arial;fill:#0f172a}.txt{font:13px Arial;fill:#334155}
+  .cap{font:700 13px Arial;fill:#166534}
+</style>
+<rect class='bg' width='1100' height='620'/>
+<text x='20' y='28' class='title'>User management page structure (templates/admin_users.html)</text>
+<rect class='card' x='20' y='44' width='1060' height='100'/>
+<text x='36' y='72' class='cap'>Brand + top actions</text>
+<text x='36' y='94' class='txt'>Branding block + admin badge + navigation buttons</text>
+
+<rect class='card' x='20' y='160' width='1060' height='150'/>
+<text x='36' y='188' class='cap'>Create user form</text>
+<text x='36' y='210' class='txt'>Username • Email • Role • Password + Create button</text>
+
+<rect class='card' x='20' y='326' width='1060' height='260'/>
+<text x='36' y='354' class='cap'>Users table</text>
+<text x='36' y='376' class='txt'>Current users, roles, active status, reset password and delete actions</text>
+</svg>

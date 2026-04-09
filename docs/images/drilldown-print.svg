@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="240" viewBox="0 0 980 240">
+  <style>
+    .title{font:700 16px Arial,sans-serif;fill:#0f172a}
+    .box{fill:#f5f3ff;stroke:#6d28d9;stroke-width:2;rx:12;ry:12}
+    .txt{font:14px Arial,sans-serif;fill:#3b0764}
+    .arrow{stroke:#7c3aed;stroke-width:2;marker-end:url(#m)}
+  </style>
+  <defs><marker id="m" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#7c3aed"/></marker></defs>
+  <text x="20" y="28" class="title">Drilldown and print flow</text>
+  <rect class="box" x="20" y="55" width="260" height="120"/>
+  <text class="txt" x="40" y="90">1) Click list icon near value</text>
+  <text class="txt" x="40" y="114">in pivot table</text>
+  <rect class="box" x="340" y="55" width="280" height="120"/>
+  <text class="txt" x="360" y="90">2) Drilldown modal opens</text>
+  <text class="txt" x="360" y="114">with filtered raw records</text>
+  <text class="txt" x="360" y="138">+ column presets</text>
+  <rect class="box" x="680" y="55" width="280" height="120"/>
+  <text class="txt" x="700" y="90">3) Print detail</text>
+  <text class="txt" x="700" y="114">opens temporary page</text>
+  <text class="txt" x="700" y="138">auto-closes after printing</text>
+  <line class="arrow" x1="280" y1="115" x2="338" y2="115"/>
+  <line class="arrow" x1="620" y1="115" x2="678" y2="115"/>
+</svg>
