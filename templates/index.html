@@ -3452,13 +3452,17 @@ function suggestMergeSourceIdentity(force = false){
   if (!idEl || !idPreviewEl || !titleEl) return;
   const items = buildMergeSourcesJsonFromBuilder();
   const sourceIds = items.map(x => String(x?.source_id || "").trim()).filter(Boolean).slice(0, 3);
+  const numericIds = (SOURCES || [])
+    .map(src => parseInt(String(src?.id || "").trim(), 10))
+    .filter(n => Number.isFinite(n) && n > 0);
+  const nextNumericId = String((numericIds.length ? Math.max(...numericIds) : 0) + 1);
   const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, "");
-  const base = sourceIds.length ? sourceIds.join("_") : "sources";
-  const normalized = ("merge_" + base + "_" + stamp).toLowerCase().replace(/[^a-z0-9_]/g, "_").replace(/_+/g, "_");
-  if (force || !String(idEl.value || "").trim()) idEl.value = normalized;
+  if (force || !String(idEl.value || "").trim()) idEl.value = nextNumericId;
   idPreviewEl.value = idEl.value;
   if (force || !String(titleEl.value || "").trim()) {
-    const label = sourceIds.length ? sourceIds.join(" + ") : "sorgenti";
+    const firstId = sourceIds.length ? sourceIds[0] : "";
+    const firstSource = (SOURCES || []).find(src => String(src?.id || "").trim() === firstId);
+    const label = String(firstSource?.title || firstId || "sorgente");
     titleEl.value = "Merge " + label + " " + stamp;
   }
 }

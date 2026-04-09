@@ -42,8 +42,30 @@ def _apply_calc(df, defs: list[dict[str, Any]]):
 
 
 def _sanitize_source_id(value: str) -> str:
-    cleaned = re.sub(r"[^a-zA-Z0-9_-]+", "_", str(value or "").strip().lower()).strip("_")
-    return cleaned or "merge_source"
+    raw = str(value or "").strip()
+    digits = re.sub(r"[^0-9]+", "", raw)
+    return digits
+
+
+def _resolve_numeric_source_id(bundle: dict[str, Any], requested: str) -> str:
+    sources = bundle.get("sources") if isinstance(bundle.get("sources"), list) else []
+    used_ids: set[int] = set()
+    for src in sources:
+        try:
+            n = int(str(src.get("id", "")).strip())
+            if n > 0:
+                used_ids.add(n)
+        except Exception:
+            continue
+    requested_digits = _sanitize_source_id(requested)
+    if requested_digits:
+        candidate = int(requested_digits)
+        if candidate > 0 and candidate not in used_ids:
+            return str(candidate)
+    next_id = (max(used_ids) + 1) if used_ids else 1
+    while next_id in used_ids:
+        next_id += 1
+    return str(next_id)
 
 
 def _build_merge_result(plugin_api, payload: MultiMergeRequest) -> dict[str, Any]:
@@ -100,8 +122,9 @@ def register(app, plugin_api, manifest):
         if not plugin_api.get_source or not plugin_api.load_dataframe_from_source:
             raise HTTPException(status_code=500, detail="Plugin API incompleta")
         merged = _build_merge_result(plugin_api, payload)
-        source_id = _sanitize_source_id(payload.source_id)
-        source_title = str(payload.source_title or source_id).strip() or source_id
+        bundle = load_sources()
+        source_id = _resolve_numeric_source_id(bundle, payload.source_id)
+        source_title = str(payload.source_title or f"Merge {source_id}").strip() or f"Merge {source_id}"
         out_dir = DATA_DIR / "generated_sources"
         out_dir.mkdir(parents=True, exist_ok=True)
         out_file = out_dir / f"{source_id}.csv"
@@ -113,7 +136,6 @@ def register(app, plugin_api, manifest):
             for row in rows:
                 writer.writerow({c: row.get(c, "") for c in columns})
 
-        bundle = load_sources()
         sources = bundle.get("sources") if isinstance(bundle.get("sources"), list) else []
         item = {
             "id": source_id,
