@@ -158,6 +158,7 @@ The following diagrams are visual examples derived from the HTML layout structur
 - Source-level calculated fields are stored in source config (`calculated_fields`) and are automatically applied during source loading; this makes them available to all plugins (including cross-source lookup and multi-source merge) without redefining formulas per plugin request.
 - Optional plugin `google_account_sheets` (disabled by default) enables OAuth device-flow authentication for private Google Drive Sheets and can be licensed as a Pro/Full add-on.
 - For direct Google connect from Source Manager, set OAuth credentials once via env (`PIVOTDESK_GOOGLE_CLIENT_ID`, `PIVOTDESK_GOOGLE_CLIENT_SECRET`) or `config.json` under `google_oauth.client_id` / `google_oauth.client_secret`.
+- Multi-source merge plugin can now persist merge output as a generated CSV source in `DATA_DIR/generated_sources`, so merged datasets can be reused like normal sources.
 
 Plugin visibility/enablement:
 - `GET /plugins/status` shows runtime status + license allow/deny flags.

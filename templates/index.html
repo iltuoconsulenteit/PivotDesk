@@ -1808,7 +1808,14 @@ window.LICENSE_CONTEXT = {
             <textarea id="mergeSourcesJson" style="width:100%; min-height:140px;" placeholder='[{\"source_id\":\"s1\",\"column_map\":{\"iban\":\"IBAN\"}},{\"source_id\":\"s2\",\"column_map\":{\"iban\":\"iban\",\"importo\":\"amount\"}}]'></textarea>
           </div>
           <div class="field"><label for="mergeOutputColumns">Colonne output (comma, opzionale)</label><input id="mergeOutputColumns" placeholder="es. iban,importo,_source"></div>
-          <div class="builder-actions"><button id="btnRunMultiMerge" type="button">Esegui merge</button></div>
+          <div class="builder-top" style="margin-top:6px;">
+            <div class="field"><label for="mergeNewSourceId">Nuovo source_id merge</label><input id="mergeNewSourceId" placeholder="es. merge_banche_2026"></div>
+            <div class="field"><label for="mergeNewSourceTitle">Titolo nuova sorgente</label><input id="mergeNewSourceTitle" placeholder="es. Merge banche 2026"></div>
+          </div>
+          <div class="builder-actions">
+            <button id="btnRunMultiMerge" type="button">Esegui merge</button>
+            <button id="btnSaveMultiMergeSource" type="button" class="primary">Salva come nuova sorgente</button>
+          </div>
           <div id="mergePreviewCard" class="card hidden" style="margin-top:10px; border-color:#d0d5dd;">
             <div class="section-title" style="font-size:16px; margin-bottom:6px;">Anteprima unione sorgenti</div>
             <div id="mergePreviewMeta" class="preview-card-meta">Esegui il merge per visualizzare le prime righe.</div>
@@ -3467,6 +3474,17 @@ async function runCrossSourceLookupFromUi(){
 }
 
 async function runMultiSourceMergeFromUi(){
+  const payload = buildMultiMergePayloadFromUi();
+  const res = await api("/plugin/multi-source-merge/build", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+  setSourcePluginOutput(res);
+  renderMergePreview(res);
+  setStatus("Merge multi-source completato.");
+}
+
+function buildMultiMergePayloadFromUi(){
   const raw = String(document.getElementById("mergeSourcesJson")?.value || "").trim();
   let sources = [];
   if (raw) {
@@ -3481,18 +3499,36 @@ async function runMultiSourceMergeFromUi(){
   if (!Array.isArray(sources) || !sources.length) throw new Error("Il JSON deve contenere un array di sorgenti.");
   const outputColumns = String(document.getElementById("mergeOutputColumns")?.value || "")
     .split(",").map(x => x.trim()).filter(Boolean);
-  const res = await api("/plugin/multi-source-merge/build", {
+  return {
+    sources,
+    output_columns: outputColumns,
+    include_source_tag: true,
+    limit: 1000
+  };
+}
+
+async function saveMultiSourceMergeAsSourceFromUi(){
+  const base = buildMultiMergePayloadFromUi();
+  const source_id = String(document.getElementById("mergeNewSourceId")?.value || "").trim();
+  const source_title = String(document.getElementById("mergeNewSourceTitle")?.value || "").trim();
+  if (!source_id || !source_title) throw new Error("Compila source_id e titolo per la nuova sorgente merge.");
+  const res = await api("/plugin/multi-source-merge/build-and-save-source", {
     method: "POST",
     body: JSON.stringify({
-      sources,
-      output_columns: outputColumns,
-      include_source_tag: true,
-      limit: 1000
+      ...base,
+      source_id,
+      source_title,
+      set_default: false
     })
   });
-  setSourcePluginOutput(res);
-  renderMergePreview(res);
-  setStatus("Merge multi-source completato.");
+  if (res?.merge) {
+    renderMergePreview(res.merge);
+    setSourcePluginOutput(res.merge);
+  } else {
+    setSourcePluginOutput(res);
+  }
+  await refreshAll().catch(() => {});
+  setStatus("Nuova sorgente merge salvata: " + source_id);
 }
 
 function closeSourcesScreen(){
@@ -6749,6 +6785,13 @@ bindClick("btnRunMultiMerge", async () => {
     await runMultiSourceMergeFromUi();
   } catch (e) {
     setStatus("ERRORE plugin merge: " + e.message);
+  }
+});
+bindClick("btnSaveMultiMergeSource", async () => {
+  try {
+    await saveMultiSourceMergeAsSourceFromUi();
+  } catch (e) {
+    setStatus("ERRORE salvataggio merge: " + e.message);
   }
 });
 
