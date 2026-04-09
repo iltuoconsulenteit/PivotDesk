@@ -70,29 +70,28 @@ def is_frozen() -> bool:
     return getattr(sys, "frozen", False)
 
 
-def runtime_base_dir() -> Path:
-    if is_frozen():
-        return Path(sys.executable).resolve().parent
-    return Path(__file__).resolve().parent
-
-
-def resource_base_dir() -> Path:
-    if is_frozen() and hasattr(sys, "_MEIPASS"):
-        return Path(getattr(sys, "_MEIPASS"))
-    return Path(__file__).resolve().parent
+BASE_DIR = Path(__file__).resolve().parent
+RUNTIME_BASE_DIR = Path(sys.executable).resolve().parent if is_frozen() else BASE_DIR
+RESOURCE_BASE_DIR = (
+    Path(getattr(sys, "_MEIPASS")).resolve()
+    if is_frozen() and hasattr(sys, "_MEIPASS")
+    else BASE_DIR
+)
 
 
 def resource_path(*parts: str) -> Path:
-    return resource_base_dir().joinpath(*parts)
+    return RESOURCE_BASE_DIR.joinpath(*parts)
 
-
-BASE_DIR = runtime_base_dir()
-APP_HOME_DIR = Path(os.getenv("APPDATA", str(BASE_DIR))) / "PivotDesk" if is_frozen() else BASE_DIR
-STATIC_DIR = resource_path("static")
-TEMPLATES_DIR = resource_path("templates")
+APP_HOME_DIR = Path(os.getenv("APPDATA", str(RUNTIME_BASE_DIR))) / "PivotDesk" if is_frozen() else BASE_DIR
+STATIC_DIR = BASE_DIR / "static"
+TEMPLATES_DIR = BASE_DIR / "templates"
+if not STATIC_DIR.exists():
+    STATIC_DIR = RESOURCE_BASE_DIR / "static"
+if not TEMPLATES_DIR.exists():
+    TEMPLATES_DIR = RESOURCE_BASE_DIR / "templates"
 DATA_DIR = APP_HOME_DIR / "data"
 PIVOTS_DIR = APP_HOME_DIR / "pivots"
-LEGACY_PIVOTS_DIR = resource_path("pivots")
+LEGACY_PIVOTS_DIR = BASE_DIR / "pivots"
 
 CONFIG_PATH = DATA_DIR / "config.json"
 SETTINGS_PATH = DATA_DIR / "settings.json"
@@ -106,7 +105,9 @@ BRANDING_DIR = DATA_DIR / "branding"
 CUSTOMER_LOGO_PATH = BRANDING_DIR / "customer_logo.png"
 CUSTOMER_LOGO_META_PATH = BRANDING_DIR / "customer_logo.json"
 
-LICENSES_DIR = resource_path("licenses")
+LICENSES_DIR = BASE_DIR / "licenses"
+if not LICENSES_DIR.exists():
+    LICENSES_DIR = RESOURCE_BASE_DIR / "licenses"
 APPDATA_LICENSE_DIR = Path(os.getenv("APPDATA", str(BASE_DIR))) / "PivotDesk"
 APPDATA_LICENSE_PATH = APPDATA_LICENSE_DIR / "license.json"
 DEMO_LICENSE_PATH = LICENSES_DIR / "demo-license.json"
