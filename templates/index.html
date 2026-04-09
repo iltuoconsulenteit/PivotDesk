@@ -1749,7 +1749,7 @@ window.LICENSE_CONTEXT = {
     </div>
     <div id="sourceActionStatus" class="small" style="margin-top:8px; color:#175cd3;"></div>
 
-    <div class="card" style="margin-top:16px; margin-bottom:16px;">
+    <div class="card source-tab-panel" data-source-tab="base" style="margin-top:16px; margin-bottom:16px;">
       <div class="builder-head" style="margin-bottom:10px;">
         <div class="builder-head-left">
           <div class="section-title">Anteprima sorgente in modifica</div>
@@ -1768,7 +1768,7 @@ window.LICENSE_CONTEXT = {
       </div>
     </div>
 
-    <div class="card" style="margin-top:16px;">
+    <div class="card source-tab-panel hidden" data-source-tab="catalog" style="margin-top:16px;">
       <div class="section-title">Sorgenti disponibili</div>
       <div id="sourcesList"></div>
     </div>
@@ -1809,6 +1809,16 @@ window.LICENSE_CONTEXT = {
           </div>
           <div class="field"><label for="mergeOutputColumns">Colonne output (comma, opzionale)</label><input id="mergeOutputColumns" placeholder="es. iban,importo,_source"></div>
           <div class="builder-actions"><button id="btnRunMultiMerge" type="button">Esegui merge</button></div>
+          <div id="mergePreviewCard" class="card hidden" style="margin-top:10px; border-color:#d0d5dd;">
+            <div class="section-title" style="font-size:16px; margin-bottom:6px;">Anteprima unione sorgenti</div>
+            <div id="mergePreviewMeta" class="preview-card-meta">Esegui il merge per visualizzare le prime righe.</div>
+            <div class="preview-table-wrap">
+              <table id="mergePreviewTable" class="preview-table">
+                <thead></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </div>
       <div style="margin-top:10px;">
@@ -3196,6 +3206,31 @@ function setSourcePluginOutput(payload){
   }
 }
 
+function renderMergePreview(payload){
+  const card = document.getElementById("mergePreviewCard");
+  const meta = document.getElementById("mergePreviewMeta");
+  const thead = document.querySelector("#mergePreviewTable thead");
+  const tbody = document.querySelector("#mergePreviewTable tbody");
+  if (!card || !meta || !thead || !tbody) return;
+  const columns = Array.isArray(payload?.columns) ? payload.columns.map(String) : [];
+  const rows = Array.isArray(payload?.rows) ? payload.rows : [];
+  if (!columns.length) {
+    meta.textContent = "Nessuna colonna disponibile nell'anteprima merge.";
+    thead.innerHTML = "";
+    tbody.innerHTML = "";
+    card.classList.remove("hidden");
+    return;
+  }
+  const maxRows = 20;
+  const shown = rows.slice(0, maxRows);
+  meta.textContent = "Righe merge mostrate: " + shown.length + " / " + String(payload?.row_count ?? rows.length);
+  thead.innerHTML = "<tr>" + columns.map(c => "<th>" + escapeHtml(c) + "</th>").join("") + "</tr>";
+  tbody.innerHTML = shown
+    .map(row => "<tr>" + columns.map(c => "<td>" + escapeHtml(row?.[c]) + "</td>").join("") + "</tr>")
+    .join("");
+  card.classList.remove("hidden");
+}
+
 async function loadPluginSourcesIntoSelect(selectId){
   const sel = document.getElementById(selectId);
   if (!sel) return;
@@ -3392,10 +3427,12 @@ function setPluginToolTab(tab){
   const key = String(tab || "lookup").toLowerCase() === "merge" ? "merge" : "lookup";
   const lookupPane = document.getElementById("pluginToolLookup");
   const mergePane = document.getElementById("pluginToolMerge");
+  const mergePreview = document.getElementById("mergePreviewCard");
   const lookupBtn = document.getElementById("btnPluginTabLookup");
   const mergeBtn = document.getElementById("btnPluginTabMerge");
   if (lookupPane) lookupPane.classList.toggle("hidden", key !== "lookup");
   if (mergePane) mergePane.classList.toggle("hidden", key !== "merge");
+  if (mergePreview && key !== "merge") mergePreview.classList.add("hidden");
   if (lookupBtn) lookupBtn.classList.toggle("active", key === "lookup");
   if (mergeBtn) mergeBtn.classList.toggle("active", key === "merge");
 }
@@ -3454,6 +3491,7 @@ async function runMultiSourceMergeFromUi(){
     })
   });
   setSourcePluginOutput(res);
+  renderMergePreview(res);
   setStatus("Merge multi-source completato.");
 }
 
