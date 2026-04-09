@@ -42,6 +42,17 @@ def resource_path(*parts: str) -> Path:
 BASE_DIR = base_dir()
 
 
+def set_windows_app_user_model_id() -> None:
+    if not sys.platform.startswith("win"):
+        return
+    try:
+        import ctypes
+
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("PivotDesk.Tray")
+    except Exception:
+        pass
+
+
 def appdata_dir() -> Path:
     roaming = os.getenv("APPDATA")
     if roaming:
@@ -253,24 +264,32 @@ def show_startup_splash() -> None:
         root.title("PivotDesk")
         root.overrideredirect(True)
         root.attributes("-topmost", True)
+        try:
+            icon_path = resource_path("static", "img", "pivotdesk-icon.png")
+            if icon_path.exists():
+                icon_img = tk.PhotoImage(file=str(icon_path))
+                root.iconphoto(True, icon_img)
+                root._pivotdesk_icon = icon_img
+        except Exception:
+            pass
         width, height = 360, 120
         x = max(0, (root.winfo_screenwidth() // 2) - (width // 2))
         y = max(0, (root.winfo_screenheight() // 2) - (height // 2))
         root.geometry(f"{width}x{height}+{x}+{y}")
-        frame = tk.Frame(root, bg="#0f172a")
+        frame = tk.Frame(root, bg="#0b1220")
         frame.pack(fill="both", expand=True)
         tk.Label(
             frame,
             text="PivotDesk",
             fg="#f8fafc",
-            bg="#0f172a",
+            bg="#0b1220",
             font=("Segoe UI", 16, "bold"),
         ).pack(pady=(24, 4))
         tk.Label(
             frame,
             text="Avvio in corso...",
             fg="#cbd5e1",
-            bg="#0f172a",
+            bg="#0b1220",
             font=("Segoe UI", 10),
         ).pack()
         _splash_root = root
@@ -439,6 +458,7 @@ def cleanup() -> None:
 
 
 def main() -> None:
+    set_windows_app_user_model_id()
     atexit.register(cleanup)
     write_pid_file(TRAY_PID_FILE, os.getpid())
 

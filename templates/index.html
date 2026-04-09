@@ -1796,7 +1796,29 @@ window.LICENSE_CONTEXT = {
       <div id="pluginToolMerge" class="plugin-tool-pane hidden">
         <div class="plugin-tool-card">
           <div style="font-weight:600; margin-bottom:6px;">Multi source merge</div>
-          <div class="small" style="margin-bottom:8px;">Builder guidato merge (dropdown + mappature)</div>
+          <div class="small" style="margin-bottom:8px;">Crea template intestazioni, abbina i campi sorgente e accoda le righe.</div>
+          <div class="builder-top" style="margin-bottom:8px;">
+            <div class="field">
+              <label for="mergeTemplateSelect">Template salvato</label>
+              <select id="mergeTemplateSelect">
+                <option value="">Nessun template selezionato</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="mergeTemplateColumns">Intestazioni template (comma)</label>
+              <input id="mergeTemplateColumns" placeholder="es. cliente,iban,importo,data">
+            </div>
+          </div>
+          <div class="builder-top" style="margin-bottom:8px;">
+            <div class="field"><label for="mergeTemplateId">Template ID</label><input id="mergeTemplateId" placeholder="es. estratti_bancari_unificati"></div>
+            <div class="field"><label for="mergeTemplateTitle">Template titolo</label><input id="mergeTemplateTitle" placeholder="es. Estratti bancari unificati"></div>
+          </div>
+          <div class="builder-actions" style="margin-bottom:8px;">
+            <button id="btnLoadMergeTemplates" type="button">Ricarica template</button>
+            <button id="btnSaveMergeTemplate" type="button">Salva template</button>
+            <button id="btnApplyTemplateToMappings" type="button">Suggerisci mapping da template</button>
+            <button id="btnRunMultiMergeFromTemplate" type="button" class="primary">Esegui merge da template</button>
+          </div>
           <div id="mergeSourceBlocks" style="display:grid; gap:8px; margin-bottom:8px;"></div>
           <div class="builder-actions" style="margin-bottom:8px;">
             <button id="btnAddMergeSourceBlock" type="button">Aggiungi sorgente merge</button>
@@ -3336,6 +3358,123 @@ async function refreshLookupBuilders(){
 }
 
 let MERGE_BLOCK_COUNTER = 0;
+let MERGE_TEMPLATES = [];
+
+function getMergeTemplateColumnsFromUi(){
+  return String(document.getElementById("mergeTemplateColumns")?.value || "")
+    .split(",")
+    .map(x => x.trim())
+    .filter(Boolean);
+}
+
+function normalizeTemplateIdFromTitle(value){
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, "_")
+    .replace(/^[_\-.]+|[_\-.]+$/g, "")
+    .slice(0, 80);
+}
+
+async function loadMergeTemplatesIntoUi(keepSelection = true){
+  const sel = document.getElementById("mergeTemplateSelect");
+  if (!sel) return [];
+  const current = keepSelection ? String(sel.value || "").trim() : "";
+  const res = await api("/plugin/multi-source-merge/template/list");
+  MERGE_TEMPLATES = Array.isArray(res?.templates) ? res.templates : [];
+  sel.innerHTML = '<option value="">Nessun template selezionato</option>';
+  MERGE_TEMPLATES.forEach(tpl => {
+    const id = String(tpl?.template_id || "").trim();
+    if (!id) return;
+    const o = document.createElement("option");
+    o.value = id;
+    o.textContent = (tpl?.title ? String(tpl.title) + " (" + id + ")" : id);
+    sel.appendChild(o);
+  });
+  if (current && MERGE_TEMPLATES.some(t => String(t?.template_id || "").trim() === current)) {
+    sel.value = current;
+  }
+  return MERGE_TEMPLATES;
+}
+
+function applySelectedMergeTemplateToUi(){
+  const sel = document.getElementById("mergeTemplateSelect");
+  const idEl = document.getElementById("mergeTemplateId");
+  const titleEl = document.getElementById("mergeTemplateTitle");
+  const colsEl = document.getElementById("mergeTemplateColumns");
+  const outputColsEl = document.getElementById("mergeOutputColumns");
+  if (!sel || !idEl || !titleEl || !colsEl) return null;
+  const wanted = String(sel.value || "").trim();
+  const tpl = MERGE_TEMPLATES.find(x => String(x?.template_id || "").trim() === wanted) || null;
+  if (!tpl) return null;
+  idEl.value = String(tpl.template_id || "");
+  titleEl.value = String(tpl.title || tpl.template_id || "");
+  const cols = Array.isArray(tpl.columns) ? tpl.columns.map(String).filter(Boolean) : [];
+  colsEl.value = cols.join(",");
+  if (outputColsEl) outputColsEl.value = cols.join(",");
+  return tpl;
+}
+
+async function saveMergeTemplateFromUi(){
+  const titleEl = document.getElementById("mergeTemplateTitle");
+  const idEl = document.getElementById("mergeTemplateId");
+  const cols = getMergeTemplateColumnsFromUi();
+  const title = String(titleEl?.value || "").trim();
+  let templateId = String(idEl?.value || "").trim();
+  if (!templateId) templateId = normalizeTemplateIdFromTitle(title);
+  if (!templateId) throw new Error("Inserisci template ID o titolo valido.");
+  if (!title) throw new Error("Inserisci un titolo template.");
+  if (!cols.length) throw new Error("Inserisci almeno una intestazione template.");
+  await api("/plugin/multi-source-merge/template/save", {
+    method: "POST",
+    body: JSON.stringify({
+      template_id: templateId,
+      title,
+      columns: cols,
+      include_source_tag: true,
+      overwrite: true
+    })
+  });
+  await loadMergeTemplatesIntoUi(false);
+  const sel = document.getElementById("mergeTemplateSelect");
+  if (sel) sel.value = templateId;
+  setStatus("Template merge salvato: " + templateId);
+}
+
+async function suggestTemplateMappingForBlock(block, templateColumns){
+  const sourceId = String(block?.querySelector("[data-merge-source]")?.value || "").trim();
+  if (!sourceId || !Array.isArray(templateColumns) || !templateColumns.length) return;
+  const res = await api("/plugin/multi-source-merge/template/suggest-map", {
+    method: "POST",
+    body: JSON.stringify({
+      source_id: sourceId,
+      template_columns: templateColumns
+    })
+  });
+  const suggestions = res?.suggestions && typeof res.suggestions === "object" ? res.suggestions : {};
+  const mapWrap = block.querySelector("[data-merge-mappings]");
+  if (!mapWrap) return;
+  mapWrap.innerHTML = "";
+  for (const target of templateColumns) {
+    const sourceField = String(suggestions[target] || "").trim();
+    await block._addMapRow(String(target), sourceField);
+  }
+}
+
+async function applyTemplateToAllMappingsFromUi(){
+  const cols = getMergeTemplateColumnsFromUi();
+  if (!cols.length) throw new Error("Definisci prima le intestazioni template.");
+  const wrap = document.getElementById("mergeSourceBlocks");
+  if (!wrap) return;
+  const blocks = Array.from(wrap.querySelectorAll("div[id^='mergeBlock']"));
+  for (const block of blocks) {
+    await suggestTemplateMappingForBlock(block, cols);
+  }
+  const outputColsEl = document.getElementById("mergeOutputColumns");
+  if (outputColsEl) outputColsEl.value = cols.join(",");
+  suggestMergeSourceIdentity(false);
+  setStatus("Mapping template applicato alle sorgenti selezionate.");
+}
 
 async function addMergeSourceBlock(initial = null){
   const wrap = document.getElementById("mergeSourceBlocks");
@@ -3350,7 +3489,7 @@ async function addMergeSourceBlock(initial = null){
   block.innerHTML =
     "<div class='field'><label>Sorgente</label><select data-merge-source></select></div>" +
     "<div data-merge-mappings style='display:grid; gap:6px;'></div>" +
-    "<div class='builder-actions'><button type='button' data-merge-add-map>Aggiungi mappatura</button><button type='button' data-merge-remove-block>Rimuovi sorgente</button></div>";
+    "<div class='builder-actions'><button type='button' data-merge-add-map>Aggiungi mappatura</button><button type='button' data-merge-suggest-map>Suggerisci da template</button><button type='button' data-merge-remove-block>Rimuovi sorgente</button></div>";
   wrap.appendChild(block);
 
   const sourceSel = block.querySelector("select[data-merge-source]");
@@ -3392,6 +3531,14 @@ async function addMergeSourceBlock(initial = null){
   };
 
   block.querySelector("[data-merge-add-map]").onclick = () => addMapRow();
+  block.querySelector("[data-merge-suggest-map]").onclick = async () => {
+    try {
+      await suggestTemplateMappingForBlock(block, getMergeTemplateColumnsFromUi());
+      setStatus("Mapping suggerito per la sorgente.");
+    } catch (e) {
+      setStatus("ERRORE mapping template: " + e.message);
+    }
+  };
   block.querySelector("[data-merge-remove-block]").onclick = () => {
     block.remove();
     suggestMergeSourceIdentity(false);
@@ -3424,6 +3571,7 @@ async function addMergeSourceBlock(initial = null){
   } else {
     await addMapRow();
   }
+  block._addMapRow = addMapRow;
   suggestMergeSourceIdentity(false);
 }
 
@@ -3537,15 +3685,34 @@ function buildMultiMergePayloadFromUi(){
   }
   if (!Array.isArray(sources) || !sources.length) throw new Error("Il JSON deve contenere un array di sorgenti.");
   const outputColumnsInput = document.getElementById("mergeOutputColumns");
-  const outputColumns = outputColumnsInput && !outputColumnsInput.disabled
-    ? String(outputColumnsInput.value || "").split(",").map(x => x.trim()).filter(Boolean)
-    : [];
+  let outputColumns = getMergeTemplateColumnsFromUi();
+  if (!outputColumns.length && outputColumnsInput && !outputColumnsInput.disabled) {
+    outputColumns = String(outputColumnsInput.value || "").split(",").map(x => x.trim()).filter(Boolean);
+  }
   return {
     sources,
     output_columns: outputColumns,
     include_source_tag: true,
     limit: 1000
   };
+}
+
+async function runMultiSourceMergeFromTemplateUi(){
+  const templateId = String(document.getElementById("mergeTemplateSelect")?.value || "").trim();
+  if (!templateId) throw new Error("Seleziona un template salvato.");
+  const sources = buildMergeSourcesJsonFromBuilder();
+  if (!sources.length) throw new Error("Aggiungi almeno una sorgente da accodare.");
+  const res = await api("/plugin/multi-source-merge/build-from-template", {
+    method: "POST",
+    body: JSON.stringify({
+      template_id: templateId,
+      sources,
+      limit: 1000
+    })
+  });
+  setSourcePluginOutput(res);
+  renderMergePreview(res);
+  setStatus("Merge da template completato: " + templateId);
 }
 
 async function saveMultiSourceMergeAsSourceFromUi(){
@@ -3588,6 +3755,12 @@ async function initSourcePluginBuilders(){
   const selectedDrop = document.getElementById("lkPickFieldsSelected");
   const addMergeBtn = document.getElementById("btnAddMergeSourceBlock");
   const genMergeBtn = document.getElementById("btnGenerateMergeJson");
+  const loadTemplatesBtn = document.getElementById("btnLoadMergeTemplates");
+  const saveTemplateBtn = document.getElementById("btnSaveMergeTemplate");
+  const applyTemplateBtn = document.getElementById("btnApplyTemplateToMappings");
+  const runFromTemplateBtn = document.getElementById("btnRunMultiMergeFromTemplate");
+  const mergeTemplateSel = document.getElementById("mergeTemplateSelect");
+  const mergeTemplateTitle = document.getElementById("mergeTemplateTitle");
   const tabLookupBtn = document.getElementById("btnPluginTabLookup");
   const tabMergeBtn = document.getElementById("btnPluginTabMerge");
   const toggleMergeAdvancedBtn = document.getElementById("btnToggleMergeAdvanced");
@@ -3638,6 +3811,46 @@ async function initSourcePluginBuilders(){
       setStatus("JSON merge generato dal builder guidato.");
     });
   }
+  if (loadTemplatesBtn && !loadTemplatesBtn.dataset.bound) {
+    loadTemplatesBtn.dataset.bound = "1";
+    loadTemplatesBtn.addEventListener("click", async () => {
+      await loadMergeTemplatesIntoUi(true);
+      setStatus("Template merge aggiornati.");
+    });
+  }
+  if (saveTemplateBtn && !saveTemplateBtn.dataset.bound) {
+    saveTemplateBtn.dataset.bound = "1";
+    saveTemplateBtn.addEventListener("click", async () => {
+      await saveMergeTemplateFromUi();
+    });
+  }
+  if (applyTemplateBtn && !applyTemplateBtn.dataset.bound) {
+    applyTemplateBtn.dataset.bound = "1";
+    applyTemplateBtn.addEventListener("click", async () => {
+      await applyTemplateToAllMappingsFromUi();
+    });
+  }
+  if (runFromTemplateBtn && !runFromTemplateBtn.dataset.bound) {
+    runFromTemplateBtn.dataset.bound = "1";
+    runFromTemplateBtn.addEventListener("click", async () => {
+      await runMultiSourceMergeFromTemplateUi();
+    });
+  }
+  if (mergeTemplateSel && !mergeTemplateSel.dataset.bound) {
+    mergeTemplateSel.dataset.bound = "1";
+    mergeTemplateSel.addEventListener("change", () => {
+      applySelectedMergeTemplateToUi();
+    });
+  }
+  if (mergeTemplateTitle && !mergeTemplateTitle.dataset.bound) {
+    mergeTemplateTitle.dataset.bound = "1";
+    mergeTemplateTitle.addEventListener("blur", () => {
+      const idEl = document.getElementById("mergeTemplateId");
+      if (!idEl || String(idEl.value || "").trim()) return;
+      idEl.value = normalizeTemplateIdFromTitle(mergeTemplateTitle.value);
+    });
+  }
+  await loadMergeTemplatesIntoUi(true).catch(() => []);
   if (tabLookupBtn && !tabLookupBtn.dataset.bound) {
     tabLookupBtn.dataset.bound = "1";
     tabLookupBtn.addEventListener("click", () => setPluginToolTab("lookup"));

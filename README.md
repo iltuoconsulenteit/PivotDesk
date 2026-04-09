@@ -161,6 +161,7 @@ The following diagrams are visual examples derived from the HTML layout structur
 - Multi-source merge plugin can now persist merge output as a generated CSV source in `DATA_DIR/generated_sources`, so merged datasets can be reused like normal sources.
 - Multi-source merge plugin also exposes template helpers: `POST /plugin/multi-source-merge/template/headers` (derive template columns from source or CSV/XLSX/ODS headers) and `POST /plugin/multi-source-merge/template/suggest-map` (auto-suggest target/source field mapping for guided drag/drop linking UX).
 - Multi-source merge plugin now supports template persistence + execution: create/list/get/delete templates (`/template/save`, `/template/list`, `/template/{id}`) and run append/union merges from a selected template (`POST /plugin/multi-source-merge/build-from-template`) so mapped rows from selected sources are appended under the same target headers.
+- Source Manager plugin panel includes a guided template-first merge flow (save/load template headers, auto-suggest mappings per source, run merge from template) for schema-aligned append across heterogeneous sources.
 
 Plugin visibility/enablement:
 - `GET /plugins/status` shows runtime status + license allow/deny flags.
@@ -170,6 +171,7 @@ Plugin visibility/enablement:
 
 Startup UX:
 - `main.py` now shows a startup splash (logo + progress bar) while waiting for server readiness.
+- Windows launcher/tray set an explicit AppUserModelID and load PivotDesk icon in startup windows to avoid generic Python taskbar icon in embedded/runtime launches.
 
 ---
 
