@@ -31,6 +31,22 @@ class MultiMergeSaveRequest(MultiMergeRequest):
     set_default: bool = False
 
 
+class MergeTemplateHeadersRequest(BaseModel):
+    source_id: str | None = None
+    file_path: str | None = None
+    file_type: str | None = None
+    delimiter: str = ","
+    encoding: str = "utf-8-sig"
+    sheet_name: str | int | None = 0
+    limit: int = Field(default=500, ge=1, le=5000)
+
+
+class MergeMapSuggestionRequest(BaseModel):
+    source_id: str
+    template_columns: list[str] = Field(default_factory=list)
+    calculated_fields: list[dict[str, Any]] = Field(default_factory=list)
+
+
 def _apply_calc(df, defs: list[dict[str, Any]]):
     if not defs:
         return df
@@ -66,6 +82,61 @@ def _resolve_numeric_source_id(bundle: dict[str, Any], requested: str) -> str:
     while next_id in used_ids:
         next_id += 1
     return str(next_id)
+
+
+def _normalize_label(value: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "", str(value or "").strip().lower())
+
+
+def _load_headers_from_file(payload: MergeTemplateHeadersRequest) -> list[str]:
+    path = str(payload.file_path or "").strip()
+    if not path:
+        raise HTTPException(status_code=400, detail="file_path obbligatorio")
+    file_type = str(payload.file_type or "").strip().lower()
+    if not file_type:
+        low = path.lower()
+        if low.endswith(".csv"):
+            file_type = "csv"
+        elif low.endswith(".xlsx") or low.endswith(".xlsm") or low.endswith(".xls"):
+            file_type = "excel"
+        elif low.endswith(".ods"):
+            file_type = "ods"
+
+    if file_type == "csv":
+        with open(path, "r", encoding=payload.encoding, newline="") as f:
+            reader = csv.reader(f, delimiter=payload.delimiter or ",")
+            first = next(reader, [])
+            return [str(v).strip() for v in first if str(v).strip()][: payload.limit]
+
+    if file_type in {"excel", "xlsx", "xls", "ods"}:
+        import pandas as pd
+
+        df = pd.read_excel(path, sheet_name=payload.sheet_name, nrows=0)
+        return [str(c).strip() for c in list(df.columns) if str(c).strip()][: payload.limit]
+
+    raise HTTPException(status_code=400, detail="file_type non supportato (usa csv/excel/ods)")
+
+
+def _build_map_suggestions(df_columns: list[str], template_columns: list[str]) -> dict[str, str]:
+    source_by_norm: dict[str, str] = {}
+    for src_col in df_columns:
+        norm = _normalize_label(src_col)
+        if norm and norm not in source_by_norm:
+            source_by_norm[norm] = src_col
+
+    out: dict[str, str] = {}
+    for target in template_columns:
+        norm = _normalize_label(target)
+        if not norm:
+            continue
+        if norm in source_by_norm:
+            out[target] = source_by_norm[norm]
+            continue
+        for src_norm, src_col in source_by_norm.items():
+            if norm in src_norm or src_norm in norm:
+                out[target] = src_col
+                break
+    return out
 
 
 def _build_merge_result(plugin_api, payload: MultiMergeRequest) -> dict[str, Any]:
@@ -116,6 +187,34 @@ def register(app, plugin_api, manifest):
         if not plugin_api.get_source or not plugin_api.load_dataframe_from_source:
             raise HTTPException(status_code=500, detail="Plugin API incompleta")
         return _build_merge_result(plugin_api, payload)
+
+    @router.post("/template/headers")
+    def resolve_template_headers(payload: MergeTemplateHeadersRequest):
+        if payload.source_id:
+            source = plugin_api.get_source(payload.source_id)
+            df = plugin_api.load_dataframe_from_source(source)
+            headers = [str(c).strip() for c in list(df.columns) if str(c).strip()][: payload.limit]
+            return {"ok": True, "mode": "source", "headers": headers, "count": len(headers)}
+
+        headers = _load_headers_from_file(payload)
+        return {"ok": True, "mode": "file", "headers": headers, "count": len(headers)}
+
+    @router.post("/template/suggest-map")
+    def suggest_map(payload: MergeMapSuggestionRequest):
+        if not plugin_api.get_source or not plugin_api.load_dataframe_from_source:
+            raise HTTPException(status_code=500, detail="Plugin API incompleta")
+        source = plugin_api.get_source(payload.source_id)
+        df = plugin_api.load_dataframe_from_source(source)
+        df = _apply_calc(df, payload.calculated_fields)
+        source_columns = [str(c).strip() for c in list(df.columns) if str(c).strip()]
+        suggestions = _build_map_suggestions(source_columns, payload.template_columns)
+        return {
+            "ok": True,
+            "source_id": payload.source_id,
+            "source_columns": source_columns,
+            "template_columns": payload.template_columns,
+            "suggestions": suggestions,
+        }
 
     @router.post("/build-and-save-source")
     def merge_and_save_source(payload: MultiMergeSaveRequest):

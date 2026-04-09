@@ -159,6 +159,7 @@ The following diagrams are visual examples derived from the HTML layout structur
 - Optional plugin `google_account_sheets` (disabled by default) enables OAuth device-flow authentication for private Google Drive Sheets and can be licensed as a Pro/Full add-on.
 - For direct Google connect from Source Manager, set OAuth credentials once via env (`PIVOTDESK_GOOGLE_CLIENT_ID`, `PIVOTDESK_GOOGLE_CLIENT_SECRET`) or `config.json` under `google_oauth.client_id` / `google_oauth.client_secret`.
 - Multi-source merge plugin can now persist merge output as a generated CSV source in `DATA_DIR/generated_sources`, so merged datasets can be reused like normal sources.
+- Multi-source merge plugin also exposes template helpers: `POST /plugin/multi-source-merge/template/headers` (derive template columns from source or CSV/XLSX/ODS headers) and `POST /plugin/multi-source-merge/template/suggest-map` (auto-suggest target/source field mapping for guided drag/drop linking UX).
 
 Plugin visibility/enablement:
 - `GET /plugins/status` shows runtime status + license allow/deny flags.
