@@ -1599,8 +1599,8 @@ window.LICENSE_CONTEXT = {
 
     <div class="builder-top">
       <div class="field">
-        <label for="srcId">ID sorgente</label>
-        <input id="srcId" placeholder="es. fogliocassa">
+        <label for="srcId">ID sorgente (automatico)</label>
+        <input id="srcId" placeholder="Generato automaticamente" readonly>
       </div>
       <div class="field">
         <label for="srcTitle">Titolo</label>
@@ -3188,8 +3188,8 @@ function setSourceManagerTab(tab){
 function startNewSourceFlow(){
   openSourcesScreen();
   resetSourceForm();
-  const idInput = document.getElementById("srcId");
-  if (idInput) idInput.focus();
+  const titleInput = document.getElementById("srcTitle");
+  if (titleInput) titleInput.focus();
   setStatus("Nuova sorgente.");
 }
 
@@ -3843,12 +3843,17 @@ function inferSourceIdentityFromPath(pathValue){
 }
 
 function autoFillSourceIdentityFromPath(pathValue){
-  const idEl = document.getElementById("srcId");
   const titleEl = document.getElementById("srcTitle");
-  if (!idEl || !titleEl) return;
+  if (!titleEl) return;
   const inferred = inferSourceIdentityFromPath(pathValue);
-  if (!idEl.value.trim() && inferred.id) idEl.value = inferred.id;
   if (!titleEl.value.trim() && inferred.title) titleEl.value = inferred.title;
+}
+
+function getNextNumericSourceId(){
+  const used = (SOURCES || [])
+    .map(src => parseInt(String(src?.id || "").trim(), 10))
+    .filter(n => Number.isFinite(n) && n > 0);
+  return String((used.length ? Math.max(...used) : 0) + 1);
 }
 
 function setGsheetWizardStatus(msg){
@@ -4023,7 +4028,7 @@ function gsheetWizardApplyToSource(){
   const titleSel = document.getElementById("gswSpreadsheetSelect");
   const spreadsheetName = String(titleSel?.options?.[titleSel.selectedIndex]?.textContent || "").trim();
   if (!document.getElementById("srcId").value.trim()) {
-    document.getElementById("srcId").value = normalizeConnectionIdFromEmail(spreadsheetName || spreadsheetId);
+    document.getElementById("srcId").value = getNextNumericSourceId();
   }
   if (!document.getElementById("srcTitle").value.trim() && spreadsheetName) {
     document.getElementById("srcTitle").value = spreadsheetName;
@@ -4400,7 +4405,7 @@ function closeSourcePreviewModal(){
 
 function resetSourceForm(){
   CURRENT_SOURCE_EDIT = null;
-  document.getElementById("srcId").value = "";
+  document.getElementById("srcId").value = getNextNumericSourceId();
   document.getElementById("srcTitle").value = "";
   document.getElementById("srcType").value = "csv";
   document.getElementById("srcPath").value = "";
@@ -4429,7 +4434,7 @@ function resetSourceForm(){
 
 function loadSourceIntoForm(src){
   CURRENT_SOURCE_EDIT = src.id;
-  document.getElementById("srcId").value = src.id || "";
+  document.getElementById("srcId").value = String(src.id || "");
   document.getElementById("srcTitle").value = src.title || "";
   document.getElementById("srcType").value = src.type || "csv";
   document.getElementById("srcPath").value = src.path || src.config?.path || "";
@@ -4496,7 +4501,9 @@ function renderSourcesManager(){
 
 async function saveSourceFromForm(){
   const payload = collectSourceFormPayload();
-  payload.id = document.getElementById("srcId").value.trim();
+  const currentId = document.getElementById("srcId").value.trim();
+  payload.id = currentId || getNextNumericSourceId();
+  document.getElementById("srcId").value = payload.id;
   payload.title = document.getElementById("srcTitle").value.trim();
   payload.make_default = document.getElementById("srcDefault").checked;
   if (!payload.id) throw new Error("ID sorgente obbligatorio");
