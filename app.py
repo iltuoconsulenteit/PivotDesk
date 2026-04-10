@@ -1469,6 +1469,8 @@ def load_dataframe_with_source_calculated_fields(
     out_df = df.copy()
     out_df.columns = [str(c).strip() for c in out_df.columns]
     out_df = out_df.fillna("")
+    source_aliases = get_source_column_aliases(source)
+    out_df = apply_column_aliases_to_dataframe(out_df, source_aliases)
     out_df = apply_calculated_fields_to_dataframe(out_df, source_calculated_fields)
 
     size_mb = _estimate_dataframe_size_mb(out_df)
@@ -1620,6 +1622,50 @@ def get_source_calculated_fields(source: dict[str, Any] | None) -> list[dict[str
     return sanitize_calculated_fields(from_config if isinstance(from_config, list) else [])
 
 
+def sanitize_column_aliases(raw: Any) -> dict[str, str]:
+    if isinstance(raw, list):
+        out: dict[str, str] = {}
+        for row in raw:
+            if not isinstance(row, dict):
+                continue
+            src = str(row.get("source") or row.get("from") or "").strip()
+            alias = str(row.get("alias") or row.get("to") or "").strip()
+            if src and alias:
+                out[src] = alias
+        return out
+    if not isinstance(raw, dict):
+        return {}
+    out: dict[str, str] = {}
+    for src, alias in raw.items():
+        left = str(src or "").strip()
+        right = str(alias or "").strip()
+        if left and right:
+            out[left] = right
+    return out
+
+
+def get_source_column_aliases(source: dict[str, Any] | None) -> dict[str, str]:
+    if not isinstance(source, dict):
+        return {}
+    config = source.get("config") if isinstance(source.get("config"), dict) else {}
+    from_source = sanitize_column_aliases(source.get("column_aliases"))
+    if from_source:
+        return from_source
+    return sanitize_column_aliases(config.get("column_aliases"))
+
+
+def apply_column_aliases_to_dataframe(df: pd.DataFrame, aliases: dict[str, str]) -> pd.DataFrame:
+    if not aliases:
+        return df
+    rename_map = {}
+    for src, alias in aliases.items():
+        if src in df.columns:
+            rename_map[src] = alias
+    if not rename_map:
+        return df
+    return df.rename(columns=rename_map)
+
+
 def apply_calculated_fields_to_dataframe(
     df: pd.DataFrame,
     calculated_fields: list[dict[str, Any]] | None,
@@ -1673,6 +1719,7 @@ def _source_cache_key(source: dict[str, Any], source_calculated_fields: list[dic
         "table": str(cfg.get("table") or "").strip(),
         "connection_id": str(cfg.get("connection_id") or "").strip(),
         "calc": source_calculated_fields,
+        "column_aliases": get_source_column_aliases(source),
         "stamp": _source_cache_invalidation_fingerprint(source),
     }
     raw = json.dumps(payload, ensure_ascii=False, sort_keys=True)
@@ -2121,6 +2168,7 @@ def build_source_from_payload(payload: dict[str, Any]) -> dict[str, Any]:
         "spreadsheet_id",
         "worksheet",
         "range",
+        "column_aliases",
     ):
         if key in cfg_payload and cfg_payload.get(key) not in (None, ""):
             config[key] = cfg_payload.get(key)

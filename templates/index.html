@@ -1631,6 +1631,11 @@ window.LICENSE_CONTEXT = {
         <input id="srcTitle" placeholder="es. Foglio Cassa">
       </div>
     </div>
+    <div class="field">
+      <label for="srcColumnAliasesJson">Alias colonne (JSON, opzionale)</label>
+      <textarea id="srcColumnAliasesJson" style="width:100%; min-height:80px;" placeholder='{"Intestazione originale":"Alias leggibile"}'></textarea>
+      <div class="small">Gli alias rinominano le intestazioni in anteprima, pivot e plugin (senza modificare il file sorgente).</div>
+    </div>
 
     <div class="builder-top" id="srcMysqlFields">
       <div class="field">
@@ -1890,10 +1895,15 @@ window.LICENSE_CONTEXT = {
 
           <div class="merge-card actions">
             <div style="font-weight:600; color:#b54708; margin-bottom:8px;">3) Esegui / salva risultato</div>
+            <div class="small" style="margin-bottom:8px; color:#7a2e0e;">
+              <b>Esegui merge da template</b> usa obbligatoriamente le intestazioni del template selezionato.
+              <b>Esegui merge</b> usa il mapping corrente del builder (anche senza template).
+            </div>
             <div class="builder-actions" style="margin-bottom:8px;">
               <button id="btnRunMultiMergeFromTemplate" type="button" class="primary">Esegui merge da template</button>
-              <button id="btnRunMultiMerge" type="button">Esegui merge</button>
+              <button id="btnRunMultiMerge" type="button">Anteprima merge</button>
               <button id="btnSaveMultiMergeSource" type="button" class="primary">Salva come nuova sorgente</button>
+              <button id="btnRefreshMultiMergeSource" type="button">Aggiorna sorgente merge</button>
             </div>
           </div>
 
@@ -3925,7 +3935,7 @@ async function runMultiSourceMergeFromUi(){
   });
   setSourcePluginOutput(res);
   renderMergePreview(res);
-  setStatus("Merge multi-source completato.");
+  setStatus("Anteprima merge completata.");
 }
 
 function buildMultiMergePayloadFromUi(){
@@ -3996,6 +4006,30 @@ async function saveMultiSourceMergeAsSourceFromUi(){
   }
   await refreshAll().catch(() => {});
   setStatus("Nuova sorgente merge salvata: " + source_id);
+}
+
+async function refreshMultiMergeSourceFromUi(){
+  const base = buildMultiMergePayloadFromUi();
+  const source_id = String(document.getElementById("mergeNewSourceId")?.value || "").trim();
+  const source_title = String(document.getElementById("mergeNewSourceTitle")?.value || "").trim();
+  if (!source_id) throw new Error("Imposta un source_id merge da aggiornare.");
+  const res = await api("/plugin/multi-source-merge/build-and-save-source", {
+    method: "POST",
+    body: JSON.stringify({
+      ...base,
+      source_id,
+      source_title: source_title || ("Merge " + source_id),
+      set_default: false
+    })
+  });
+  if (res?.merge) {
+    renderMergePreview(res.merge);
+    setSourcePluginOutput(res.merge);
+  } else {
+    setSourcePluginOutput(res);
+  }
+  await refreshAll().catch(() => {});
+  setStatus("Sorgente merge aggiornata: " + source_id);
 }
 
 function closeSourcesScreen(){
@@ -4849,6 +4883,22 @@ function collectSourceFormPayload(){
     config.worksheet = document.getElementById("srcGsheetWorksheet").value.trim();
     config.range = document.getElementById("srcGsheetRange").value.trim();
   }
+  let columnAliases = {};
+  const aliasRaw = String(document.getElementById("srcColumnAliasesJson")?.value || "").trim();
+  if (aliasRaw) {
+    try {
+      const parsed = JSON.parse(aliasRaw);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        columnAliases = parsed;
+      } else {
+        throw new Error("usa oggetto JSON");
+      }
+    } catch (e) {
+      throw new Error("Alias colonne non valido: " + e.message);
+    }
+  }
+  if (Object.keys(columnAliases).length) config.column_aliases = columnAliases;
+  else delete config.column_aliases;
 
   const sourceCalculatedFields = normalizeSourceCalcItems(SOURCE_CALC_DRAFT);
   if (sourceCalculatedFields.length) {
@@ -4865,6 +4915,7 @@ function collectSourceFormPayload(){
     encoding: config.encoding,
     sheet_name: config.sheet_name,
     skip_rows: config.skip_rows,
+    column_aliases: columnAliases,
     calculated_fields: sourceCalculatedFields,
     config
   };
@@ -4989,6 +5040,7 @@ function resetSourceForm(){
   document.getElementById("srcGsheetSpreadsheetId").value = "";
   document.getElementById("srcGsheetWorksheet").value = "";
   document.getElementById("srcGsheetRange").value = "";
+  document.getElementById("srcColumnAliasesJson").value = "";
   document.getElementById("srcCalculatedFieldsJson").value = "";
   renderSourceCalcRows([]);
   document.getElementById("srcDefault").checked = false;
@@ -5018,6 +5070,10 @@ function loadSourceIntoForm(src){
   document.getElementById("srcGsheetSpreadsheetId").value = src.config?.spreadsheet_id || "";
   document.getElementById("srcGsheetWorksheet").value = src.config?.worksheet || "";
   document.getElementById("srcGsheetRange").value = src.config?.range || "";
+  const sourceAliases = src.column_aliases || src.config?.column_aliases || {};
+  document.getElementById("srcColumnAliasesJson").value = Object.keys(sourceAliases || {}).length
+    ? JSON.stringify(sourceAliases, null, 2)
+    : "";
   const sourceCalc = Array.isArray(src.calculated_fields)
     ? src.calculated_fields
     : (Array.isArray(src.config?.calculated_fields) ? src.config.calculated_fields : []);
@@ -7408,6 +7464,13 @@ bindClick("btnSaveMultiMergeSource", async () => {
     await saveMultiSourceMergeAsSourceFromUi();
   } catch (e) {
     setStatus("ERRORE salvataggio merge: " + e.message);
+  }
+});
+bindClick("btnRefreshMultiMergeSource", async () => {
+  try {
+    await refreshMultiMergeSourceFromUi();
+  } catch (e) {
+    setStatus("ERRORE aggiornamento merge: " + e.message);
   }
 });
 

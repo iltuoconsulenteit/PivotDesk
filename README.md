@@ -163,6 +163,8 @@ The following diagrams are visual examples derived from the HTML layout structur
 - Multi-source merge plugin now supports template persistence + execution: create/list/get/delete templates (`/template/save`, `/template/list`, `/template/{id}`) and run append/union merges from a selected template (`POST /plugin/multi-source-merge/build-from-template`) so mapped rows from selected sources are appended under the same target headers.
 - Multi-source template ids are handled as numeric index keys (auto-assigned when omitted/invalid, hidden in UI except preview), consistent with source/pivot indexing strategy.
 - Source Manager plugin panel includes a guided template-first merge flow with drag&drop mapping (save/load template headers, drag source fields onto template slots, auto-suggest mappings per source, run merge from template), source-header import to bootstrap template columns, and quick catalog views (templates/sources/pivots) for large workspaces.
+- Source management now supports optional `column_aliases` (header alias map) so previews/pivots/plugins can show user-defined column names without changing source files.
+- Merge panel action area includes explicit preview/update flow: preview merge output, save as generated source, then refresh the same merge source id when upstream rows/sources change.
 
 Plugin visibility/enablement:
 - `GET /plugins/status` shows runtime status + license allow/deny flags.
