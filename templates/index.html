@@ -1848,10 +1848,11 @@ window.LICENSE_CONTEXT = {
                 <div class="builder-actions" style="margin-top:6px;">
                   <input id="mergeTemplateNewCol" placeholder="Nuova colonna template" style="flex:1; min-width:180px;">
                   <button id="btnAddMergeTemplateCol" type="button">Aggiungi colonna</button>
+                  <button id="btnResetMergeTemplateCols" type="button">Reset colonne</button>
                 </div>
               </div>
             </div>
-            <div id="mergeTemplateColsChips" style="display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;"></div>
+            <div id="mergeTemplateColsChips" style="display:grid; gap:6px; margin-top:6px;"></div>
             <div class="builder-top" style="margin-top:8px;">
               <div class="field"><label for="mergeTemplateTitle">Titolo template</label><input id="mergeTemplateTitle" placeholder="es. Estratti bancari unificati"></div>
               <div class="field">
@@ -3461,18 +3462,28 @@ function renderMergeTemplateColumnChips(){
   const cols = getMergeTemplateColumnsFromUi();
   wrap.innerHTML = "";
   cols.forEach((col, idx) => {
-    const chip = document.createElement("button");
-    chip.type = "button";
-    chip.textContent = col + " ×";
-    chip.style.border = "1px solid #98a2b3";
-    chip.style.background = "#fff";
-    chip.style.borderRadius = "999px";
-    chip.style.padding = "4px 10px";
-    chip.onclick = () => {
+    const row = document.createElement("div");
+    row.style.display = "grid";
+    row.style.gridTemplateColumns = "1fr auto";
+    row.style.gap = "6px";
+    const input = document.createElement("input");
+    input.value = col;
+    input.placeholder = "Nome colonna template";
+    input.addEventListener("change", () => {
+      const next = getMergeTemplateColumnsFromUi();
+      next[idx] = String(input.value || "").trim();
+      setMergeTemplateColumnsToUi(next.filter(Boolean));
+    });
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.textContent = "Rimuovi";
+    remove.onclick = () => {
       const next = cols.filter((_, i) => i !== idx);
       setMergeTemplateColumnsToUi(next);
     };
-    wrap.appendChild(chip);
+    row.appendChild(input);
+    row.appendChild(remove);
+    wrap.appendChild(row);
   });
 }
 
@@ -3571,13 +3582,8 @@ async function loadTemplateHeadersFromSourceFromUi(){
   });
   const headers = Array.isArray(res?.headers) ? res.headers.map(String).filter(Boolean) : [];
   if (!headers.length) throw new Error("Nessuna intestazione trovata.");
-  const existing = getMergeTemplateColumnsFromUi();
-  const merged = [...existing];
-  headers.forEach(h => {
-    if (!merged.includes(h)) merged.push(h);
-  });
-  setMergeTemplateColumnsToUi(merged);
-  setStatus("Intestazioni importate dalla sorgente: " + sourceId);
+  setMergeTemplateColumnsToUi(headers);
+  setStatus("Intestazioni caricate (sovrascritte) dalla sorgente: " + sourceId);
 }
 
 function showMergeCatalogFromUi(){
@@ -4020,6 +4026,7 @@ async function initSourcePluginBuilders(){
   const mergeTemplateColsInput = document.getElementById("mergeTemplateColumns");
   const mergeTemplateNewCol = document.getElementById("mergeTemplateNewCol");
   const addMergeTemplateColBtn = document.getElementById("btnAddMergeTemplateCol");
+  const resetMergeTemplateColsBtn = document.getElementById("btnResetMergeTemplateCols");
   const tabLookupBtn = document.getElementById("btnPluginTabLookup");
   const tabMergeBtn = document.getElementById("btnPluginTabMerge");
   const toggleMergeAdvancedBtn = document.getElementById("btnToggleMergeAdvanced");
@@ -4139,6 +4146,13 @@ async function initSourcePluginBuilders(){
       if (!cols.includes(raw)) cols.push(raw);
       setMergeTemplateColumnsToUi(cols);
       if (mergeTemplateNewCol) mergeTemplateNewCol.value = "";
+    });
+  }
+  if (resetMergeTemplateColsBtn && !resetMergeTemplateColsBtn.dataset.bound) {
+    resetMergeTemplateColsBtn.dataset.bound = "1";
+    resetMergeTemplateColsBtn.addEventListener("click", () => {
+      setMergeTemplateColumnsToUi([]);
+      setStatus("Colonne template azzerate.");
     });
   }
   if (mergeTemplateNewCol && !mergeTemplateNewCol.dataset.bound) {
