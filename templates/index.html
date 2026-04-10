@@ -3681,11 +3681,11 @@ function renderSourceFieldChipsForBlock(block, fields){
   });
 }
 
-async function renderTemplateSlotsForBlock(block){
+async function renderTemplateSlotsForBlock(block, preserveExisting = true){
   const slotsWrap = block?.querySelector("[data-merge-template-slots]");
   if (!slotsWrap) return;
   const templateColumns = getMergeTemplateColumnsFromUi();
-  const existing = getBlockSlotMapping(block);
+  const existing = preserveExisting ? getBlockSlotMapping(block) : {};
   slotsWrap.innerHTML = "";
   if (!templateColumns.length) {
     slotsWrap.innerHTML = "<div class='small'>Inserisci intestazioni template per attivare il mapping drag&drop.</div>";
@@ -3833,7 +3833,7 @@ async function addMergeSourceBlock(initial = null){
   sourceSel.onchange = () => {
     loadSourceFields(sourceSel.value).then(async fields => {
       renderSourceFieldChipsForBlock(block, fields);
-      await renderTemplateSlotsForBlock(block);
+      await renderTemplateSlotsForBlock(block, false);
     });
     suggestMergeSourceIdentity(false);
   };
@@ -4050,6 +4050,9 @@ async function initSourcePluginBuilders(){
   const saveTemplateBtn = document.getElementById("btnSaveMergeTemplate");
   const applyTemplateBtn = document.getElementById("btnApplyTemplateToMappings");
   const runFromTemplateBtn = document.getElementById("btnRunMultiMergeFromTemplate");
+  const runMergePreviewBtn = document.getElementById("btnRunMultiMerge");
+  const saveMergeBtn = document.getElementById("btnSaveMultiMergeSource");
+  const refreshMergeBtn = document.getElementById("btnRefreshMultiMergeSource");
   const mergeTemplateSel = document.getElementById("mergeTemplateSelect");
   const mergeTemplateTitle = document.getElementById("mergeTemplateTitle");
   const mergeTemplateFromSource = document.getElementById("mergeTemplateFromSource");
@@ -4134,6 +4137,24 @@ async function initSourcePluginBuilders(){
     runFromTemplateBtn.dataset.bound = "1";
     runFromTemplateBtn.addEventListener("click", async () => {
       await runMultiSourceMergeFromTemplateUi();
+    });
+  }
+  if (runMergePreviewBtn && !runMergePreviewBtn.dataset.bound) {
+    runMergePreviewBtn.dataset.bound = "1";
+    runMergePreviewBtn.addEventListener("click", async () => {
+      await runMultiSourceMergeFromUi();
+    });
+  }
+  if (saveMergeBtn && !saveMergeBtn.dataset.bound) {
+    saveMergeBtn.dataset.bound = "1";
+    saveMergeBtn.addEventListener("click", async () => {
+      await saveMultiSourceMergeAsSourceFromUi();
+    });
+  }
+  if (refreshMergeBtn && !refreshMergeBtn.dataset.bound) {
+    refreshMergeBtn.dataset.bound = "1";
+    refreshMergeBtn.addEventListener("click", async () => {
+      await refreshMultiMergeSourceFromUi();
     });
   }
   if (mergeTemplateSel && !mergeTemplateSel.dataset.bound) {
