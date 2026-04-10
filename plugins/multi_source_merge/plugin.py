@@ -50,7 +50,7 @@ class MergeMapSuggestionRequest(BaseModel):
 
 
 class MergeTemplateCreateRequest(BaseModel):
-    template_id: str = Field(..., min_length=2)
+    template_id: str | None = None
     title: str = Field(..., min_length=2)
     columns: list[str] = Field(default_factory=list)
     include_source_tag: bool = True
@@ -157,8 +157,7 @@ def _build_map_suggestions(df_columns: list[str], template_columns: list[str]) -
 
 
 def _normalize_template_id(value: str) -> str:
-    clean = re.sub(r"[^a-zA-Z0-9_.-]+", "_", str(value or "").strip()).strip("._-")
-    return clean[:80]
+    return _sanitize_source_id(value)
 
 
 def _templates_path() -> Path:
@@ -190,6 +189,26 @@ def _find_template(items: list[dict[str, Any]], template_id: str) -> dict[str, A
         if str(item.get("template_id", "")).strip() == wanted:
             return item
     return None
+
+
+def _resolve_numeric_template_id(items: list[dict[str, Any]], requested: str | None, overwrite: bool) -> str:
+    used_ids: set[int] = set()
+    for row in items:
+        try:
+            n = int(str(row.get("template_id", "")).strip())
+            if n > 0:
+                used_ids.add(n)
+        except Exception:
+            continue
+    wanted = _normalize_template_id(str(requested or ""))
+    if wanted:
+        candidate = int(wanted)
+        if candidate > 0 and (candidate not in used_ids or overwrite):
+            return str(candidate)
+    next_id = (max(used_ids) + 1) if used_ids else 1
+    while next_id in used_ids:
+        next_id += 1
+    return str(next_id)
 
 
 def _build_merge_result(plugin_api, payload: MultiMergeRequest) -> dict[str, Any]:
@@ -284,9 +303,8 @@ def register(app, plugin_api, manifest):
 
     @router.post("/template/save")
     def save_template(payload: MergeTemplateCreateRequest):
-        template_id = _normalize_template_id(payload.template_id)
-        if not template_id:
-            raise HTTPException(status_code=400, detail="template_id non valido")
+        items = _load_templates()
+        template_id = _resolve_numeric_template_id(items, payload.template_id, payload.overwrite)
         columns = [str(c).strip() for c in payload.columns if str(c).strip()]
         if not columns:
             raise HTTPException(status_code=400, detail="columns obbligatorio")
@@ -296,7 +314,6 @@ def register(app, plugin_api, manifest):
             "columns": columns,
             "include_source_tag": bool(payload.include_source_tag),
         }
-        items = _load_templates()
         existing_idx = -1
         for idx, row in enumerate(items):
             if str(row.get("template_id", "")).strip() == template_id:

@@ -1815,8 +1815,32 @@ window.LICENSE_CONTEXT = {
             </div>
           </div>
           <div class="builder-top" style="margin-bottom:8px;">
-            <div class="field"><label for="mergeTemplateId">Template ID</label><input id="mergeTemplateId" placeholder="es. estratti_bancari_unificati"></div>
+            <div class="field">
+              <label>Template ID (automatico)</label>
+              <input id="mergeTemplateId" type="hidden">
+              <input id="mergeTemplateIdPreview" readonly placeholder="Generato automaticamente">
+            </div>
             <div class="field"><label for="mergeTemplateTitle">Template titolo</label><input id="mergeTemplateTitle" placeholder="es. Estratti bancari unificati"></div>
+          </div>
+          <div class="builder-top" style="margin-bottom:8px;">
+            <div class="field">
+              <label for="mergeTemplateFromSource">Crea intestazioni da sorgente</label>
+              <select id="mergeTemplateFromSource">
+                <option value="">Seleziona sorgente...</option>
+              </select>
+            </div>
+            <div class="field" style="display:flex; align-items:flex-end;">
+              <button id="btnLoadTemplateHeadersFromSource" type="button">Carica intestazioni da sorgente</button>
+            </div>
+          </div>
+          <div class="builder-actions" style="margin-bottom:8px;">
+            <label for="mergeCatalogKind" style="margin:0; font-size:12px; color:#475467;">Liste rapide:</label>
+            <select id="mergeCatalogKind" style="max-width:220px;">
+              <option value="templates">Template</option>
+              <option value="sources">Sorgenti</option>
+              <option value="pivots">Pivot</option>
+            </select>
+            <button id="btnShowMergeCatalog" type="button">Mostra elenco</button>
           </div>
           <div class="builder-actions" style="margin-bottom:8px;">
             <button id="btnLoadMergeTemplates" type="button">Ricarica template</button>
@@ -3401,13 +3425,21 @@ function renderMergeTemplateColumnChips(){
   });
 }
 
-function normalizeTemplateIdFromTitle(value){
-  return String(value || "")
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9._-]+/g, "_")
-    .replace(/^[_\-.]+|[_\-.]+$/g, "")
-    .slice(0, 80);
+function suggestMergeTemplateIdentity(force = false){
+  const idEl = document.getElementById("mergeTemplateId");
+  const idPreview = document.getElementById("mergeTemplateIdPreview");
+  const titleEl = document.getElementById("mergeTemplateTitle");
+  if (!idEl || !idPreview || !titleEl) return;
+  const numericIds = (MERGE_TEMPLATES || [])
+    .map(t => parseInt(String(t?.template_id || "").trim(), 10))
+    .filter(n => Number.isFinite(n) && n > 0);
+  const nextId = String((numericIds.length ? Math.max(...numericIds) : 0) + 1);
+  if (force || !String(idEl.value || "").trim()) idEl.value = nextId;
+  idPreview.value = idEl.value;
+  if (force || !String(titleEl.value || "").trim()) {
+    const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+    titleEl.value = "Template " + stamp;
+  }
 }
 
 async function loadMergeTemplatesIntoUi(keepSelection = true){
@@ -3428,12 +3460,14 @@ async function loadMergeTemplatesIntoUi(keepSelection = true){
   if (current && MERGE_TEMPLATES.some(t => String(t?.template_id || "").trim() === current)) {
     sel.value = current;
   }
+  suggestMergeTemplateIdentity(false);
   return MERGE_TEMPLATES;
 }
 
 function applySelectedMergeTemplateToUi(){
   const sel = document.getElementById("mergeTemplateSelect");
   const idEl = document.getElementById("mergeTemplateId");
+  const idPreview = document.getElementById("mergeTemplateIdPreview");
   const titleEl = document.getElementById("mergeTemplateTitle");
   const colsEl = document.getElementById("mergeTemplateColumns");
   const outputColsEl = document.getElementById("mergeOutputColumns");
@@ -3442,6 +3476,7 @@ function applySelectedMergeTemplateToUi(){
   const tpl = MERGE_TEMPLATES.find(x => String(x?.template_id || "").trim() === wanted) || null;
   if (!tpl) return null;
   idEl.value = String(tpl.template_id || "");
+  if (idPreview) idPreview.value = idEl.value;
   titleEl.value = String(tpl.title || tpl.template_id || "");
   const cols = Array.isArray(tpl.columns) ? tpl.columns.map(String).filter(Boolean) : [];
   setMergeTemplateColumnsToUi(cols);
@@ -3454,9 +3489,9 @@ async function saveMergeTemplateFromUi(){
   const idEl = document.getElementById("mergeTemplateId");
   const cols = getMergeTemplateColumnsFromUi();
   const title = String(titleEl?.value || "").trim();
+  suggestMergeTemplateIdentity(false);
   let templateId = String(idEl?.value || "").trim();
-  if (!templateId) templateId = normalizeTemplateIdFromTitle(title);
-  if (!templateId) throw new Error("Inserisci template ID o titolo valido.");
+  if (!templateId) throw new Error("Template ID automatico non disponibile.");
   if (!title) throw new Error("Inserisci un titolo template.");
   if (!cols.length) throw new Error("Inserisci almeno una intestazione template.");
   await api("/plugin/multi-source-merge/template/save", {
@@ -3472,7 +3507,51 @@ async function saveMergeTemplateFromUi(){
   await loadMergeTemplatesIntoUi(false);
   const sel = document.getElementById("mergeTemplateSelect");
   if (sel) sel.value = templateId;
+  suggestMergeTemplateIdentity(false);
   setStatus("Template merge salvato: " + templateId);
+}
+
+async function loadTemplateHeadersFromSourceFromUi(){
+  const sourceId = String(document.getElementById("mergeTemplateFromSource")?.value || "").trim();
+  if (!sourceId) throw new Error("Seleziona una sorgente.");
+  const res = await api("/plugin/multi-source-merge/template/headers", {
+    method: "POST",
+    body: JSON.stringify({ source_id: sourceId, limit: 500 })
+  });
+  const headers = Array.isArray(res?.headers) ? res.headers.map(String).filter(Boolean) : [];
+  if (!headers.length) throw new Error("Nessuna intestazione trovata.");
+  const existing = getMergeTemplateColumnsFromUi();
+  const merged = [...existing];
+  headers.forEach(h => {
+    if (!merged.includes(h)) merged.push(h);
+  });
+  setMergeTemplateColumnsToUi(merged);
+  setStatus("Intestazioni importate dalla sorgente: " + sourceId);
+}
+
+function showMergeCatalogFromUi(){
+  const kind = String(document.getElementById("mergeCatalogKind")?.value || "templates").trim().toLowerCase();
+  if (kind === "sources") {
+    setSourcePluginOutput({
+      kind: "sources",
+      count: (SOURCES || []).length,
+      items: (SOURCES || []).map(s => ({ id: s.id, title: s.title || s.id, type: s.type || "" }))
+    });
+    return;
+  }
+  if (kind === "pivots") {
+    setSourcePluginOutput({
+      kind: "pivots",
+      count: (PRESETS || []).length,
+      items: (PRESETS || []).map(p => ({ id: p.id, source_id: p.source_id || "", title: p.title || p.id }))
+    });
+    return;
+  }
+  setSourcePluginOutput({
+    kind: "templates",
+    count: (MERGE_TEMPLATES || []).length,
+    items: (MERGE_TEMPLATES || []).map(t => ({ template_id: t.template_id, title: t.title || t.template_id, columns: t.columns || [] }))
+  });
 }
 
 async function suggestTemplateMappingForBlock(block, templateColumns){
@@ -3882,6 +3961,9 @@ async function initSourcePluginBuilders(){
   const runFromTemplateBtn = document.getElementById("btnRunMultiMergeFromTemplate");
   const mergeTemplateSel = document.getElementById("mergeTemplateSelect");
   const mergeTemplateTitle = document.getElementById("mergeTemplateTitle");
+  const mergeTemplateFromSource = document.getElementById("mergeTemplateFromSource");
+  const loadTemplateHeadersFromSourceBtn = document.getElementById("btnLoadTemplateHeadersFromSource");
+  const showMergeCatalogBtn = document.getElementById("btnShowMergeCatalog");
   const mergeTemplateColsInput = document.getElementById("mergeTemplateColumns");
   const mergeTemplateNewCol = document.getElementById("mergeTemplateNewCol");
   const addMergeTemplateColBtn = document.getElementById("btnAddMergeTemplateCol");
@@ -3968,11 +4050,17 @@ async function initSourcePluginBuilders(){
   }
   if (mergeTemplateTitle && !mergeTemplateTitle.dataset.bound) {
     mergeTemplateTitle.dataset.bound = "1";
-    mergeTemplateTitle.addEventListener("blur", () => {
-      const idEl = document.getElementById("mergeTemplateId");
-      if (!idEl || String(idEl.value || "").trim()) return;
-      idEl.value = normalizeTemplateIdFromTitle(mergeTemplateTitle.value);
+    mergeTemplateTitle.addEventListener("blur", () => suggestMergeTemplateIdentity(false));
+  }
+  if (loadTemplateHeadersFromSourceBtn && !loadTemplateHeadersFromSourceBtn.dataset.bound) {
+    loadTemplateHeadersFromSourceBtn.dataset.bound = "1";
+    loadTemplateHeadersFromSourceBtn.addEventListener("click", async () => {
+      await loadTemplateHeadersFromSourceFromUi();
     });
+  }
+  if (showMergeCatalogBtn && !showMergeCatalogBtn.dataset.bound) {
+    showMergeCatalogBtn.dataset.bound = "1";
+    showMergeCatalogBtn.addEventListener("click", () => showMergeCatalogFromUi());
   }
   if (mergeTemplateColsInput && !mergeTemplateColsInput.dataset.bound) {
     mergeTemplateColsInput.dataset.bound = "1";
@@ -4000,7 +4088,21 @@ async function initSourcePluginBuilders(){
       addMergeTemplateColBtn?.click();
     });
   }
+  if (mergeTemplateFromSource) {
+    const current = String(mergeTemplateFromSource.value || "").trim();
+    mergeTemplateFromSource.innerHTML = '<option value="">Seleziona sorgente...</option>';
+    (SOURCES || []).forEach(src => {
+      const o = document.createElement("option");
+      o.value = src.id;
+      o.textContent = src.title || src.id;
+      mergeTemplateFromSource.appendChild(o);
+    });
+    if (current && (SOURCES || []).some(s => String(s?.id || "").trim() === current)) {
+      mergeTemplateFromSource.value = current;
+    }
+  }
   await loadMergeTemplatesIntoUi(true).catch(() => []);
+  suggestMergeTemplateIdentity(false);
   renderMergeTemplateColumnChips();
   if (tabLookupBtn && !tabLookupBtn.dataset.bound) {
     tabLookupBtn.dataset.bound = "1";
