@@ -795,6 +795,30 @@
       padding:12px;
       background:#fff;
     }
+    .merge-card{
+      border-radius:12px;
+      padding:10px;
+      margin-bottom:10px;
+      border:1px solid #d0d5dd;
+    }
+    .merge-card.template{ background:#f5f8ff; border-color:#c7d7fe; }
+    .merge-card.mapping{ background:#f6fef9; border-color:#b9ebcb; }
+    .merge-card.actions{ background:#fffaf0; border-color:#fddcab; }
+    .merge-switch{
+      display:flex; gap:8px; margin-bottom:8px; flex-wrap:wrap;
+    }
+    .merge-switch button{
+      border:1px solid #c7d7fe;
+      background:#fff;
+      color:#175cd3;
+      border-radius:999px;
+      padding:6px 10px;
+    }
+    .merge-switch button.active{
+      background:#175cd3;
+      color:#fff;
+      border-color:#175cd3;
+    }
     #sourcePluginsOutput{
       max-height:240px;
       overflow:auto;
@@ -1796,64 +1820,82 @@ window.LICENSE_CONTEXT = {
       <div id="pluginToolMerge" class="plugin-tool-pane hidden">
         <div class="plugin-tool-card">
           <div style="font-weight:600; margin-bottom:6px;">Multi source merge</div>
-          <div class="small" style="margin-bottom:8px;">Crea template intestazioni, abbina i campi sorgente e accoda le righe.</div>
-          <div class="builder-top" style="margin-bottom:8px;">
-            <div class="field">
-              <label for="mergeTemplateSelect">Template salvato</label>
-              <select id="mergeTemplateSelect">
-                <option value="">Nessun template selezionato</option>
-              </select>
+          <div class="small" style="margin-bottom:8px;">Workflow consigliato: 1) crea template, 2) mappa campi con drag&drop, 3) esegui merge.</div>
+          <input id="mergeTemplateId" type="hidden">
+          <div class="merge-card template">
+            <div style="font-weight:600; color:#175cd3; margin-bottom:8px;">1) Creazione template</div>
+            <div class="merge-switch">
+              <button id="btnMergeTemplateModeSource" type="button" class="active">Da sorgente (consigliato)</button>
+              <button id="btnMergeTemplateModeManual" type="button">Manuale</button>
             </div>
-            <div class="field">
-              <label for="mergeTemplateColumns">Intestazioni template (comma)</label>
-              <input id="mergeTemplateColumns" placeholder="es. cliente,iban,importo,data">
-              <div class="builder-actions" style="margin-top:6px;">
-                <input id="mergeTemplateNewCol" placeholder="Nuova colonna template" style="flex:1; min-width:180px;">
-                <button id="btnAddMergeTemplateCol" type="button">Aggiungi colonna</button>
+            <div id="mergeTemplateSourcePanel">
+              <div class="builder-top" style="margin-bottom:8px;">
+                <div class="field">
+                  <label for="mergeTemplateFromSource">Sorgente da cui copiare intestazioni</label>
+                  <select id="mergeTemplateFromSource">
+                    <option value="">Seleziona sorgente...</option>
+                  </select>
+                </div>
+                <div class="field" style="display:flex; align-items:flex-end;">
+                  <button id="btnLoadTemplateHeadersFromSource" type="button">Carica intestazioni da sorgente</button>
+                </div>
               </div>
-              <div id="mergeTemplateColsChips" style="display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;"></div>
+            </div>
+            <div id="mergeTemplateManualPanel" class="hidden">
+              <div class="field">
+                <label for="mergeTemplateColumns">Intestazioni template (comma)</label>
+                <input id="mergeTemplateColumns" placeholder="es. cliente,iban,importo,data">
+                <div class="builder-actions" style="margin-top:6px;">
+                  <input id="mergeTemplateNewCol" placeholder="Nuova colonna template" style="flex:1; min-width:180px;">
+                  <button id="btnAddMergeTemplateCol" type="button">Aggiungi colonna</button>
+                </div>
+              </div>
+            </div>
+            <div id="mergeTemplateColsChips" style="display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;"></div>
+            <div class="builder-top" style="margin-top:8px;">
+              <div class="field"><label for="mergeTemplateTitle">Titolo template</label><input id="mergeTemplateTitle" placeholder="es. Estratti bancari unificati"></div>
+              <div class="field">
+                <label for="mergeTemplateSelect">Template salvato</label>
+                <select id="mergeTemplateSelect">
+                  <option value="">Nessun template selezionato</option>
+                </select>
+              </div>
+            </div>
+            <div class="builder-actions" style="margin-top:8px;">
+              <button id="btnLoadMergeTemplates" type="button">Ricarica template</button>
+              <button id="btnSaveMergeTemplate" type="button">Salva template</button>
             </div>
           </div>
-          <div class="builder-top" style="margin-bottom:8px;">
-            <div class="field">
-              <label>Template ID (automatico)</label>
-              <input id="mergeTemplateId" type="hidden">
-              <input id="mergeTemplateIdPreview" readonly placeholder="Generato automaticamente">
-            </div>
-            <div class="field"><label for="mergeTemplateTitle">Template titolo</label><input id="mergeTemplateTitle" placeholder="es. Estratti bancari unificati"></div>
-          </div>
-          <div class="builder-top" style="margin-bottom:8px;">
-            <div class="field">
-              <label for="mergeTemplateFromSource">Crea intestazioni da sorgente</label>
-              <select id="mergeTemplateFromSource">
-                <option value="">Seleziona sorgente...</option>
+
+          <div class="merge-card mapping">
+            <div style="font-weight:600; color:#067647; margin-bottom:8px;">2) Mapping campi (drag & drop)</div>
+            <div class="builder-actions" style="margin-bottom:8px;">
+              <label for="mergeCatalogKind" style="margin:0; font-size:12px; color:#475467;">Liste rapide:</label>
+              <select id="mergeCatalogKind" style="max-width:220px;">
+                <option value="templates">Template</option>
+                <option value="sources">Sorgenti</option>
+                <option value="pivots">Pivot</option>
               </select>
+              <button id="btnShowMergeCatalog" type="button">Mostra elenco</button>
+              <button id="btnApplyTemplateToMappings" type="button">Suggerisci mapping da template</button>
             </div>
-            <div class="field" style="display:flex; align-items:flex-end;">
-              <button id="btnLoadTemplateHeadersFromSource" type="button">Carica intestazioni da sorgente</button>
+            <div id="mergeSourceBlocks" style="display:grid; gap:8px; margin-bottom:8px;"></div>
+            <div class="builder-actions" style="margin-bottom:8px;">
+              <button id="btnAddMergeSourceBlock" type="button">Aggiungi sorgente merge</button>
+              <button id="btnGenerateMergeJson" type="button">Genera JSON dal builder</button>
+              <button id="btnToggleMergeAdvanced" type="button">Mostra opzioni avanzate</button>
             </div>
           </div>
-          <div class="builder-actions" style="margin-bottom:8px;">
-            <label for="mergeCatalogKind" style="margin:0; font-size:12px; color:#475467;">Liste rapide:</label>
-            <select id="mergeCatalogKind" style="max-width:220px;">
-              <option value="templates">Template</option>
-              <option value="sources">Sorgenti</option>
-              <option value="pivots">Pivot</option>
-            </select>
-            <button id="btnShowMergeCatalog" type="button">Mostra elenco</button>
+
+          <div class="merge-card actions">
+            <div style="font-weight:600; color:#b54708; margin-bottom:8px;">3) Esegui / salva risultato</div>
+            <div class="builder-actions" style="margin-bottom:8px;">
+              <button id="btnRunMultiMergeFromTemplate" type="button" class="primary">Esegui merge da template</button>
+              <button id="btnRunMultiMerge" type="button">Esegui merge</button>
+              <button id="btnSaveMultiMergeSource" type="button" class="primary">Salva come nuova sorgente</button>
+            </div>
           </div>
-          <div class="builder-actions" style="margin-bottom:8px;">
-            <button id="btnLoadMergeTemplates" type="button">Ricarica template</button>
-            <button id="btnSaveMergeTemplate" type="button">Salva template</button>
-            <button id="btnApplyTemplateToMappings" type="button">Suggerisci mapping da template</button>
-            <button id="btnRunMultiMergeFromTemplate" type="button" class="primary">Esegui merge da template</button>
-          </div>
-          <div id="mergeSourceBlocks" style="display:grid; gap:8px; margin-bottom:8px;"></div>
-          <div class="builder-actions" style="margin-bottom:8px;">
-            <button id="btnAddMergeSourceBlock" type="button">Aggiungi sorgente merge</button>
-            <button id="btnGenerateMergeJson" type="button">Genera JSON dal builder</button>
-            <button id="btnToggleMergeAdvanced" type="button">Mostra opzioni avanzate</button>
-          </div>
+
           <div id="mergeAdvancedPanel" class="hidden">
             <div class="small" style="margin-bottom:8px;">Config JSON sources (array con source_id e column_map)</div>
             <textarea id="mergeSourcesJson" style="width:100%; min-height:140px;" placeholder='[{\"source_id\":\"s1\",\"column_map\":{\"iban\":\"IBAN\"}},{\"source_id\":\"s2\",\"column_map\":{\"iban\":\"iban\",\"importo\":\"amount\"}}]'></textarea>
@@ -1862,6 +1904,7 @@ window.LICENSE_CONTEXT = {
               <input id="mergeOutputColumns" placeholder="es. iban,importo,_source" disabled>
             </div>
           </div>
+
           <div class="builder-top" style="margin-top:6px;">
             <div class="field">
               <label>source_id merge (automatico)</label>
@@ -1869,10 +1912,6 @@ window.LICENSE_CONTEXT = {
               <input id="mergeNewSourceIdPreview" readonly placeholder="Generato automaticamente">
             </div>
             <div class="field"><label for="mergeNewSourceTitle">Titolo nuova sorgente (suggerito)</label><input id="mergeNewSourceTitle" placeholder="Suggerito automaticamente"></div>
-          </div>
-          <div class="builder-actions">
-            <button id="btnRunMultiMerge" type="button">Esegui merge</button>
-            <button id="btnSaveMultiMergeSource" type="button" class="primary">Salva come nuova sorgente</button>
           </div>
           <div id="mergePreviewCard" class="card hidden" style="margin-top:10px; border-color:#d0d5dd;">
             <div class="section-title" style="font-size:16px; margin-bottom:6px;">Anteprima unione sorgenti</div>
@@ -3404,6 +3443,18 @@ function setMergeTemplateColumnsToUi(columns){
   syncMergeTemplateSlotsForAllBlocks();
 }
 
+function setMergeTemplateMode(mode){
+  const key = String(mode || "source").toLowerCase() === "manual" ? "manual" : "source";
+  const sourcePanel = document.getElementById("mergeTemplateSourcePanel");
+  const manualPanel = document.getElementById("mergeTemplateManualPanel");
+  const btnSource = document.getElementById("btnMergeTemplateModeSource");
+  const btnManual = document.getElementById("btnMergeTemplateModeManual");
+  if (sourcePanel) sourcePanel.classList.toggle("hidden", key !== "source");
+  if (manualPanel) manualPanel.classList.toggle("hidden", key !== "manual");
+  if (btnSource) btnSource.classList.toggle("active", key === "source");
+  if (btnManual) btnManual.classList.toggle("active", key === "manual");
+}
+
 function renderMergeTemplateColumnChips(){
   const wrap = document.getElementById("mergeTemplateColsChips");
   if (!wrap) return;
@@ -3427,15 +3478,15 @@ function renderMergeTemplateColumnChips(){
 
 function suggestMergeTemplateIdentity(force = false){
   const idEl = document.getElementById("mergeTemplateId");
-  const idPreview = document.getElementById("mergeTemplateIdPreview");
   const titleEl = document.getElementById("mergeTemplateTitle");
-  if (!idEl || !idPreview || !titleEl) return;
+  const idPreview = document.getElementById("mergeTemplateIdPreview");
+  if (!idEl || !titleEl) return;
   const numericIds = (MERGE_TEMPLATES || [])
     .map(t => parseInt(String(t?.template_id || "").trim(), 10))
     .filter(n => Number.isFinite(n) && n > 0);
   const nextId = String((numericIds.length ? Math.max(...numericIds) : 0) + 1);
   if (force || !String(idEl.value || "").trim()) idEl.value = nextId;
-  idPreview.value = idEl.value;
+  if (idPreview) idPreview.value = idEl.value;
   if (force || !String(titleEl.value || "").trim()) {
     const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, "");
     titleEl.value = "Template " + stamp;
@@ -3962,6 +4013,8 @@ async function initSourcePluginBuilders(){
   const mergeTemplateSel = document.getElementById("mergeTemplateSelect");
   const mergeTemplateTitle = document.getElementById("mergeTemplateTitle");
   const mergeTemplateFromSource = document.getElementById("mergeTemplateFromSource");
+  const mergeTemplateModeSourceBtn = document.getElementById("btnMergeTemplateModeSource");
+  const mergeTemplateModeManualBtn = document.getElementById("btnMergeTemplateModeManual");
   const loadTemplateHeadersFromSourceBtn = document.getElementById("btnLoadTemplateHeadersFromSource");
   const showMergeCatalogBtn = document.getElementById("btnShowMergeCatalog");
   const mergeTemplateColsInput = document.getElementById("mergeTemplateColumns");
@@ -4062,6 +4115,14 @@ async function initSourcePluginBuilders(){
     showMergeCatalogBtn.dataset.bound = "1";
     showMergeCatalogBtn.addEventListener("click", () => showMergeCatalogFromUi());
   }
+  if (mergeTemplateModeSourceBtn && !mergeTemplateModeSourceBtn.dataset.bound) {
+    mergeTemplateModeSourceBtn.dataset.bound = "1";
+    mergeTemplateModeSourceBtn.addEventListener("click", () => setMergeTemplateMode("source"));
+  }
+  if (mergeTemplateModeManualBtn && !mergeTemplateModeManualBtn.dataset.bound) {
+    mergeTemplateModeManualBtn.dataset.bound = "1";
+    mergeTemplateModeManualBtn.addEventListener("click", () => setMergeTemplateMode("manual"));
+  }
   if (mergeTemplateColsInput && !mergeTemplateColsInput.dataset.bound) {
     mergeTemplateColsInput.dataset.bound = "1";
     mergeTemplateColsInput.addEventListener("input", () => {
@@ -4104,6 +4165,7 @@ async function initSourcePluginBuilders(){
   await loadMergeTemplatesIntoUi(true).catch(() => []);
   suggestMergeTemplateIdentity(false);
   renderMergeTemplateColumnChips();
+  setMergeTemplateMode("source");
   if (tabLookupBtn && !tabLookupBtn.dataset.bound) {
     tabLookupBtn.dataset.bound = "1";
     tabLookupBtn.addEventListener("click", () => setPluginToolTab("lookup"));
