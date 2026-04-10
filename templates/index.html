@@ -1835,6 +1835,18 @@ window.LICENSE_CONTEXT = {
           </div>
         </div>
       </div>
+      <div class="plugin-tool-card" style="margin-top:10px;">
+        <div style="font-weight:600; margin-bottom:6px;">Importa tutti i fogli XLSX</div>
+        <div class="small" style="margin-bottom:8px; color:#475467;">Seleziona una sorgente XLSX: verrà creata automaticamente una sorgente per ogni foglio con nome file_foglio.</div>
+        <div class="field">
+          <label for="xlsxImportSourceSel">Sorgente XLSX</label>
+          <select id="xlsxImportSourceSel"></select>
+        </div>
+        <div class="builder-actions">
+          <button id="btnImportXlsxSheetsAll" type="button">Importa tutti i fogli</button>
+        </div>
+        <div id="xlsxImportStatus" class="small" style="margin-top:8px; color:#175cd3;"></div>
+      </div>
       <div style="margin-top:10px;">
         <div class="small" style="margin-bottom:4px;">Output plugin</div>
         <pre id="sourcePluginsOutput" style="max-height:260px; overflow:auto; background:#0b1220; color:#d1e0ff; border-radius:8px; padding:10px; font-size:12px;">{}</pre>
@@ -3257,6 +3269,22 @@ async function loadPluginSourcesIntoSelect(selectId){
   });
 }
 
+function loadXlsxSourcesIntoSelect(){
+  const sel = document.getElementById("xlsxImportSourceSel");
+  if (!sel) return;
+  const current = String(sel.value || "").trim();
+  sel.innerHTML = '<option value="">Seleziona sorgente XLSX...</option>';
+  (SOURCES || [])
+    .filter(src => String(src?.type || "").toLowerCase() === "xlsx")
+    .forEach(src => {
+      const o = document.createElement("option");
+      o.value = String(src.id || "");
+      o.textContent = String(src.title || src.id || "");
+      sel.appendChild(o);
+    });
+  if (current && Array.from(sel.options).some(o => o.value === current)) sel.value = current;
+}
+
 async function loadSourceFields(sourceId){
   if (!sourceId) return [];
   try {
@@ -3523,6 +3551,25 @@ async function runMultiSourceMergeFromUi(){
   setStatus("Merge multi-source completato.");
 }
 
+async function importAllSheetsFromXlsxSource(){
+  const sel = document.getElementById("xlsxImportSourceSel");
+  const statusEl = document.getElementById("xlsxImportStatus");
+  const source_id = String(sel?.value || "").trim();
+  if (!source_id) throw new Error("Seleziona una sorgente XLSX.");
+  if (statusEl) statusEl.textContent = "Import in corso...";
+  const res = await api("/plugin/xlsx-sheet-import/import-all", {
+    method: "POST",
+    body: JSON.stringify({ source_id })
+  });
+  await refreshAll().catch(() => {});
+  renderSourcesManager();
+  loadXlsxSourcesIntoSelect();
+  if (statusEl) {
+    statusEl.textContent = "Creati: " + String(res.created_count || 0) + " · Aggiornati: " + String(res.updated_count || 0);
+  }
+  setStatus("Import fogli XLSX completato.");
+}
+
 function buildMultiMergePayloadFromUi(){
   const raw = String(document.getElementById("mergeSourcesJson")?.value || "").trim();
   let sources = [];
@@ -3582,6 +3629,7 @@ function closeSourcesScreen(){
 
 async function initSourcePluginBuilders(){
   await refreshLookupBuilders();
+  loadXlsxSourcesIntoSelect();
 
   const primarySel = document.getElementById("lkPrimarySourceSel");
   const secondarySel = document.getElementById("lkSecondarySourceSel");
@@ -6866,6 +6914,15 @@ bindClick("btnSaveMultiMergeSource", async () => {
     await saveMultiSourceMergeAsSourceFromUi();
   } catch (e) {
     setStatus("ERRORE salvataggio merge: " + e.message);
+  }
+});
+bindClick("btnImportXlsxSheetsAll", async () => {
+  try {
+    await importAllSheetsFromXlsxSource();
+  } catch (e) {
+    const statusEl = document.getElementById("xlsxImportStatus");
+    if (statusEl) statusEl.textContent = "ERRORE: " + e.message;
+    setStatus("ERRORE import fogli XLSX: " + e.message);
   }
 });
 

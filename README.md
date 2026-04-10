@@ -151,6 +151,7 @@ The following diagrams are visual examples derived from the HTML layout structur
 - `plugins/calculated_fields/backend.py` – formula engine
 - `plugins/cross_source_lookup/plugin.py` – lookup/VLOOKUP-like join between two sources (optional plugin, disabled by default)
 - `plugins/multi_source_merge/plugin.py` – multi-source schema merge/union builder (optional plugin, disabled by default)
+- `plugins/xlsx_sheet_import/plugin.py` – bulk-create one source per sheet from an XLSX source (optional plugin, disabled by default)
 - `plugins/multi_pivot_derived/plugin.py` – derive/cross data from multiple pivots (optional plugin, disabled by default; demo output is watermarked)
 - `templates/` – frontend pages
 - `static/js/` – frontend logic
