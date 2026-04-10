@@ -159,6 +159,12 @@ The following diagrams are visual examples derived from the HTML layout structur
 - Optional plugin `google_account_sheets` (disabled by default) enables OAuth device-flow authentication for private Google Drive Sheets and can be licensed as a Pro/Full add-on.
 - For direct Google connect from Source Manager, set OAuth credentials once via env (`PIVOTDESK_GOOGLE_CLIENT_ID`, `PIVOTDESK_GOOGLE_CLIENT_SECRET`) or `config.json` under `google_oauth.client_id` / `google_oauth.client_secret`.
 - Multi-source merge plugin can now persist merge output as a generated CSV source in `DATA_DIR/generated_sources`, so merged datasets can be reused like normal sources.
+- Multi-source merge plugin also exposes template helpers: `POST /plugin/multi-source-merge/template/headers` (derive template columns from source or CSV/XLSX/ODS headers) and `POST /plugin/multi-source-merge/template/suggest-map` (auto-suggest target/source field mapping for guided drag/drop linking UX).
+- Multi-source merge plugin now supports template persistence + execution: create/list/get/delete templates (`/template/save`, `/template/list`, `/template/{id}`) and run append/union merges from a selected template (`POST /plugin/multi-source-merge/build-from-template`) so mapped rows from selected sources are appended under the same target headers.
+- Multi-source template ids are handled as numeric index keys (auto-assigned when omitted/invalid, hidden in UI except preview), consistent with source/pivot indexing strategy.
+- Source Manager plugin panel includes a guided template-first merge flow with drag&drop mapping (save/load template headers, drag source fields onto template slots, auto-suggest mappings per source, run merge from template), source-header import to bootstrap template columns, and quick catalog views (templates/sources/pivots) for large workspaces.
+- Source management now supports optional `column_aliases` (header alias map) so previews/pivots/plugins can show user-defined column names without changing source files.
+- Merge panel action area includes explicit preview/update flow: preview merge output, save as generated source, then refresh the same merge source id when upstream rows/sources change.
 
 Plugin visibility/enablement:
 - `GET /plugins/status` shows runtime status + license allow/deny flags.
@@ -168,6 +174,7 @@ Plugin visibility/enablement:
 
 Startup UX:
 - `main.py` now shows a startup splash (logo + progress bar) while waiting for server readiness.
+- Windows launcher/tray set an explicit AppUserModelID and load PivotDesk icon in startup windows to avoid generic Python taskbar icon in embedded/runtime launches.
 
 ---
 

@@ -30,6 +30,24 @@ if str(BASE_DIR) not in sys.path:
     sys.path.insert(0, str(BASE_DIR))
 
 
+def set_windows_app_user_model_id() -> None:
+    if not sys.platform.startswith("win"):
+        return
+    try:
+        import ctypes
+
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("PivotDesk.Desktop")
+    except Exception:
+        pass
+
+
+def pivotdesk_icon_path() -> Path:
+    icon = BASE_DIR / "static" / "img" / "pivotdesk-icon.png"
+    if icon.exists():
+        return icon
+    return BASE_DIR / "static" / "img" / "pivotdesk-logo.png"
+
+
 def appdata_dir() -> Path:
     roaming = os.getenv("APPDATA")
     if roaming:
@@ -184,33 +202,47 @@ def wait_for_server_with_splash(host: str, port: int, timeout: int = 30) -> bool
 
     root = tk.Tk()
     root.title("PivotDesk")
-    root.geometry("520x230")
+    root.geometry("560x250")
     root.resizable(False, False)
-    root.configure(bg="white")
+    root.configure(bg="#0b1220")
     root.attributes("-topmost", True)
+    try:
+        icon_file = pivotdesk_icon_path()
+        if icon_file.exists():
+            app_icon = tk.PhotoImage(file=str(icon_file))
+            root.iconphoto(True, app_icon)
+            root._pivotdesk_icon = app_icon  # keep reference
+    except Exception:
+        pass
 
-    frame = tk.Frame(root, bg="white")
-    frame.pack(fill="both", expand=True, padx=16, pady=14)
+    frame = tk.Frame(root, bg="#0b1220")
+    frame.pack(fill="both", expand=True, padx=16, pady=16)
 
     logo_path = BASE_DIR / "static" / "img" / "pivotdesk-logo.png"
     logo_img = None
     if logo_path.exists():
         try:
             logo_img = tk.PhotoImage(file=str(logo_path))
-            logo_label = tk.Label(frame, image=logo_img, bg="white")
+            logo_label = tk.Label(frame, image=logo_img, bg="#0b1220")
             logo_label.pack(pady=(2, 8))
         except Exception:
             logo_img = None
 
-    title = tk.Label(frame, text="PivotDesk in avvio...", font=("Segoe UI", 12, "bold"), bg="white", fg="#101828")
+    title = tk.Label(frame, text="PivotDesk in avvio...", font=("Segoe UI", 13, "bold"), bg="#0b1220", fg="#f8fafc")
     title.pack(pady=(0, 6))
     status_var = tk.StringVar(value="Inizializzazione server in corso...")
-    status = tk.Label(frame, textvariable=status_var, font=("Segoe UI", 10), bg="white", fg="#475467")
+    status = tk.Label(frame, textvariable=status_var, font=("Segoe UI", 10), bg="#0b1220", fg="#cbd5e1")
     status.pack(pady=(0, 10))
 
-    progress = ttk.Progressbar(frame, orient="horizontal", mode="determinate", maximum=100, length=460)
+    progress = ttk.Progressbar(frame, orient="horizontal", mode="determinate", maximum=100, length=500)
     progress.pack(pady=(0, 8))
-    hint = tk.Label(frame, text="Attendere prego, l'apertura iniziale può richiedere alcuni secondi.", font=("Segoe UI", 9), bg="white", fg="#667085")
+    hint = tk.Label(
+        frame,
+        text="Attendere prego, l'apertura iniziale può richiedere alcuni secondi.",
+        font=("Segoe UI", 9),
+        bg="#0b1220",
+        fg="#94a3b8",
+    )
     hint.pack()
 
     root.update_idletasks()
@@ -275,6 +307,7 @@ def run_server() -> None:
 
 def main() -> None:
     global APP_HOST, APP_PORT, APP_PUBLIC_HOST, APP_URL, APP_LOGIN_URL, LICENSE_TYPE
+    set_windows_app_user_model_id()
 
     parser = argparse.ArgumentParser(description="PivotDesk server launcher")
     parser.add_argument("--host", dest="host", default=None, help="Override bind host")
