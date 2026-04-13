@@ -239,6 +239,10 @@ templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 @app.on_event("startup")
 async def _pivotdesk_startup_enforce_lan_bind():
+    try:
+        load_sources_data()
+    except Exception:
+        pass
     maybe_force_lan_rebind_on_startup()
 
 

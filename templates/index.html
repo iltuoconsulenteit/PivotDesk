@@ -1621,15 +1621,18 @@ window.LICENSE_CONTEXT = {
       </div>
     </div>
 
+    <input id="srcId" type="hidden">
     <div class="builder-top">
-      <div class="field" style="display:none;">
-        <label for="srcId">ID sorgente (automatico)</label>
-        <input id="srcId" placeholder="Generato automaticamente" readonly>
-      </div>
       <div class="field">
         <label for="srcTitle">Titolo</label>
         <input id="srcTitle" placeholder="es. Foglio Cassa">
       </div>
+    </div>
+    <div class="field" id="srcImportAllSheetsWrap" style="display:none;">
+      <label class="inline-check">
+        <input id="srcImportAllSheets" type="checkbox">
+        Importa tutti i fogli XLSX (unione automatica)
+      </label>
     </div>
     <div class="field">
       <label for="srcColumnAliasesJson">Alias colonne (JSON, opzionale)</label>
@@ -1716,12 +1719,6 @@ window.LICENSE_CONTEXT = {
     </div>
 
     <div class="builder-top" id="srcSheetSkipOptions">
-      <div class="field" id="srcImportAllSheetsWrap" style="grid-column:1 / -1;">
-        <label class="inline-check">
-          <input id="srcImportAllSheets" type="checkbox">
-          Importa tutti i fogli XLSX (unione automatica)
-        </label>
-      </div>
       <div class="field" id="srcSheetNameWrap">
         <label for="srcSheetName">Foglio Excel</label>
         <select id="srcSheetName">
