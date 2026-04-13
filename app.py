@@ -83,10 +83,20 @@ def resource_path(*parts: str) -> Path:
     return RESOURCE_BASE_DIR.joinpath(*parts)
 
 APP_HOME_DIR = Path(os.getenv("APPDATA", str(RUNTIME_BASE_DIR))) / "PivotDesk" if is_frozen() else BASE_DIR
-STATIC_DIR = BASE_DIR / "static"
-TEMPLATES_DIR = BASE_DIR / "templates"
+if is_frozen():
+    # In packaged runtime, prefer sibling folders near the executable so
+    # hotfixes can be delivered without rebuilding the entire binary.
+    STATIC_DIR = RUNTIME_BASE_DIR / "static"
+    TEMPLATES_DIR = RUNTIME_BASE_DIR / "templates"
+else:
+    STATIC_DIR = BASE_DIR / "static"
+    TEMPLATES_DIR = BASE_DIR / "templates"
+if not STATIC_DIR.exists():
+    STATIC_DIR = BASE_DIR / "static"
 if not STATIC_DIR.exists():
     STATIC_DIR = RESOURCE_BASE_DIR / "static"
+if not TEMPLATES_DIR.exists():
+    TEMPLATES_DIR = BASE_DIR / "templates"
 if not TEMPLATES_DIR.exists():
     TEMPLATES_DIR = RESOURCE_BASE_DIR / "templates"
 DATA_DIR = APP_HOME_DIR / "data"
