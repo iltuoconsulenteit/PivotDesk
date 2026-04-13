@@ -1635,8 +1635,12 @@ window.LICENSE_CONTEXT = {
       </label>
     </div>
     <div class="field">
-      <label for="srcColumnAliasesJson">Alias colonne (JSON, opzionale)</label>
-      <textarea id="srcColumnAliasesJson" style="width:100%; min-height:80px;" placeholder='{"Intestazione originale":"Alias leggibile"}'></textarea>
+      <label>Alias colonne (opzionale)</label>
+      <div id="sourceAliasRows" style="display:grid; gap:8px;"></div>
+      <div class="builder-actions" style="margin-top:8px;">
+        <button id="btnSourceAliasAddRow" type="button">+ Alias colonna</button>
+      </div>
+      <textarea id="srcColumnAliasesJson" style="display:none;" placeholder='{"Intestazione originale":"Alias leggibile"}'></textarea>
       <div class="small">Gli alias rinominano le intestazioni in anteprima, pivot e plugin (senza modificare il file sorgente).</div>
     </div>
 
@@ -2329,6 +2333,7 @@ let CURRENT_SOURCE = null;
 let CURRENT_FIELDS = [];
 let CURRENT_SOURCE_EDIT = null;
 let SOURCE_CALC_DRAFT = [];
+let SOURCE_ALIAS_DRAFT = [];
 let CALC_MODAL_CONTEXT = "pivot";
 let SOURCE_CALC_EDIT_INDEX = null;
 let BUILDER_MODE = "new";
@@ -4955,6 +4960,97 @@ function addSourceCalcRow(){
   renderSourceCalcRows(SOURCE_CALC_DRAFT);
 }
 
+function normalizeColumnAliasesMap(raw){
+  const source = (raw && typeof raw === "object" && !Array.isArray(raw)) ? raw : {};
+  const out = {};
+  Object.entries(source).forEach(([key, value]) => {
+    const from = String(key || "").trim();
+    const to = String(value || "").trim();
+    if (!from || !to) return;
+    out[from] = to;
+  });
+  return out;
+}
+
+function syncSourceAliasRowsToJson(){
+  const area = document.getElementById("srcColumnAliasesJson");
+  if (!area) return;
+  const out = {};
+  (Array.isArray(SOURCE_ALIAS_DRAFT) ? SOURCE_ALIAS_DRAFT : []).forEach(row => {
+    const from = String(row?.source || "").trim();
+    const to = String(row?.alias || "").trim();
+    if (!from || !to) return;
+    out[from] = to;
+  });
+  area.value = Object.keys(out).length ? JSON.stringify(out, null, 2) : "";
+}
+
+function renderSourceAliasRows(aliases){
+  const wrap = document.getElementById("sourceAliasRows");
+  if (!wrap) return;
+  const source = normalizeColumnAliasesMap(aliases);
+  SOURCE_ALIAS_DRAFT = Object.entries(source).map(([from, to]) => ({
+    source: String(from || "").trim(),
+    alias: String(to || "").trim()
+  }));
+  wrap.innerHTML = "";
+  if (!SOURCE_ALIAS_DRAFT.length) {
+    wrap.innerHTML = "<div class='small'>Nessun alias definito.</div>";
+    syncSourceAliasRowsToJson();
+    return;
+  }
+  SOURCE_ALIAS_DRAFT.forEach((row, idx) => {
+    const item = document.createElement("div");
+    item.style.display = "grid";
+    item.style.gridTemplateColumns = "1fr 1fr auto";
+    item.style.gap = "8px";
+    item.innerHTML =
+      "<input data-alias-col='source' placeholder='Intestazione originale'>" +
+      "<input data-alias-col='alias' placeholder='Alias leggibile'>" +
+      "<button type='button' data-alias-remove>Rimuovi</button>";
+    const sourceEl = item.querySelector("[data-alias-col='source']");
+    const aliasEl = item.querySelector("[data-alias-col='alias']");
+    sourceEl.value = row.source || "";
+    aliasEl.value = row.alias || "";
+    sourceEl.addEventListener("input", () => {
+      SOURCE_ALIAS_DRAFT[idx].source = String(sourceEl.value || "").trim();
+      syncSourceAliasRowsToJson();
+    });
+    aliasEl.addEventListener("input", () => {
+      SOURCE_ALIAS_DRAFT[idx].alias = String(aliasEl.value || "").trim();
+      syncSourceAliasRowsToJson();
+    });
+    item.querySelector("[data-alias-remove]").addEventListener("click", () => {
+      SOURCE_ALIAS_DRAFT.splice(idx, 1);
+      renderSourceAliasRows(Object.fromEntries(SOURCE_ALIAS_DRAFT.map(x => [x.source, x.alias])));
+    });
+    wrap.appendChild(item);
+  });
+  syncSourceAliasRowsToJson();
+}
+
+function addSourceAliasRow(source = "", alias = ""){
+  SOURCE_ALIAS_DRAFT.push({
+    source: String(source || "").trim(),
+    alias: String(alias || "").trim()
+  });
+  renderSourceAliasRows(Object.fromEntries(SOURCE_ALIAS_DRAFT.map(x => [x.source, x.alias])));
+}
+
+function readSourceAliasesFromJson(){
+  const aliasRaw = String(document.getElementById("srcColumnAliasesJson")?.value || "").trim();
+  if (!aliasRaw) return {};
+  try {
+    const parsed = JSON.parse(aliasRaw);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      throw new Error("usa oggetto JSON");
+    }
+    return normalizeColumnAliasesMap(parsed);
+  } catch (e) {
+    throw new Error("Alias colonne non valido: " + e.message);
+  }
+}
+
 function collectSourceFormPayload(){
   const srcType = String(document.getElementById("srcType").value || "csv").trim().toLowerCase();
   const pathValue = document.getElementById("srcPath").value.trim();
@@ -4986,20 +5082,13 @@ function collectSourceFormPayload(){
     config.worksheet = document.getElementById("srcGsheetWorksheet").value.trim();
     config.range = document.getElementById("srcGsheetRange").value.trim();
   }
-  let columnAliases = {};
-  const aliasRaw = String(document.getElementById("srcColumnAliasesJson")?.value || "").trim();
-  if (aliasRaw) {
-    try {
-      const parsed = JSON.parse(aliasRaw);
-      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-        columnAliases = parsed;
-      } else {
-        throw new Error("usa oggetto JSON");
-      }
-    } catch (e) {
-      throw new Error("Alias colonne non valido: " + e.message);
-    }
-  }
+  const columnAliases = normalizeColumnAliasesMap(
+    Object.fromEntries(
+      (Array.isArray(SOURCE_ALIAS_DRAFT) ? SOURCE_ALIAS_DRAFT : [])
+        .map(x => [String(x?.source || "").trim(), String(x?.alias || "").trim()])
+    )
+  );
+  syncSourceAliasRowsToJson();
   if (Object.keys(columnAliases).length) config.column_aliases = columnAliases;
   else delete config.column_aliases;
 
@@ -5145,6 +5234,7 @@ function resetSourceForm(){
   document.getElementById("srcGsheetWorksheet").value = "";
   document.getElementById("srcGsheetRange").value = "";
   document.getElementById("srcColumnAliasesJson").value = "";
+  renderSourceAliasRows({});
   document.getElementById("srcCalculatedFieldsJson").value = "";
   renderSourceCalcRows([]);
   document.getElementById("srcDefault").checked = false;
@@ -5176,9 +5266,7 @@ function loadSourceIntoForm(src){
   document.getElementById("srcGsheetWorksheet").value = src.config?.worksheet || "";
   document.getElementById("srcGsheetRange").value = src.config?.range || "";
   const sourceAliases = src.column_aliases || src.config?.column_aliases || {};
-  document.getElementById("srcColumnAliasesJson").value = Object.keys(sourceAliases || {}).length
-    ? JSON.stringify(sourceAliases, null, 2)
-    : "";
+  renderSourceAliasRows(sourceAliases);
   const sourceCalc = Array.isArray(src.calculated_fields)
     ? src.calculated_fields
     : (Array.isArray(src.config?.calculated_fields) ? src.config.calculated_fields : []);
@@ -7629,6 +7717,13 @@ bindClick("btnSourceCalcAddRow", () => {
     setStatus("ERRORE: " + e.message);
   }
 });
+bindClick("btnSourceAliasAddRow", () => {
+  try {
+    addSourceAliasRow();
+  } catch (e) {
+    setStatus("ERRORE: " + e.message);
+  }
+});
 bindClick("btnSourceCalcWizard", () => {
   try {
     openSourceCalculatedFieldModal();
@@ -7650,6 +7745,13 @@ bindInput("srcCalculatedFieldsJson", "input", () => {
     renderSourceCalcRows(readSourceCalcItemsFromJson());
   } catch (_e) {
     // continua ad editare JSON manualmente finché non è valido
+  }
+});
+bindInput("srcColumnAliasesJson", "input", () => {
+  try {
+    renderSourceAliasRows(readSourceAliasesFromJson());
+  } catch (_e) {
+    // mantiene i campi correnti se JSON nascosto non valido
   }
 });
 
