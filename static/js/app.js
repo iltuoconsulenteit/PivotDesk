@@ -120,7 +120,11 @@ async function renderFilters(){
     select.appendChild(optAll);
 
     try {
-      const j = await api("/filter-values?source_id=" + encodeURIComponent(CURRENT_SOURCE) + "&field=" + encodeURIComponent(field));
+      const j = await api(
+        "/filter-values?source_id=" + encodeURIComponent(CURRENT_SOURCE) +
+        "&field=" + encodeURIComponent(field) +
+        "&pivot_id=" + encodeURIComponent(preset.id)
+      );
       (j.values || []).forEach(v => {
         const o = document.createElement("option");
         o.value = v;

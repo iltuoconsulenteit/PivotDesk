@@ -1,0 +1,35 @@
+{
+  "id": "example_pivot",
+  "title": "Esempio Pivot",
+  "source_id": "example",
+  "filters": [
+    "Categoria"
+  ],
+  "numeric_fields": [
+    "Importo"
+  ],
+  "date_fields": [],
+  "rows": [
+    "Cliente"
+  ],
+  "cols": [
+    "Mese"
+  ],
+  "values": [
+    {
+      "field": "Importo",
+      "agg": "sum",
+      "label": "Totale Importo"
+    }
+  ],
+  "options": {
+    "measures_layout": "horizontal",
+    "show_row_totals": true,
+    "show_col_totals": true,
+    "show_subtotals": false,
+    "sort_enabled": false,
+    "sort_field": "",
+    "sort_direction": "asc",
+    "sort_by": "label"
+  }
+}

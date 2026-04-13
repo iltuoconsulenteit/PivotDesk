@@ -1,0 +1,13 @@
+{
+  "id": "multi_pivot_derived",
+  "name": "Multi Pivot Derived",
+  "version": "0.1.0",
+  "description": "Derive and cross data from multiple pivots (union/join) as an add-on plugin.",
+  "enabled": false,
+  "frontend": {
+    "menu": [],
+    "panel": {
+      "title": "Multi Pivot Derived"
+    }
+  }
+}

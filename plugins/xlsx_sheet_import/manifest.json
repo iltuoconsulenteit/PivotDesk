@@ -1,0 +1,14 @@
+{
+  "id": "xlsx_sheet_import",
+  "name": "XLSX Sheet Import",
+  "version": "0.1.0",
+  "description": "Create one source per sheet from a selected XLSX source.",
+  "enabled": false,
+  "frontend": {
+    "menu": [],
+    "panel": {
+      "id": "xlsxSheetImportPanel",
+      "title": "Importa fogli XLSX"
+    }
+  }
+}

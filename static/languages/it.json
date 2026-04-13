@@ -1,0 +1,101 @@
+{
+  "settings_title": "Impostazioni",
+  "settings_subtitle": "Configurazioni generali dell'applicazione e della stampa.",
+  "settings_close": "Chiudi impostazioni",
+  "settings_language_label": "Lingua interfaccia",
+  "settings_print_logos": "Mostra i loghi nella stampa",
+  "settings_save": "Salva impostazioni",
+  "brand_subtitle": "Viewer CSV e pivot server-side multi-misura",
+  "license_label_prefix": "Licenza:",
+  "license_active": "ATTIVA",
+  "details": "Dettagli",
+  "developed_by": "sviluppato da",
+  "user_space_active": "Spazio personale attivo.",
+  "manage_users": "Gestione utenti",
+  "logout": "Logout",
+  "menu_data": "Dati",
+  "menu_reload": "Ricarica",
+  "menu_manage_sources": "Gestisci sorgenti dati",
+  "menu_toggle_columns": "Mostra/Nascondi colonne CSV",
+  "menu_pivot": "Pivot",
+  "menu_open_builder": "Apri costruttore pivot",
+  "menu_edit_preset": "Modifica preset attivo",
+  "menu_edit_source": "Modifica sorgente attiva",
+  "menu_delete_preset": "Elimina preset attivo",
+  "menu_view": "Visualizza",
+  "menu_layout_vertical": "Layout misure verticale",
+  "menu_layout_horizontal": "Layout misure orizzontale",
+  "menu_row_totals_toggle": "Totali righe on/off",
+  "menu_col_totals_toggle": "Totali colonne on/off",
+  "menu_subtotals_toggle": "Subtotali on/off",
+  "menu_print": "Stampa",
+  "menu_print_pivot": "Stampa pivot",
+  "menu_settings": "Impostazioni",
+  "menu_global_settings": "Impostazioni globali",
+  "source_data": "Sorgente dati",
+  "csv_columns_available": "Colonne disponibili nel CSV",
+  "preset": "Preset",
+  "page_filters": "Filtri pagina",
+  "pivot_layout": "Layout pivot",
+  "layout_vertical": "Verticale",
+  "layout_horizontal": "Orizzontale",
+  "layout_vertical_title": "Layout verticale",
+  "layout_horizontal_title": "Layout orizzontale",
+  "row_totals": "Totali righe",
+  "col_totals": "Totali colonne",
+  "subtotals": "Subtotali",
+  "save_view": "Salva vista",
+  "menu_export_backup": "Esporta backup",
+  "menu_restore_backup": "Ripristina backup",
+  "menu_export_pivot_csv": "Esporta pivot CSV",
+  "menu_export_pivot_xlsx": "Esporta pivot XLSX",
+  "menu_export_pivot_ods": "Esporta pivot ODS",
+  "menu_export_pivot_html": "Esporta pivot HTML",
+  "export_chart_html": "Esporta grafico HTML",
+  "help_button": "❓ Aiuto",
+  "help_open_title": "Apri guida",
+  "hide": "Nascondi",
+  "show_data_preview": "Mostra anteprima dati",
+  "layout_options": "Layout & opzioni",
+  "chart_from_pivot": "Grafico da pivot",
+  "chart": "Grafico",
+  "wiki_resize": "Trascina per ridimensionare",
+  "wiki_quick_title": "Wiki rapida PivotDesk",
+  "close": "Chiudi",
+  "width": "Larghezza",
+  "wiki_loading": "Caricamento wiki..."
+  ,"users_management": "Gestione utenti"
+  ,"users_management_subtitle": "Amministrazione accessi e profili multiutente di PivotDesk in ambiente LAN."
+  ,"open_pivotdesk": "Apri PivotDesk"
+  ,"create_user": "Crea utente"
+  ,"create_user_subtitle": "Crea un nuovo account locale. Ogni utente avrà sorgenti dati, preset, impostazioni e file caricati separati."
+  ,"display_name": "Nome visualizzato"
+  ,"role": "Ruolo"
+  ,"initial_password": "Password iniziale"
+  ,"create": "Crea"
+  ,"registered_users": "Utenti registrati"
+  ,"registered_users_subtitle": "Da qui puoi verificare ruolo e stato di ogni account, reimpostare la password o disabilitare temporaneamente un utente."
+  ,"name": "Nome"
+  ,"enabled": "Abilitato"
+  ,"actions": "Azioni"
+  ,"admin_cannot_disable_self": "L'utente amministratore corrente non può essere disabilitato dalla propria sessione."
+  ,"request_error": "Errore richiesta"
+  ,"yes": "Sì"
+  ,"no": "No"
+  ,"reset_password": "Reset password"
+  ,"disable": "Disabilita"
+  ,"enable": "Abilita"
+  ,"new_password_for": "Nuova password per"
+  ,"password_reset_ok": "Password reimpostata correttamente."
+  ,"user_status_updated": "Stato utente aggiornato."
+  ,"user_created_ok": "Utente creato correttamente."
+  ,"login_multiuser_title": "Accesso multiutente"
+  ,"login_multiuser_subtitle": "Accedi al tuo spazio personale PivotDesk. Ogni utente ha sorgenti dati, preset e upload separati, anche quando l'applicazione viene usata in LAN."
+  ,"login_welcome": "Benvenuto in PivotDesk"
+  ,"login_enter_credentials": "Inserisci le tue credenziali per continuare."
+  ,"logout_success": "Logout eseguito correttamente."
+  ,"username": "Username"
+  ,"password": "Password"
+  ,"login": "Accedi"
+  ,"first_access_note": "Primo accesso: utente <strong>admin</strong>, password <strong>admin</strong>."
+}

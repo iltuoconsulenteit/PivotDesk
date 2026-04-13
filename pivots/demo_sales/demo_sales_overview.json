@@ -1,0 +1,44 @@
+{
+  "id": "demo_sales_overview",
+  "title": "Demo Sales Overview",
+  "source_id": "demo_sales",
+  "filters": [
+    "Status",
+    "Channel"
+  ],
+  "numeric_fields": [
+    "Amount",
+    "Quantity"
+  ],
+  "date_fields": [
+    "Date"
+  ],
+  "rows": [
+    "Region"
+  ],
+  "cols": [
+    "Category"
+  ],
+  "values": [
+    {
+      "field": "Amount",
+      "agg": "sum",
+      "label": "Total Amount"
+    },
+    {
+      "field": "Quantity",
+      "agg": "sum",
+      "label": "Total Quantity"
+    }
+  ],
+  "options": {
+    "measures_layout": "horizontal",
+    "show_row_totals": true,
+    "show_col_totals": true,
+    "show_subtotals": true,
+    "sort_enabled": false,
+    "sort_field": "",
+    "sort_direction": "asc",
+    "sort_by": "label"
+  }
+}

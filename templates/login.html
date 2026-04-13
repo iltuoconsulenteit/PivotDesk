@@ -21,6 +21,9 @@
     button{margin-top:16px;width:100%;padding:12px 14px;border:0;border-radius:12px;background:#1d4ed8;color:#fff;font-weight:700;cursor:pointer}
     .error{background:#fef3f2;color:#b42318;border:1px solid #fecdca;padding:10px 12px;border-radius:10px;margin:12px 0}
     .note{margin-top:12px;font-size:12px;color:#667085}
+    .login-language{display:flex;align-items:center;gap:8px;justify-content:flex-end;margin:0 0 12px}
+    .login-language label{margin:0;font-size:12px;font-weight:600;color:#667085}
+    .login-language select{width:auto;min-width:120px;padding:8px 10px;border:1px solid #d0d5dd;border-radius:10px;background:#fff}
     @media (max-width: 860px){
       .shell{grid-template-columns:1fr}
       .hero{order:2}
@@ -41,27 +44,73 @@
     <div class="hero">
       <div>
         <img src="/static/img/pivotdesk-logo.png" alt="PivotDesk" class="logo">
-        <h1>Accesso multiutente</h1>
-        <p>Accedi al tuo spazio personale PivotDesk. Ogni utente ha sorgenti dati, preset e upload separati, anche quando l'applicazione viene usata in LAN.</p>
+        <h1 data-i18n="login_multiuser_title">Accesso multiutente</h1>
+        <p data-i18n="login_multiuser_subtitle">Accedi al tuo spazio personale PivotDesk. Ogni utente ha sorgenti dati, preset e upload separati, anche quando l'applicazione viene usata in LAN.</p>
       </div>
       <div class="mini-brand">
         <img src="/static/img/IltuoConsulenteIT.png" alt="IlTuoConsulenteIT">
-        <span>Sviluppato da IlTuoConsulenteIT</span>
+        <span data-i18n="developed_by">Sviluppato da</span> IlTuoConsulenteIT
       </div>
     </div>
 
     <form class="card" method="post" action="/login">
-      <h2>Benvenuto in PivotDesk</h2>
-      <p class="subtitle">Inserisci le tue credenziali per continuare.</p>
+      <div class="login-language">
+        <label for="loginLanguageSelect" data-i18n="settings_language_label">Lingua interfaccia</label>
+        <select id="loginLanguageSelect" aria-label="Language">
+          <option value="en">English</option>
+          <option value="it">Italiano</option>
+        </select>
+      </div>
+      <h2 data-i18n="login_welcome">Benvenuto in PivotDesk</h2>
+      <p class="subtitle" data-i18n="login_enter_credentials">Inserisci le tue credenziali per continuare.</p>
       {% if error %}<div class="error">{{ error }}</div>{% endif %}
-      {% if logged_out %}<div class="note" style="margin:0 0 12px 0;color:#027a48;font-size:13px;">Logout eseguito correttamente.</div>{% endif %}
-      <label for="username">Username</label>
+      {% if logged_out %}<div class="note" style="margin:0 0 12px 0;color:#027a48;font-size:13px;" data-i18n="logout_success">Logout eseguito correttamente.</div>{% endif %}
+      <label for="username" data-i18n="username">Username</label>
       <input id="username" name="username" autocomplete="username" required>
-      <label for="password">Password</label>
+      <label for="password" data-i18n="password">Password</label>
       <input id="password" name="password" type="password" autocomplete="current-password" required>
-      <button type="submit">Accedi</button>
-      <div class="note">Primo accesso: utente <strong>admin</strong>, password <strong>admin</strong>.</div>
+      <button type="submit" data-i18n="login">Accedi</button>
+      <div class="note" data-i18n="first_access_note">Primo accesso: utente <strong>admin</strong>, password <strong>admin</strong>.</div>
     </form>
   </div>
+  <script>
+    (async function(){
+      const getCatalog = async (lang) => {
+        const normalized = (lang || "en").toLowerCase() === "it" ? "it" : "en";
+        const res = await fetch('/static/languages/' + normalized + '.json');
+        const cat = res.ok ? await res.json() : {};
+        return { cat, lang: normalized };
+      };
+
+      const applyCatalog = (cat, lang) => {
+        document.documentElement.setAttribute("lang", lang);
+        document.querySelectorAll('[data-i18n]').forEach(el => {
+          const key = el.getAttribute('data-i18n');
+          if (cat[key]) {
+            if (el.tagName === 'DIV' && key === 'first_access_note') el.innerHTML = cat[key];
+            else el.textContent = cat[key];
+          }
+        });
+      };
+
+      try{
+        const settingsRes = await fetch('/settings');
+        const settings = settingsRes.ok ? (await settingsRes.json()).settings || {} : {};
+        const localLang = (window.localStorage && localStorage.getItem("pivotdesk_login_lang")) || "";
+        const startupLang = localLang || settings.language || 'en';
+        const sel = document.getElementById("loginLanguageSelect");
+        const first = await getCatalog(startupLang);
+        applyCatalog(first.cat, first.lang);
+        if (sel) {
+          sel.value = first.lang;
+          sel.addEventListener("change", async () => {
+            const next = await getCatalog(sel.value);
+            applyCatalog(next.cat, next.lang);
+            try { localStorage.setItem("pivotdesk_login_lang", next.lang); } catch (_) {}
+          });
+        }
+      }catch(_){}
+    })();
+  </script>
 </body>
 </html>

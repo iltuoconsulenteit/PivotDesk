@@ -63,7 +63,11 @@ def normalize_df(
     return out
 
 
-def apply_filters(df: pd.DataFrame, filters: dict[str, Any] | None = None) -> pd.DataFrame:
+def apply_filters(
+    df: pd.DataFrame,
+    filters: dict[str, Any] | None = None,
+    case_sensitive: bool = True,
+) -> pd.DataFrame:
     if not filters:
         return df
 
@@ -85,7 +89,20 @@ def apply_filters(df: pd.DataFrame, filters: dict[str, Any] | None = None) -> pd
                 out = out[series_dt.dt.strftime("%Y-%m-%d") == target_dt.strftime("%Y-%m-%d")]
                 continue
 
-        out = out[out[field].astype(str).str.strip() == value_str]
+        # Numeric-safe filtering: if filter value is numeric and column can be parsed
+        # as numeric, compare numerically to avoid mismatches like "1" vs "1.0".
+        target_num = pd.to_numeric(pd.Series([value_str]), errors="coerce").iloc[0]
+        if pd.notna(target_num):
+            series_num = pd.to_numeric(out[field], errors="coerce")
+            if series_num.notna().any():
+                out = out[series_num == float(target_num)]
+                continue
+
+        series = out[field].astype(str).str.strip()
+        if case_sensitive:
+            out = out[series == value_str]
+        else:
+            out = out[series.str.lower() == value_str.lower()]
 
     return out
 
@@ -100,7 +117,23 @@ def _options_from_preset(preset: dict[str, Any]) -> dict[str, Any]:
         "sort_enabled": bool(raw.get("sort_enabled", False)),
         "sort_field": str(raw.get("sort_field", "")).strip(),
         "sort_direction": str(raw.get("sort_direction", "asc")).strip().lower() or "asc",
+        "case_sensitive": bool(raw.get("case_sensitive", False)),
     }
+
+
+def _normalize_case_for_dimensions(df: pd.DataFrame, fields: list[str], case_sensitive: bool) -> pd.DataFrame:
+    if case_sensitive:
+        return df
+    out = df.copy()
+    for field in fields:
+        if field not in out.columns:
+            continue
+        series = out[field]
+        mask = series.notna()
+        if not mask.any():
+            continue
+        out.loc[mask, field] = series.loc[mask].astype(str).str.lower()
+    return out
 
 
 def _build_requested_values(values: list[dict[str, Any]]) -> list[dict[str, str]]:
@@ -257,18 +290,21 @@ def _build_group_subtotal_record(
     group_key: tuple[Any, ...],
     idx_names: list[str],
     group_rows: list[dict[str, Any]],
+    include_measure: bool = True,
 ) -> dict[str, Any]:
     subtotal: dict[str, Any] = {}
+    subtotal["__row_type__"] = "subtotal"
 
     for i, name in enumerate(idx_names):
         subtotal[name] = group_key[i] if i < len(group_key) else ""
 
-    subtotal["Misura"] = "Subtotale"
+    if include_measure:
+        subtotal["Misura"] = "Subtotale"
 
     numeric_cols = set()
     for row in group_rows:
         for k, v in row.items():
-            if k in idx_names or k == "Misura":
+            if k in idx_names or (include_measure and k == "Misura"):
                 continue
             if isinstance(v, (int, float)) and not pd.isna(v):
                 numeric_cols.add(k)
@@ -294,6 +330,7 @@ def _build_vertical_table(
 
     first_table = pivot_tables[0][1]
     idx_names = _safe_index_names(first_table.index, rows)
+    include_measure = len(pivot_tables) > 1
 
     all_indexes: list[Any] = []
     seen = set()
@@ -316,7 +353,12 @@ def _build_vertical_table(
         if show_subtotals and current_group_key is not None and group_key != current_group_key:
             if current_group_rows:
                 data_rows.append(
-                    _build_group_subtotal_record(current_group_key, idx_names, current_group_rows)
+                    _build_group_subtotal_record(
+                        current_group_key,
+                        idx_names,
+                        current_group_rows,
+                        include_measure=include_measure,
+                    )
                 )
             current_group_rows = []
 
@@ -324,6 +366,7 @@ def _build_vertical_table(
             idx_names[i]: idx_tuple[i] if i < len(idx_tuple) else ""
             for i in range(len(idx_names))
         }
+        base["__row_type__"] = ""
 
         for req, table in pivot_tables:
             if idx not in table.index:
@@ -331,7 +374,8 @@ def _build_vertical_table(
 
             row_values = table.loc[idx]
             record = dict(base)
-            record["Misura"] = req["label"]
+            if include_measure:
+                record["Misura"] = req["label"]
 
             for col in table.columns:
                 header = _col_header_from_key(col)
@@ -345,11 +389,16 @@ def _build_vertical_table(
 
     if show_subtotals and current_group_key is not None and current_group_rows:
         data_rows.append(
-            _build_group_subtotal_record(current_group_key, idx_names, current_group_rows)
+            _build_group_subtotal_record(
+                current_group_key,
+                idx_names,
+                current_group_rows,
+                include_measure=include_measure,
+            )
         )
 
     out = pd.DataFrame(data_rows)
-    desired = idx_names + ["Misura"]
+    desired = idx_names + (["Misura"] if include_measure else [])
     extra = [c for c in out.columns if c not in desired]
     return out[desired + extra] if not out.empty else pd.DataFrame(columns=desired)
 
@@ -360,6 +409,7 @@ def _build_horizontal_group_subtotal_record(
     group_rows: list[dict[str, Any]],
 ) -> dict[str, Any]:
     subtotal: dict[str, Any] = {}
+    subtotal["__row_type__"] = "subtotal"
 
     for i, name in enumerate(idx_names):
         subtotal[name] = group_key[i] if i < len(group_key) else ""
@@ -432,6 +482,7 @@ def _build_horizontal_table(
             idx_names[i]: idx_tuple[i] if i < len(idx_tuple) else ""
             for i in range(len(idx_names))
         }
+        record["__row_type__"] = ""
 
         for col in all_col_keys:
             header = _col_header_from_key(col)
@@ -471,6 +522,7 @@ def run_pivot(df: pd.DataFrame, preset: dict[str, Any]) -> pd.DataFrame:
         return pd.DataFrame()
 
     options = _options_from_preset(preset)
+    working_df = _normalize_case_for_dimensions(df, rows + cols, options.get("case_sensitive", False))
     requested_values = _build_requested_values(values)
 
     if not requested_values:
@@ -480,7 +532,7 @@ def run_pivot(df: pd.DataFrame, preset: dict[str, Any]) -> pd.DataFrame:
 
     for req in requested_values:
         table = _pivot_single_value(
-            df=df,
+            df=working_df,
             rows=rows,
             cols=cols,
             req=req,
@@ -525,7 +577,8 @@ def table_to_html(table: pd.DataFrame) -> str:
     if table is None or table.empty:
         return '<table class="pd-table"><tbody><tr><td>Nessun dato</td></tr></tbody></table>'
 
-    cols = list(table.columns)
+    row_type_col = "__row_type__" if "__row_type__" in table.columns else None
+    cols = [c for c in table.columns if c != row_type_col]
 
     html = ['<table class="pd-table">']
 
@@ -540,9 +593,10 @@ def table_to_html(table: pd.DataFrame) -> str:
     for _, row in table.iterrows():
 
         values = [str(_format_cell(row[c])).strip() for c in cols]
+        row_type = str(row.get(row_type_col, "")).strip().lower() if row_type_col else ""
 
         is_total = any(v.upper() == "TOTALE" for v in values)
-        is_subtotal = any("SUBTOTALE" in v.upper() for v in values)
+        is_subtotal = row_type == "subtotal" or any("SUBTOTALE" in v.upper() for v in values)
 
         css = ""
         if is_total:

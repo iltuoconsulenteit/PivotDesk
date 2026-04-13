@@ -122,6 +122,17 @@
     bind("menuOpenSettings", async function () {
       safeCall("openSettingsScreen");
     });
+
+    bind("menuExportBackup", async function () {
+      await safeCall("exportBackupPackage");
+    });
+
+    bind("menuRestoreBackup", async function () {
+      const input = document.getElementById("backupRestoreFile");
+      if (!input) return;
+      input.value = "";
+      input.click();
+    });
   };
 
   document.addEventListener("DOMContentLoaded", function () {

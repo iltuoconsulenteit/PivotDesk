@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="290" viewBox="0 0 980 290">
+  <style>
+    .title{font:700 16px Arial,sans-serif;fill:#0f172a}
+    .h{font:700 15px Arial,sans-serif}
+    .t{font:14px Arial,sans-serif;fill:#0f172a}
+    .card{stroke-width:2;rx:12;ry:12}
+  </style>
+  <text x="20" y="28" class="title">License tiers overview</text>
+  <rect x="20" y="45" width="440" height="220" class="card" fill="#fff7ed" stroke="#ea580c"/>
+  <text x="40" y="74" class="h" fill="#9a3412">FREE</text>
+  <text x="40" y="102" class="t">• On-screen pivots from CSV sources</text>
+  <text x="40" y="126" class="t">• No print / charts / drilldown</text>
+  <text x="40" y="150" class="t">• LAN disabled by policy</text>
+  <text x="40" y="174" class="t">• Good for local entry-level usage</text>
+  <rect x="500" y="45" width="460" height="220" class="card" fill="#ecfdf3" stroke="#15803d"/>
+  <text x="520" y="74" class="h" fill="#166534">PAID / DEVELOPER</text>
+  <text x="520" y="102" class="t">• Premium features (print, charts, drilldown)</text>
+  <text x="520" y="126" class="t">• Optional LAN exposure + diagnostics</text>
+  <text x="520" y="150" class="t">• Branding + backup/restore workflows</text>
+  <text x="520" y="174" class="t">• Feature flags can be customized per license</text>
+</svg>

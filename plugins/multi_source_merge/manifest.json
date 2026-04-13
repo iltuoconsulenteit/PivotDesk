@@ -1,0 +1,14 @@
+{
+  "id": "multi_source_merge",
+  "name": "Multi Source Merge",
+  "version": "0.1.0",
+  "description": "Union/merge multiple source layouts into a common output schema.",
+  "enabled": false,
+  "frontend": {
+    "menu": [],
+    "panel": {
+      "id": "multiSourceMergePanel",
+      "title": "Multi Source Merge"
+    }
+  }
+}

@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="220" viewBox="0 0 980 220">
+  <style>
+    .box{fill:#f8fbff;stroke:#2b6cb0;stroke-width:2;rx:12;ry:12}
+    .txt{font:14px Arial, sans-serif;fill:#1a365d}
+    .title{font:700 16px Arial, sans-serif;fill:#0f172a}
+    .arrow{stroke:#2563eb;stroke-width:2;marker-end:url(#m)}
+  </style>
+  <defs><marker id="m" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#2563eb"/></marker></defs>
+  <text x="20" y="28" class="title">PivotDesk workflow (Source → Pivot → Insight)</text>
+  <rect class="box" x="20" y="50" width="200" height="110"/>
+  <text class="txt" x="38" y="82">1) Data Source</text>
+  <text class="txt" x="38" y="104">CSV / Excel / ODS / API</text>
+  <text class="txt" x="38" y="126">Preview + field checks</text>
+  <rect class="box" x="260" y="50" width="220" height="110"/>
+  <text class="txt" x="278" y="82">2) Pivot Builder</text>
+  <text class="txt" x="278" y="104">Rows / Columns / Values</text>
+  <text class="txt" x="278" y="126">Calculated fields + filters</text>
+  <rect class="box" x="520" y="50" width="220" height="110"/>
+  <text class="txt" x="538" y="82">3) Output</text>
+  <text class="txt" x="538" y="104">Pivot table + totals</text>
+  <text class="txt" x="538" y="126">Sorting + drilldown</text>
+  <rect class="box" x="780" y="50" width="180" height="110"/>
+  <text class="txt" x="798" y="82">4) Actions</text>
+  <text class="txt" x="798" y="104">Charts / Print</text>
+  <text class="txt" x="798" y="126">Backup / Share</text>
+  <line class="arrow" x1="220" y1="105" x2="258" y2="105"/>
+  <line class="arrow" x1="480" y1="105" x2="518" y2="105"/>
+  <line class="arrow" x1="740" y1="105" x2="778" y2="105"/>
+</svg>
