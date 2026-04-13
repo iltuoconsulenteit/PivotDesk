@@ -4330,7 +4330,7 @@ async function initSourcePluginBuilders(){
 function updateSourceFormVisibility(){
   const srcType = String(document.getElementById("srcType").value || "csv").trim().toLowerCase();
   const isCsv = srcType === "csv";
-  const isXlsx = srcType === "xlsx";
+  const isXlsx = srcType === "xlsx" || srcType === "excel";
   const isOds = srcType === "ods";
   const isMysql = srcType === "mysql";
   const isHttp = ["http_json", "api", "rest"].includes(srcType);
@@ -4425,7 +4425,7 @@ function setSourceSheetOptions(sheets, selectedValue = ""){
 
 async function loadExcelSheetsForForm(){
   const payload = collectSourceFormPayload();
-  if (String(payload.type || "").toLowerCase() !== "xlsx") return;
+  if (!["xlsx", "excel"].includes(String(payload.type || "").toLowerCase())) return;
   if (!payload.path) {
     setStatus("Seleziona prima un file Excel per leggere i fogli.");
     return;

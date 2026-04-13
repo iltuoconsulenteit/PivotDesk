@@ -1157,6 +1157,8 @@ def normalize_source_item(item: dict[str, Any]) -> dict[str, Any] | None:
         or str(item.get("kind", "")).strip().lower()
         or "csv"
     )
+    if src_type in {"excel", "xls", "xlsm"}:
+        src_type = "xlsx"
 
     if not src_id:
         return None
@@ -1334,6 +1336,68 @@ def infer_sources_from_pivots_dirs() -> list[dict[str, Any]]:
     return list(inferred_by_id.values())
 
 
+def remap_pivot_source_ids(id_map: dict[str, str]) -> bool:
+    """
+    Aggiorna cartelle preset e payload JSON quando gli id sorgente vengono
+    migrati (es. legacy string -> id numerico).
+    """
+    normalized_map: dict[str, str] = {}
+    for old_raw, new_raw in (id_map or {}).items():
+        old_id = normalize_source_id(old_raw)
+        new_id = normalize_source_id(new_raw)
+        if old_id and new_id and old_id != new_id:
+            normalized_map[old_id] = new_id
+
+    if not normalized_map:
+        return False
+
+    changed = False
+
+    for old_id, new_id in normalized_map.items():
+        old_folder = PIVOTS_DIR / old_id
+        new_folder = PIVOTS_DIR / new_id
+        if old_folder.exists() and old_folder.is_dir():
+            new_folder.parent.mkdir(parents=True, exist_ok=True)
+            if not new_folder.exists():
+                old_folder.rename(new_folder)
+                changed = True
+            else:
+                for payload_file in old_folder.glob("*.json"):
+                    target_file = new_folder / payload_file.name
+                    if target_file.exists():
+                        continue
+                    payload_file.rename(target_file)
+                    changed = True
+                try:
+                    old_folder.rmdir()
+                except OSError:
+                    pass
+
+    for folder in PIVOTS_DIR.glob("*"):
+        if not folder.is_dir():
+            continue
+        for payload_file in folder.glob("*.json"):
+            payload = read_json(payload_file, {})
+            if not isinstance(payload, dict):
+                continue
+            file_changed = False
+            current_sid = normalize_source_id(payload.get("source_id"))
+            if current_sid in normalized_map:
+                payload["source_id"] = normalized_map[current_sid]
+                file_changed = True
+            embedded = payload.get("source")
+            if isinstance(embedded, dict):
+                embedded_sid = normalize_source_id(embedded.get("id"))
+                if embedded_sid in normalized_map:
+                    embedded["id"] = normalized_map[embedded_sid]
+                    file_changed = True
+            if file_changed:
+                write_json(payload_file, payload)
+                changed = True
+
+    return changed
+
+
 def load_sources_data() -> dict[str, Any]:
     raw = read_json(SOURCES_PATH, DEFAULT_SOURCES.copy()) or {}
 
@@ -1374,6 +1438,7 @@ def load_sources_data() -> dict[str, Any]:
             return seeded
 
     changed_ids = False
+    id_remap: dict[str, str] = {}
     used_numeric: set[int] = set()
     remapped_items: list[dict[str, Any]] = []
     for item in normalized_items:
@@ -1397,6 +1462,7 @@ def load_sources_data() -> dict[str, Any]:
         new_item = dict(item)
         if target != old_id:
             changed_ids = True
+            id_remap[old_id] = target
             cfg = dict(new_item.get("config") if isinstance(new_item.get("config"), dict) else {})
             if old_id:
                 cfg["legacy_source_id"] = old_id
@@ -1443,7 +1509,9 @@ def load_sources_data() -> dict[str, Any]:
         "items": normalized_items,
     }
 
-    if inferred_added or changed_ids:
+    pivots_remapped = remap_pivot_source_ids(id_remap) if changed_ids else False
+
+    if inferred_added or changed_ids or pivots_remapped:
         write_json(SOURCES_PATH, merged)
 
     return merged
