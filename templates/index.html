@@ -1847,6 +1847,9 @@ window.LICENSE_CONTEXT = {
                 <div class="field" style="display:flex; align-items:flex-end;">
                   <button id="btnLoadTemplateHeadersFromSource" type="button">Carica intestazioni da sorgente</button>
                 </div>
+                <div class="field" style="display:flex; align-items:flex-end;">
+                  <button id="btnCreateBaseMergeTemplateFromSource" type="button">Crea template base</button>
+                </div>
               </div>
             </div>
             <div id="mergeTemplateManualPanel" class="hidden">
@@ -1856,6 +1859,7 @@ window.LICENSE_CONTEXT = {
               </div>
             </div>
             <div id="mergeTemplateColsChips" style="display:grid; gap:6px; margin-top:6px;"></div>
+            <div class="small" style="margin-top:4px;">Suggerimento: trascina le righe colonne per riordinarle, usa Rimuovi per eliminarle o il campo sotto per aggiungerne di nuove.</div>
             <div class="builder-actions" style="margin-top:6px;">
               <input id="mergeTemplateNewCol" placeholder="Nuova colonna template" style="flex:1; min-width:180px;">
               <button id="btnAddMergeTemplateCol" type="button">Aggiungi colonna</button>
@@ -3441,6 +3445,7 @@ async function refreshLookupBuilders(){
 
 let MERGE_BLOCK_COUNTER = 0;
 let MERGE_TEMPLATES = [];
+let MERGE_TEMPLATE_COL_DRAG_INDEX = -1;
 
 function getMergeTemplateColumnsFromUi(){
   return String(document.getElementById("mergeTemplateColumns")?.value || "")
@@ -3476,9 +3481,52 @@ function renderMergeTemplateColumnChips(){
   wrap.innerHTML = "";
   cols.forEach((col, idx) => {
     const row = document.createElement("div");
+    row.draggable = true;
     row.style.display = "grid";
-    row.style.gridTemplateColumns = "1fr auto";
+    row.style.gridTemplateColumns = "auto 1fr auto";
     row.style.gap = "6px";
+    row.style.alignItems = "center";
+    row.style.cursor = "grab";
+    row.addEventListener("dragstart", ev => {
+      MERGE_TEMPLATE_COL_DRAG_INDEX = idx;
+      row.style.opacity = "0.6";
+      ev.dataTransfer.effectAllowed = "move";
+      ev.dataTransfer.setData("text/plain", String(idx));
+    });
+    row.addEventListener("dragend", () => {
+      MERGE_TEMPLATE_COL_DRAG_INDEX = -1;
+      row.style.opacity = "1";
+    });
+    row.addEventListener("dragover", ev => {
+      ev.preventDefault();
+      ev.dataTransfer.dropEffect = "move";
+      row.style.outline = "2px dashed #98a2b3";
+    });
+    row.addEventListener("dragleave", () => {
+      row.style.outline = "";
+    });
+    row.addEventListener("drop", ev => {
+      ev.preventDefault();
+      row.style.outline = "";
+      const from = MERGE_TEMPLATE_COL_DRAG_INDEX;
+      const to = idx;
+      if (!Number.isInteger(from) || from < 0 || from === to) return;
+      const next = getMergeTemplateColumnsFromUi();
+      const [moved] = next.splice(from, 1);
+      if (!moved) return;
+      next.splice(to, 0, moved);
+      setMergeTemplateColumnsToUi(next);
+    });
+
+    const dragHandle = document.createElement("div");
+    dragHandle.textContent = "↕";
+    dragHandle.title = "Trascina per riordinare";
+    dragHandle.style.padding = "4px 8px";
+    dragHandle.style.border = "1px solid #d0d5dd";
+    dragHandle.style.borderRadius = "6px";
+    dragHandle.style.background = "#f8fafc";
+    dragHandle.style.userSelect = "none";
+
     const input = document.createElement("input");
     input.value = col;
     input.placeholder = "Nome colonna template";
@@ -3494,6 +3542,7 @@ function renderMergeTemplateColumnChips(){
       const next = cols.filter((_, i) => i !== idx);
       setMergeTemplateColumnsToUi(next);
     };
+    row.appendChild(dragHandle);
     row.appendChild(input);
     row.appendChild(remove);
     wrap.appendChild(row);
@@ -3597,6 +3646,20 @@ async function loadTemplateHeadersFromSourceFromUi(){
   if (!headers.length) throw new Error("Nessuna intestazione trovata.");
   setMergeTemplateColumnsToUi(headers);
   setStatus("Intestazioni caricate (sovrascritte) dalla sorgente: " + sourceId);
+}
+
+async function createBaseMergeTemplateFromSourceFromUi(){
+  const sourceId = String(document.getElementById("mergeTemplateFromSource")?.value || "").trim();
+  if (!sourceId) throw new Error("Seleziona una sorgente.");
+  await loadTemplateHeadersFromSourceFromUi();
+  const src = (SOURCES || []).find(s => String(s?.id || "").trim() === sourceId);
+  const sourceLabel = String(src?.title || src?.id || sourceId).trim();
+  const titleEl = document.getElementById("mergeTemplateTitle");
+  if (titleEl && !String(titleEl.value || "").trim()) {
+    titleEl.value = "Template base - " + sourceLabel;
+  }
+  suggestMergeTemplateIdentity(false);
+  setStatus("Template base creato dalla sorgente: " + sourceLabel + ". Ora puoi aggiungere/rimuovere/riordinare colonne.");
 }
 
 function showMergeCatalogFromUi(){
@@ -4062,6 +4125,7 @@ async function initSourcePluginBuilders(){
   const mergeTemplateModeSourceBtn = document.getElementById("btnMergeTemplateModeSource");
   const mergeTemplateModeManualBtn = document.getElementById("btnMergeTemplateModeManual");
   const loadTemplateHeadersFromSourceBtn = document.getElementById("btnLoadTemplateHeadersFromSource");
+  const createBaseTemplateFromSourceBtn = document.getElementById("btnCreateBaseMergeTemplateFromSource");
   const showMergeCatalogBtn = document.getElementById("btnShowMergeCatalog");
   const mergeTemplateColsInput = document.getElementById("mergeTemplateColumns");
   const mergeTemplateNewCol = document.getElementById("mergeTemplateNewCol");
@@ -4174,6 +4238,12 @@ async function initSourcePluginBuilders(){
     loadTemplateHeadersFromSourceBtn.dataset.bound = "1";
     loadTemplateHeadersFromSourceBtn.addEventListener("click", async () => {
       await loadTemplateHeadersFromSourceFromUi();
+    });
+  }
+  if (createBaseTemplateFromSourceBtn && !createBaseTemplateFromSourceBtn.dataset.bound) {
+    createBaseTemplateFromSourceBtn.dataset.bound = "1";
+    createBaseTemplateFromSourceBtn.addEventListener("click", async () => {
+      await createBaseMergeTemplateFromSourceFromUi();
     });
   }
   if (showMergeCatalogBtn && !showMergeCatalogBtn.dataset.bound) {
