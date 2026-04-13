@@ -1359,6 +1359,51 @@ def load_sources_data() -> dict[str, Any]:
             write_json(SOURCES_PATH, seeded)
             return seeded
 
+    changed_ids = False
+    used_numeric: set[int] = set()
+    remapped_items: list[dict[str, Any]] = []
+    for item in normalized_items:
+        old_id = str(item.get("id", "")).strip()
+        digits = re.sub(r"[^0-9]+", "", old_id)
+        target = ""
+        if digits:
+            try:
+                n = int(digits)
+                if n > 0 and n not in used_numeric:
+                    target = str(n)
+                    used_numeric.add(n)
+            except Exception:
+                target = ""
+        if not target:
+            next_n = (max(used_numeric) + 1) if used_numeric else 1
+            while next_n in used_numeric:
+                next_n += 1
+            used_numeric.add(next_n)
+            target = str(next_n)
+        new_item = dict(item)
+        if target != old_id:
+            changed_ids = True
+            cfg = dict(new_item.get("config") if isinstance(new_item.get("config"), dict) else {})
+            if old_id:
+                cfg["legacy_source_id"] = old_id
+            new_item["config"] = cfg
+        new_item["id"] = target
+        remapped_items.append(new_item)
+    normalized_items = remapped_items
+
+    if default_source:
+        remapped_default = next(
+            (
+                x["id"]
+                for x in normalized_items
+                if x["id"] == default_source or str((x.get("config") or {}).get("legacy_source_id", "")) == default_source
+            ),
+            "",
+        )
+        if remapped_default and remapped_default != default_source:
+            changed_ids = True
+            default_source = remapped_default
+
     if not default_source and normalized_items:
         default_source = normalized_items[0]["id"]
 
@@ -1384,7 +1429,7 @@ def load_sources_data() -> dict[str, Any]:
         "items": normalized_items,
     }
 
-    if inferred_added:
+    if inferred_added or changed_ids:
         write_json(SOURCES_PATH, merged)
 
     return merged
@@ -1418,7 +1463,17 @@ def save_sources_data(data: dict[str, Any]) -> dict[str, Any]:
 def get_source_by_id(source_id: str | None) -> dict[str, Any] | None:
     sid = normalize_source_id(source_id)
     data = load_sources_data()
-    return next((x for x in data.get("items", []) if x["id"] == sid), None)
+    found = next((x for x in data.get("items", []) if x["id"] == sid), None)
+    if found:
+        return found
+    return next(
+        (
+            x
+            for x in data.get("items", [])
+            if str((x.get("config") or {}).get("legacy_source_id", "")).strip() == sid
+        ),
+        None,
+    )
 
 
 def load_source_df(source_id: str | None) -> tuple[dict[str, Any], pd.DataFrame]:

@@ -1622,7 +1622,7 @@ window.LICENSE_CONTEXT = {
     </div>
 
     <div class="builder-top">
-      <div class="field">
+      <div class="field" style="display:none;">
         <label for="srcId">ID sorgente (automatico)</label>
         <input id="srcId" placeholder="Generato automaticamente" readonly>
       </div>
@@ -1716,15 +1716,17 @@ window.LICENSE_CONTEXT = {
     </div>
 
     <div class="builder-top" id="srcSheetSkipOptions">
+      <div class="field" id="srcImportAllSheetsWrap" style="grid-column:1 / -1;">
+        <label class="inline-check">
+          <input id="srcImportAllSheets" type="checkbox">
+          Importa tutti i fogli XLSX (unione automatica)
+        </label>
+      </div>
       <div class="field" id="srcSheetNameWrap">
         <label for="srcSheetName">Foglio Excel</label>
         <select id="srcSheetName">
           <option value="">Primo foglio (automatico)</option>
         </select>
-        <div class="settings-line" style="margin-top:8px;">
-          <input id="srcImportAllSheets" type="checkbox">
-          <label for="srcImportAllSheets" style="margin:0;">Importa tutti i fogli XLSX (se plugin/feature attiva)</label>
-        </div>
         <div style="margin-top:8px;">
           <button id="btnLoadExcelSheets" type="button">Carica elenco fogli</button>
         </div>
@@ -4279,6 +4281,7 @@ function updateSourceFormVisibility(){
   const csvWrap = document.getElementById("srcCsvOptions");
   const sheetSkipWrap = document.getElementById("srcSheetSkipOptions");
   const sheetNameWrap = document.getElementById("srcSheetNameWrap");
+  const importAllSheetsWrap = document.getElementById("srcImportAllSheetsWrap");
   const resolvedInfoWrap = document.getElementById("srcResolvedInfoWrap");
   const importAllSheetsChk = document.getElementById("srcImportAllSheets");
   const pathLabel = document.getElementById("srcPathLabel");
@@ -4302,6 +4305,7 @@ function updateSourceFormVisibility(){
   if (csvWrap) csvWrap.style.display = isCsv ? "" : "none";
   if (sheetSkipWrap) sheetSkipWrap.style.display = showSheetSkipOptions ? "" : "none";
   if (sheetNameWrap) sheetNameWrap.style.display = (isXlsx || isOds) ? "" : "none";
+  if (importAllSheetsWrap) importAllSheetsWrap.style.display = isXlsx ? "" : "none";
   if (resolvedInfoWrap) resolvedInfoWrap.style.display = (isCsv || isXlsx || isOds || isGdrive) ? "" : "none";
 
   if (pathLabel) {
