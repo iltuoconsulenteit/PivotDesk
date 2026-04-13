@@ -1721,6 +1721,10 @@ window.LICENSE_CONTEXT = {
         <select id="srcSheetName">
           <option value="">Primo foglio (automatico)</option>
         </select>
+        <div class="settings-line" style="margin-top:8px;">
+          <input id="srcImportAllSheets" type="checkbox">
+          <label for="srcImportAllSheets" style="margin:0;">Importa tutti i fogli XLSX (se plugin/feature attiva)</label>
+        </div>
         <div style="margin-top:8px;">
           <button id="btnLoadExcelSheets" type="button">Carica elenco fogli</button>
         </div>
@@ -4276,12 +4280,18 @@ function updateSourceFormVisibility(){
   const sheetSkipWrap = document.getElementById("srcSheetSkipOptions");
   const sheetNameWrap = document.getElementById("srcSheetNameWrap");
   const resolvedInfoWrap = document.getElementById("srcResolvedInfoWrap");
+  const importAllSheetsChk = document.getElementById("srcImportAllSheets");
   const pathLabel = document.getElementById("srcPathLabel");
+  const importAllSheets = !!importAllSheetsChk?.checked;
 
   document.getElementById("srcDelimiter").disabled = !isCsv;
   document.getElementById("srcEncoding").disabled = !isCsv;
-  document.getElementById("srcSheetName").disabled = !(isXlsx || isOds);
-  if (btnLoadSheets) btnLoadSheets.disabled = !(isXlsx || isOds);
+  document.getElementById("srcSheetName").disabled = !(isXlsx || isOds) || (isXlsx && importAllSheets);
+  if (btnLoadSheets) btnLoadSheets.disabled = !(isXlsx || isOds) || (isXlsx && importAllSheets);
+  if (importAllSheetsChk) {
+    importAllSheetsChk.disabled = !isXlsx;
+    if (!isXlsx) importAllSheetsChk.checked = false;
+  }
   if (btnPick) btnPick.disabled = isMysql || isHttp || isGsheetAccount;
   if (btnPaste) btnPaste.disabled = isMysql || isGsheetAccount;
   if (pathWrap) pathWrap.style.display = (isMysql || isGsheetAccount) ? "none" : "";
@@ -4882,7 +4892,8 @@ function collectSourceFormPayload(){
     delimiter: document.getElementById("srcDelimiter").value,
     encoding: document.getElementById("srcEncoding").value,
     sheet_name: document.getElementById("srcSheetName").value.trim(),
-    skip_rows: parseInt(document.getElementById("srcSkipRows").value || "0", 10) || 0
+    skip_rows: parseInt(document.getElementById("srcSkipRows").value || "0", 10) || 0,
+    import_all_sheets: !!document.getElementById("srcImportAllSheets")?.checked
   };
   if (srcType === "mysql") {
     config.connection_id = document.getElementById("srcMysqlConnectionId").value.trim();
@@ -5049,6 +5060,7 @@ function resetSourceForm(){
   document.getElementById("srcDelimiter").value = "";
   document.getElementById("srcEncoding").value = "";
   setSourceSheetOptions([], "");
+  document.getElementById("srcImportAllSheets").checked = false;
   document.getElementById("srcSkipRows").value = "0";
   document.getElementById("srcResolvedInfo").value = "";
   document.getElementById("srcMysqlConnectionId").value = "";
@@ -5080,6 +5092,7 @@ function loadSourceIntoForm(src){
   document.getElementById("srcDelimiter").value = src.delimiter || src.config?.delimiter || "";
   document.getElementById("srcEncoding").value = src.encoding || src.config?.encoding || "";
   setSourceSheetOptions([], src.sheet_name ?? src.config?.sheet_name ?? src.config?.sheet ?? "");
+  document.getElementById("srcImportAllSheets").checked = !!(src.config?.import_all_sheets);
   document.getElementById("srcSkipRows").value = String(src.skip_rows ?? src.config?.skip_rows ?? 0);
   document.getElementById("srcMysqlConnectionId").value = src.config?.connection_id || "";
   document.getElementById("srcMysqlTable").value = src.config?.table || "";
@@ -7514,6 +7527,10 @@ bindInput("srcEncoding", "change", async () => {
 });
 bindInput("srcSkipRows", "input", async () => {
   try { await previewSourceFromForm(); } catch (_) {}
+});
+bindInput("srcImportAllSheets", "change", async () => {
+  updateSourceFormVisibility();
+  try { await previewSourceFromForm(true); } catch (_) {}
 });
 bindInput("srcPath", "input", async () => {
   autoFillSourceIdentityFromPath(document.getElementById("srcPath").value || "");

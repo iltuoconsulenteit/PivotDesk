@@ -21,6 +21,27 @@ class ExcelSourceAdapter(BaseSourceAdapter):
 
         sheet_name = cfg.get("sheet_name", 0)
         header_row = cfg.get("header_row", 0)
+        import_all_sheets = bool(cfg.get("import_all_sheets", False))
+
+        if import_all_sheets:
+            all_sheets = pd.read_excel(
+                path,
+                sheet_name=None,
+                header=header_row,
+                dtype=str,
+                engine="openpyxl",
+            )
+            frames = []
+            for sheet_label, sheet_df in (all_sheets or {}).items():
+                if sheet_df is None:
+                    continue
+                tmp = sheet_df.copy()
+                tmp["_sheet"] = str(sheet_label or "")
+                frames.append(tmp)
+            if not frames:
+                return self._normalize_df(pd.DataFrame())
+            merged = pd.concat(frames, ignore_index=True)
+            return self._normalize_df(merged)
 
         df = pd.read_excel(
             path,

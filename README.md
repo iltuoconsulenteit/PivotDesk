@@ -164,6 +164,7 @@ The following diagrams are visual examples derived from the HTML layout structur
 - Multi-source template ids are handled as numeric index keys (auto-assigned when omitted/invalid, hidden in UI except preview), consistent with source/pivot indexing strategy.
 - Source Manager plugin panel includes a guided template-first merge flow with drag&drop mapping (save/load template headers, drag source fields onto template slots, auto-suggest mappings per source, run merge from template), source-header import to bootstrap template columns, and quick catalog views (templates/sources/pivots) for large workspaces.
 - Source management now supports optional `column_aliases` (header alias map) so previews/pivots/plugins can show user-defined column names without changing source files.
+- For Excel sources (`xlsx`), base Source Manager now includes `import_all_sheets` flag to union all worksheets into one source (with `_sheet` column), so users don't need to run a separate plugin tool when this feature is enabled.
 - Merge panel action area includes explicit preview/update flow: preview merge output, save as generated source, then refresh the same merge source id when upstream rows/sources change.
 
 Plugin visibility/enablement:
