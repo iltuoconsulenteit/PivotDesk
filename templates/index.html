@@ -3594,7 +3594,7 @@ async function loadMergeTemplatesIntoUi(keepSelection = true){
   return MERGE_TEMPLATES;
 }
 
-function applySelectedMergeTemplateToUi(){
+async function applySelectedMergeTemplateToUi(){
   const sel = document.getElementById("mergeTemplateSelect");
   const idEl = document.getElementById("mergeTemplateId");
   const idPreview = document.getElementById("mergeTemplateIdPreview");
@@ -3611,6 +3611,14 @@ function applySelectedMergeTemplateToUi(){
   const cols = Array.isArray(tpl.columns) ? tpl.columns.map(String).filter(Boolean) : [];
   setMergeTemplateColumnsToUi(cols);
   if (outputColsEl) outputColsEl.value = cols.join(",");
+  const templateSources = Array.isArray(tpl.sources) ? tpl.sources : [];
+  if (templateSources.length) {
+    const wrap = document.getElementById("mergeSourceBlocks");
+    if (wrap) wrap.innerHTML = "";
+    for (const srcCfg of templateSources) {
+      await addMergeSourceBlock(srcCfg);
+    }
+  }
   return tpl;
 }
 
@@ -3624,12 +3632,14 @@ async function saveMergeTemplateFromUi(){
   if (!templateId) throw new Error("Template ID automatico non disponibile.");
   if (!title) throw new Error("Inserisci un titolo template.");
   if (!cols.length) throw new Error("Inserisci almeno una intestazione template.");
+  const sourcesForTemplate = buildMergeSourcesJsonFromBuilder();
   await api("/plugin/multi-source-merge/template/save", {
     method: "POST",
     body: JSON.stringify({
       template_id: templateId,
       title,
       columns: cols,
+      sources: sourcesForTemplate,
       include_source_tag: true,
       overwrite: true
     })
@@ -3637,6 +3647,7 @@ async function saveMergeTemplateFromUi(){
   await loadMergeTemplatesIntoUi(false);
   const sel = document.getElementById("mergeTemplateSelect");
   if (sel) sel.value = templateId;
+  await applySelectedMergeTemplateToUi();
   suggestMergeTemplateIdentity(false);
   setStatus("Template merge salvato: " + templateId);
 }
@@ -4192,7 +4203,7 @@ async function initSourcePluginBuilders(){
     loadTemplatesBtn.addEventListener("click", async () => {
       try {
         await loadMergeTemplatesIntoUi(true);
-        applySelectedMergeTemplateToUi();
+        await applySelectedMergeTemplateToUi();
         setStatus("Template merge aggiornati.");
       } catch (e) {
         setStatus("ERRORE ricarica template: " + (e?.message || e));
@@ -4237,8 +4248,8 @@ async function initSourcePluginBuilders(){
   }
   if (mergeTemplateSel && !mergeTemplateSel.dataset.bound) {
     mergeTemplateSel.dataset.bound = "1";
-    mergeTemplateSel.addEventListener("change", () => {
-      applySelectedMergeTemplateToUi();
+    mergeTemplateSel.addEventListener("change", async () => {
+      await applySelectedMergeTemplateToUi();
     });
   }
   if (mergeTemplateTitle && !mergeTemplateTitle.dataset.bound) {

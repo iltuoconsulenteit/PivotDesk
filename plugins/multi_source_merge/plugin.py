@@ -53,6 +53,7 @@ class MergeTemplateCreateRequest(BaseModel):
     template_id: str | None = None
     title: str = Field(..., min_length=2)
     columns: list[str] = Field(default_factory=list)
+    sources: list[MergeSourceConfig] = Field(default_factory=list)
     include_source_tag: bool = True
     overwrite: bool = False
 
@@ -308,10 +309,29 @@ def register(app, plugin_api, manifest):
         columns = [str(c).strip() for c in payload.columns if str(c).strip()]
         if not columns:
             raise HTTPException(status_code=400, detail="columns obbligatorio")
+        saved_sources: list[dict[str, Any]] = []
+        for src_cfg in payload.sources or []:
+            src_id = str(src_cfg.source_id or "").strip()
+            if not src_id:
+                continue
+            col_map = {
+                str(k).strip(): str(v).strip()
+                for k, v in (src_cfg.column_map or {}).items()
+                if str(k).strip() and str(v).strip()
+            }
+            saved_sources.append(
+                {
+                    "source_id": src_id,
+                    "column_map": col_map,
+                    "calculated_fields": src_cfg.calculated_fields or [],
+                    "source_tag": src_cfg.source_tag,
+                }
+            )
         item = {
             "template_id": template_id,
             "title": str(payload.title or template_id).strip(),
             "columns": columns,
+            "sources": saved_sources,
             "include_source_tag": bool(payload.include_source_tag),
         }
         existing_idx = -1
@@ -340,14 +360,18 @@ def register(app, plugin_api, manifest):
 
     @router.post("/build-from-template")
     def build_from_template(payload: MergeTemplateBuildRequest):
-        if not payload.sources:
-            raise HTTPException(status_code=400, detail="sources obbligatorio")
         items = _load_templates()
         tpl = _find_template(items, payload.template_id)
         if not tpl:
             raise HTTPException(status_code=404, detail="template non trovato")
+        sources_payload = payload.sources
+        if not sources_payload:
+            fallback = tpl.get("sources") if isinstance(tpl, dict) else []
+            sources_payload = [MergeSourceConfig(**row) for row in (fallback or []) if isinstance(row, dict)]
+        if not sources_payload:
+            raise HTTPException(status_code=400, detail="sources obbligatorio")
         req = MultiMergeRequest(
-            sources=payload.sources,
+            sources=sources_payload,
             output_columns=[str(c) for c in (tpl.get("columns") or []) if str(c).strip()],
             include_source_tag=(
                 bool(payload.include_source_tag)
