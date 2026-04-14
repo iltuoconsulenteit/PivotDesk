@@ -3343,6 +3343,7 @@ function renderMergePreview(payload){
   if (!card || !meta || !thead || !tbody) return;
   const columns = Array.isArray(payload?.columns) ? payload.columns.map(String) : [];
   const rows = Array.isArray(payload?.rows) ? payload.rows : [];
+  const sourcePreviews = Array.isArray(payload?.sources_preview) ? payload.sources_preview : [];
   if (!columns.length) {
     meta.textContent = "Nessuna colonna disponibile nell'anteprima merge.";
     thead.innerHTML = "";
@@ -3352,7 +3353,15 @@ function renderMergePreview(payload){
   }
   const maxRows = 20;
   const shown = rows.slice(0, maxRows);
-  meta.textContent = "Righe merge mostrate: " + shown.length + " / " + String(payload?.row_count ?? rows.length);
+  const sourceSummary = sourcePreviews.length
+    ? " · Sorgenti campionate: " + sourcePreviews.map(s => {
+      const title = String(s?.source_title || s?.source_id || "sorgente");
+      const total = String(s?.rows_total ?? "-");
+      const previewCount = Array.isArray(s?.rows_preview) ? s.rows_preview.length : 0;
+      return title + " (righe: " + total + ", campione: " + previewCount + ")";
+    }).join(" | ")
+    : "";
+  meta.textContent = "Righe merge mostrate: " + shown.length + " / " + String(payload?.row_count ?? rows.length) + sourceSummary;
   thead.innerHTML = "<tr>" + columns.map(c => "<th>" + escapeHtml(c) + "</th>").join("") + "</tr>";
   tbody.innerHTML = shown
     .map(row => "<tr>" + columns.map(c => "<td>" + escapeHtml(row?.[c]) + "</td>").join("") + "</tr>")

@@ -2419,6 +2419,7 @@ def _build_merge_payload_result(payload: dict[str, Any]) -> dict[str, Any]:
     output_columns = [str(c).strip() for c in (payload.get("output_columns", []) or []) if str(c).strip()]
     merged_rows: list[dict[str, Any]] = []
     discovered: list[str] = []
+    sources_preview: list[dict[str, Any]] = []
 
     for src_cfg in sources:
         if not isinstance(src_cfg, dict):
@@ -2436,7 +2437,9 @@ def _build_merge_payload_result(payload: dict[str, Any]) -> dict[str, Any]:
             df = pd.DataFrame(apply_calculated_fields(rows, calc_defs))
         cmap = src_cfg.get("column_map", {})
         column_map = cmap if isinstance(cmap, dict) else {}
-        for row in df.fillna("").to_dict(orient="records"):
+        source_records = df.fillna("").to_dict(orient="records")
+        source_preview_rows: list[dict[str, Any]] = []
+        for row in source_records:
             out = {}
             for target_col, src_col in column_map.items():
                 tcol = str(target_col).strip()
@@ -2451,14 +2454,29 @@ def _build_merge_payload_result(payload: dict[str, Any]) -> dict[str, Any]:
                 if "_source" not in discovered:
                     discovered.append("_source")
             merged_rows.append(out)
+            if len(source_preview_rows) < 3:
+                source_preview_rows.append(dict(out))
             if len(merged_rows) >= limit:
                 break
+        sources_preview.append({
+            "source_id": source_id,
+            "source_title": str(source.get("title") or source_id),
+            "rows_total": len(source_records),
+            "rows_preview": source_preview_rows,
+        })
         if len(merged_rows) >= limit:
             break
 
     cols = output_columns or discovered
     rows = [{c: r.get(c, "") for c in cols} for r in merged_rows]
-    return {"ok": True, "columns": cols, "rows": rows, "row_count": len(rows), "truncated": len(merged_rows) >= limit}
+    return {
+        "ok": True,
+        "columns": cols,
+        "rows": rows,
+        "row_count": len(rows),
+        "truncated": len(merged_rows) >= limit,
+        "sources_preview": sources_preview,
+    }
 
 
 @app.post("/plugin/multi-source-merge/build")
