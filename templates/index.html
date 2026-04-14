@@ -1248,6 +1248,12 @@ window.LICENSE_CONTEXT = {
             <button type="button" id="menuRestoreBackup" data-i18n="menu_restore_backup">Ripristina backup</button>
           </div>
         </div>
+        <div class="menu-group">
+          <button type="button" class="menu-btn" data-menu-target="menu-modules">Moduli</button>
+          <div class="menu-dropdown hidden" id="menu-modules">
+            <button type="button" id="menuOpenMergeModule">Merge sorgenti (plugin)</button>
+          </div>
+        </div>
       </div>
       <div class="userbar-right">
         <label for="appLanguageSelect" class="small" data-i18n="settings_language_label" style="margin-right:4px;">Lingua interfaccia</label>
@@ -3299,6 +3305,35 @@ function setSourceManagerTab(tab){
     if (!btn) return;
     btn.classList.toggle("active", k === active);
   });
+}
+
+function getPluginStatusItem(pluginId){
+  const wanted = String(pluginId || "").trim();
+  if (!wanted) return null;
+  const items = Array.isArray(PLUGINS_STATUS?.plugins) ? PLUGINS_STATUS.plugins : [];
+  return items.find(p => String(p?.id || "").trim() === wanted) || null;
+}
+
+async function openMergeModuleFromMenu(){
+  if (!PLUGINS_STATUS) {
+    try { await loadPluginsStatus(); } catch (_e) {}
+  }
+  const item = getPluginStatusItem("multi_source_merge");
+  if (!item) {
+    setStatus("Plugin Multi Source Merge non installato.");
+    return;
+  }
+  if (!item.effective_enabled) {
+    const blockedByLicense = !!item.configured_enabled && !item.license_allowed;
+    setStatus(blockedByLicense
+      ? "Plugin Multi Source Merge installato ma non abilitato dalla licenza."
+      : "Plugin Multi Source Merge disabilitato. Abilitalo da Impostazioni > Plugin.");
+    return;
+  }
+  openSourcesScreen();
+  setSourceManagerTab("plugins");
+  setPluginToolTab("merge");
+  setStatus("Modulo Multi Source Merge aperto.");
 }
 
 function startNewSourceFlow(){

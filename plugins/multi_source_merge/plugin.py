@@ -433,11 +433,32 @@ def _merge_result_to_csv_bytes(merge_result: dict[str, Any]) -> bytes:
     return out.getvalue().encode("utf-8-sig")
 
 
+def _plugin_license_allowed(plugin_api, plugin_id: str = "multi_source_merge") -> bool:
+    ctx = plugin_api.get_license_context(prefer_online=False) if getattr(plugin_api, "get_license_context", None) else {}
+    features = ctx.get("license_features", {}) if isinstance(ctx, dict) and isinstance(ctx.get("license_features"), dict) else {}
+    if features.get("*") is True:
+        return True
+    if bool(ctx.get("license_is_dev")):
+        return True
+    pid = str(plugin_id or "").strip().lower()
+    if not pid:
+        return False
+    if bool(features.get("plugins")):
+        return True
+    candidates = [pid, f"plugin_{pid}", f"plugins.{pid}", f"plugins:{pid}"]
+    return any(bool(features.get(name)) for name in candidates)
+
+
 def register(app, plugin_api, manifest):
     router = APIRouter(prefix="/plugin/multi-source-merge", tags=["plugins", "multi_source_merge"])
 
+    def ensure_plugin_allowed() -> None:
+        if not _plugin_license_allowed(plugin_api, "multi_source_merge"):
+            raise HTTPException(status_code=403, detail="Plugin Multi Source Merge non abilitato dalla licenza.")
+
     @router.post("/build")
     def merge_sources(payload: MultiMergeRequest):
+        ensure_plugin_allowed()
         if not plugin_api.get_source or not plugin_api.load_dataframe_from_source:
             raise HTTPException(status_code=500, detail="Plugin API incompleta")
         try:
@@ -449,6 +470,7 @@ def register(app, plugin_api, manifest):
 
     @router.post("/export-csv")
     def export_merge_csv(payload: MergeExportCsvRequest):
+        ensure_plugin_allowed()
         if not plugin_api.get_source or not plugin_api.load_dataframe_from_source:
             raise HTTPException(status_code=500, detail="Plugin API incompleta")
         try:
@@ -467,6 +489,7 @@ def register(app, plugin_api, manifest):
 
     @router.post("/template/headers")
     def resolve_template_headers(payload: MergeTemplateHeadersRequest):
+        ensure_plugin_allowed()
         if payload.source_id:
             try:
                 source = plugin_api.get_source(payload.source_id)
@@ -481,6 +504,7 @@ def register(app, plugin_api, manifest):
 
     @router.post("/template/suggest-map")
     def suggest_map(payload: MergeMapSuggestionRequest):
+        ensure_plugin_allowed()
         if not plugin_api.get_source or not plugin_api.load_dataframe_from_source:
             raise HTTPException(status_code=500, detail="Plugin API incompleta")
         try:
@@ -501,11 +525,13 @@ def register(app, plugin_api, manifest):
 
     @router.get("/template/list")
     def list_templates():
+        ensure_plugin_allowed()
         items = _load_templates()
         return {"ok": True, "templates": items, "count": len(items)}
 
     @router.get("/template/{template_id}")
     def get_template(template_id: str):
+        ensure_plugin_allowed()
         items = _load_templates()
         found = _find_template(items, template_id)
         if not found:
@@ -514,6 +540,7 @@ def register(app, plugin_api, manifest):
 
     @router.post("/template/save")
     def save_template(payload: MergeTemplateCreateRequest):
+        ensure_plugin_allowed()
         items = _load_templates()
         template_id = _resolve_numeric_template_id(items, payload.template_id, payload.overwrite)
         columns = [str(c).strip() for c in payload.columns if str(c).strip()]
@@ -560,6 +587,7 @@ def register(app, plugin_api, manifest):
 
     @router.delete("/template/{template_id}")
     def delete_template(template_id: str):
+        ensure_plugin_allowed()
         items = _load_templates()
         before = len(items)
         items = [i for i in items if str(i.get("template_id", "")).strip() != str(template_id or "").strip()]
@@ -570,6 +598,7 @@ def register(app, plugin_api, manifest):
 
     @router.post("/build-from-template")
     def build_from_template(payload: MergeTemplateBuildRequest):
+        ensure_plugin_allowed()
         try:
             items = _load_templates()
             tpl = _find_template(items, payload.template_id)
@@ -602,6 +631,7 @@ def register(app, plugin_api, manifest):
 
     @router.post("/build-and-save-source")
     def merge_and_save_source(payload: MultiMergeSaveRequest):
+        ensure_plugin_allowed()
         if not plugin_api.get_source or not plugin_api.load_dataframe_from_source:
             raise HTTPException(status_code=500, detail="Plugin API incompleta")
         try:

@@ -844,6 +844,19 @@ def has_license_feature(feature_name: str) -> bool:
     return False
 
 
+def has_plugin_license_access(plugin_id: str) -> bool:
+    pid = str(plugin_id or "").strip().lower()
+    if has_license_feature("plugins"):
+        return True
+    ctx = get_license_context(prefer_online=False)
+    if bool(ctx.get("license_is_dev")) or is_dev_runtime():
+        return True
+    if not pid:
+        return False
+    candidates = [pid, f"plugin_{pid}", f"plugins.{pid}", f"plugins:{pid}"]
+    return any(has_license_feature(name) for name in candidates)
+
+
 def is_free_license() -> bool:
     ctx = get_license_context(prefer_online=False)
     status = str(ctx.get("license_status", "")).strip().lower()
@@ -2520,6 +2533,8 @@ def _source_fingerprint_for_merge(source_id: str) -> dict[str, Any]:
 @app.post("/plugin/multi-source-merge/build")
 async def merge_build_fallback(request: Request):
     try:
+        if not has_plugin_license_access("multi_source_merge"):
+            return JSONResponse({"error": "Plugin Multi Source Merge non abilitato dalla licenza."}, status_code=403)
         payload = await request.json()
         return _build_merge_payload_result(payload if isinstance(payload, dict) else {})
     except ValueError as exc:
@@ -2531,6 +2546,8 @@ async def merge_build_fallback(request: Request):
 @app.post("/plugin/multi-source-merge/export-csv")
 async def merge_export_csv_fallback(request: Request):
     try:
+        if not has_plugin_license_access("multi_source_merge"):
+            return JSONResponse({"error": "Plugin Multi Source Merge non abilitato dalla licenza."}, status_code=403)
         payload = await request.json()
         if not isinstance(payload, dict):
             payload = {}
@@ -2551,6 +2568,8 @@ async def merge_export_csv_fallback(request: Request):
 @app.post("/plugin/multi-source-merge/build-from-template")
 async def merge_build_from_template_fallback(request: Request):
     try:
+        if not has_plugin_license_access("multi_source_merge"):
+            return JSONResponse({"error": "Plugin Multi Source Merge non abilitato dalla licenza."}, status_code=403)
         payload = await request.json()
         if not isinstance(payload, dict):
             payload = {}
@@ -2587,6 +2606,8 @@ async def merge_build_from_template_fallback(request: Request):
 @app.post("/plugin/multi-source-merge/build-and-save-source")
 async def merge_build_and_save_fallback(request: Request):
     try:
+        if not has_plugin_license_access("multi_source_merge"):
+            return JSONResponse({"error": "Plugin Multi Source Merge non abilitato dalla licenza."}, status_code=403)
         payload = await request.json()
         if not isinstance(payload, dict):
             payload = {}
@@ -3311,10 +3332,7 @@ def plugins_registry():
 @app.get("/plugins/status")
 def plugins_status():
     status_payload = plugin_manager.get_status()
-    license_ctx = get_license_context(prefer_online=False)
-    license_allows_plugins = bool(
-        has_license_feature("plugins") or license_ctx.get("license_is_dev") or is_dev_runtime()
-    )
+    license_allows_plugins = has_plugin_license_access("")
     enabled_map = load_plugins_enabled_map()
 
     plugins = status_payload.get("items", []) if isinstance(status_payload, dict) else []
@@ -3325,10 +3343,12 @@ def plugins_status():
             plugin_id = str(item.get("id", "")).strip()
             runtime_enabled = bool(item.get("enabled"))
             configured_enabled = enabled_map.get(plugin_id, runtime_enabled)
+            license_allowed = has_plugin_license_access(plugin_id)
             item["runtime_enabled"] = runtime_enabled
             item["configured_enabled"] = bool(configured_enabled)
-            item["license_allowed"] = license_allows_plugins
-            item["effective_enabled"] = bool(configured_enabled and license_allows_plugins)
+            item["license_allowed"] = bool(license_allowed)
+            item["license_features"] = [plugin_id, f"plugin_{plugin_id}", f"plugins.{plugin_id}", "plugins"]
+            item["effective_enabled"] = bool(configured_enabled and license_allowed)
 
     if isinstance(status_payload, dict):
         status_payload["plugins"] = plugins

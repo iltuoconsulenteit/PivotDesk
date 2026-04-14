@@ -133,6 +133,10 @@
       input.value = "";
       input.click();
     });
+
+    bind("menuOpenMergeModule", async function () {
+      await safeCall("openMergeModuleFromMenu");
+    });
   };
 
   document.addEventListener("DOMContentLoaded", function () {
