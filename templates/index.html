@@ -2099,10 +2099,19 @@ window.LICENSE_CONTEXT = {
     <div class="settings-backup-box">
       <div class="section-title" style="font-size:15px; margin-bottom:2px;">Backup & Restore</div>
       <div class="small">
-        Esporta o ripristina preset e impostazioni. Funzione disponibile con licenza attiva.
+        Esporta/ripristina in modo selettivo preset, sorgenti, merge, impostazioni, utenti e job scheduler. Funzione disponibile con licenza attiva.
+      </div>
+      <div id="backupSectionsWrap" class="small" style="display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; margin-top:8px;">
+        <label><input type="checkbox" data-backup-section="settings" checked> Impostazioni</label>
+        <label><input type="checkbox" data-backup-section="presets" checked> Preset pivot</label>
+        <label><input type="checkbox" data-backup-section="sources" checked> Sorgenti</label>
+        <label><input type="checkbox" data-backup-section="merge" checked> Merge/templates</label>
+        <label><input type="checkbox" data-backup-section="users" checked> Utenti</label>
+        <label><input type="checkbox" data-backup-section="plugins" checked> Config plugin</label>
+        <label><input type="checkbox" data-backup-section="api_scheduler" checked> API scheduler jobs</label>
       </div>
       <div class="settings-backup-actions">
-        <button id="btnExportBackup" type="button">Backup preset+impostazioni</button>
+        <button id="btnExportBackup" type="button">Esporta backup selettivo</button>
         <button id="btnRestoreBackup" type="button">Ripristina backup</button>
       </div>
       <input id="backupRestoreFile" type="file" accept=".json,application/json" style="display:none;">
@@ -3027,8 +3036,18 @@ async function saveSettingsFromForm(){
   setStatus("Impostazioni salvate correttamente.");
 }
 
+function getSelectedBackupSections(){
+  const out = [];
+  document.querySelectorAll("#backupSectionsWrap input[data-backup-section]").forEach(chk => {
+    if (chk.checked) out.push(String(chk.getAttribute("data-backup-section") || "").trim());
+  });
+  return out.filter(Boolean);
+}
+
 async function exportBackupPackage(){
-  const res = await api("/admin/backup/export");
+  const sections = getSelectedBackupSections();
+  if (!sections.length) throw new Error("Seleziona almeno una sezione da esportare.");
+  const res = await api("/admin/backup/export?sections=" + encodeURIComponent(sections.join(",")));
   const backup = res.backup || {};
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
   const filename = "pivotdesk-backup-" + stamp + ".json";
@@ -3041,7 +3060,7 @@ async function exportBackupPackage(){
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
-  setStatus("Backup esportato: " + filename);
+  setStatus("Backup esportato: " + filename + " (" + sections.join(", ") + ")");
 }
 
 async function restoreBackupPackageFromFile(file){
@@ -3066,7 +3085,8 @@ async function restoreBackupPackageFromFile(file){
     method: "POST",
     body: JSON.stringify({
       backup: payload,
-      replace_existing: true
+      replace_existing: true,
+      sections: getSelectedBackupSections()
     })
   });
 
@@ -3075,7 +3095,11 @@ async function restoreBackupPackageFromFile(file){
   await loadPresets();
   setStatus(
     "Ripristino completato. Preset ripristinati: " + String(res.restored_presets || 0) +
-    " (saltati: " + String(res.skipped_presets || 0) + ")."
+    " (saltati: " + String(res.skipped_presets || 0) + "), sorgenti: " + String(res.restored_sources || 0) +
+    ", merge defs: " + String(res.restored_merge_definitions || 0) +
+    ", merge templates: " + String(res.restored_merge_templates || 0) +
+    ", utenti: " + String(res.restored_users || 0) +
+    ", scheduler jobs: " + String(res.restored_api_scheduler_jobs || 0) + "."
   );
 }
 

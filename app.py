@@ -2232,7 +2232,82 @@ def apply_preset_calculated_fields(
     return apply_calculated_fields_to_dataframe(df, preset.get("calculated_fields", []))
 
 
-def build_backup_payload() -> dict[str, Any]:
+def _export_merge_templates_for_backup() -> list[dict[str, Any]]:
+    db_path = DATA_DIR / "app_data" / "merge_templates.db"
+    if not db_path.exists():
+        return []
+    try:
+        with sqlite3.connect(str(db_path)) as conn:
+            rows = conn.execute(
+                """
+                SELECT template_id, title, columns_json, sources_json, include_source_tag, updated_at
+                FROM merge_templates
+                ORDER BY updated_at DESC, template_id DESC
+                """
+            ).fetchall()
+        out: list[dict[str, Any]] = []
+        for template_id, title, columns_json, sources_json, include_source_tag, updated_at in rows:
+            out.append({
+                "template_id": str(template_id or "").strip(),
+                "title": str(title or "").strip(),
+                "columns_json": str(columns_json or "[]"),
+                "sources_json": str(sources_json or "[]"),
+                "include_source_tag": int(include_source_tag or 0),
+                "updated_at": str(updated_at or ""),
+            })
+        return out
+    except Exception:
+        return []
+
+
+def _restore_merge_templates_from_backup(items: list[dict[str, Any]]) -> int:
+    if not isinstance(items, list):
+        return 0
+    db_path = DATA_DIR / "app_data" / "merge_templates.db"
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    restored = 0
+    with sqlite3.connect(str(db_path)) as conn:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS merge_templates (
+                template_id TEXT PRIMARY KEY,
+                title TEXT NOT NULL,
+                columns_json TEXT NOT NULL,
+                sources_json TEXT NOT NULL,
+                include_source_tag INTEGER NOT NULL DEFAULT 1,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+        conn.execute("DELETE FROM merge_templates")
+        for row in items:
+            if not isinstance(row, dict):
+                continue
+            template_id = str(row.get("template_id", "")).strip()
+            if not template_id:
+                continue
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO merge_templates
+                (template_id, title, columns_json, sources_json, include_source_tag, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    template_id,
+                    str(row.get("title") or template_id).strip(),
+                    str(row.get("columns_json") or "[]"),
+                    str(row.get("sources_json") or "[]"),
+                    int(row.get("include_source_tag", 1) or 0),
+                    str(row.get("updated_at") or datetime.utcnow().isoformat()),
+                ),
+            )
+            restored += 1
+        conn.commit()
+    return restored
+
+
+def build_backup_payload(include_sections: set[str] | None = None) -> dict[str, Any]:
+    sections = include_sections or {"settings", "presets", "sources", "merge", "users", "plugins", "api_scheduler"}
     presets = load_pivot_files()
     exported_presets: list[dict[str, Any]] = []
 
@@ -2249,24 +2324,44 @@ def build_backup_payload() -> dict[str, Any]:
             }
         )
 
-    return {
+    payload = {
         "app": "PivotDesk",
-        "version": 1,
+        "version": 2,
         "exported_at": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "settings": load_settings_data(),
-        "presets": exported_presets,
+        "included_sections": sorted(sections),
     }
+    if "settings" in sections:
+        payload["settings"] = load_settings_data()
+    if "presets" in sections:
+        payload["presets"] = exported_presets
+    if "sources" in sections:
+        payload["sources"] = load_sources_data()
+    if "merge" in sections:
+        payload["merge"] = {
+            "definitions": _load_merge_definitions(),
+            "templates": _export_merge_templates_for_backup(),
+        }
+    if "users" in sections:
+        payload["users"] = read_json(USERS_PATH, {"items": []}) or {"items": []}
+    if "plugins" in sections:
+        payload["plugins_enabled"] = load_plugins_enabled_map()
+    if "api_scheduler" in sections:
+        api_jobs_path = DATA_DIR / "app_data" / "api_scheduler_jobs.json"
+        payload["api_scheduler_jobs"] = read_json(api_jobs_path, {"jobs": []}) if api_jobs_path.exists() else {"jobs": []}
+    return payload
 
 
-def restore_backup_payload(payload: dict[str, Any], replace_existing: bool = True) -> dict[str, Any]:
+def restore_backup_payload(payload: dict[str, Any], replace_existing: bool = True, sections: set[str] | None = None) -> dict[str, Any]:
+    detected = payload.get("included_sections", []) if isinstance(payload.get("included_sections"), list) else []
+    active_sections = sections or {str(x).strip() for x in detected if str(x).strip()} or {"settings", "presets"}
     settings = payload.get("settings", {}) if isinstance(payload.get("settings"), dict) else {}
     presets_raw = payload.get("presets", [])
-    if not isinstance(presets_raw, list):
+    if "presets" in active_sections and not isinstance(presets_raw, list):
         raise ValueError("Formato backup non valido: presets deve essere una lista.")
 
-    saved_settings = save_settings_data(settings)
+    saved_settings = save_settings_data(settings) if "settings" in active_sections else load_settings_data()
 
-    if replace_existing and PIVOTS_DIR.exists():
+    if "presets" in active_sections and replace_existing and PIVOTS_DIR.exists():
         for folder in PIVOTS_DIR.iterdir():
             if not folder.is_dir():
                 continue
@@ -2279,26 +2374,65 @@ def restore_backup_payload(payload: dict[str, Any], replace_existing: bool = Tru
     restored_count = 0
     skipped_count = 0
 
-    for row in presets_raw:
-        if not isinstance(row, dict):
-            skipped_count += 1
-            continue
-        source_id = normalize_source_id(row.get("source_id"))
-        filename = sanitize_filename(row.get("filename") or "")
-        preset = row.get("preset", {})
-        if not source_id or not filename or not isinstance(preset, dict):
-            skipped_count += 1
-            continue
-        try:
-            save_preset_file(source_id, filename, {**preset, "source_id": source_id})
-            restored_count += 1
-        except Exception:
-            skipped_count += 1
+    if "presets" in active_sections:
+        for row in presets_raw:
+            if not isinstance(row, dict):
+                skipped_count += 1
+                continue
+            source_id = normalize_source_id(row.get("source_id"))
+            filename = sanitize_filename(row.get("filename") or "")
+            preset = row.get("preset", {})
+            if not source_id or not filename or not isinstance(preset, dict):
+                skipped_count += 1
+                continue
+            try:
+                save_preset_file(source_id, filename, {**preset, "source_id": source_id})
+                restored_count += 1
+            except Exception:
+                skipped_count += 1
+
+    restored_sources = 0
+    if "sources" in active_sections and isinstance(payload.get("sources"), dict):
+        save_sources_data(payload.get("sources"))
+        restored_sources = len((payload.get("sources") or {}).get("items", []) if isinstance(payload.get("sources"), dict) else [])
+
+    restored_merge_templates = 0
+    restored_merge_defs = 0
+    if "merge" in active_sections and isinstance(payload.get("merge"), dict):
+        merge_obj = payload.get("merge")
+        defs = merge_obj.get("definitions") if isinstance(merge_obj.get("definitions"), dict) else {}
+        _save_merge_definitions(defs)
+        restored_merge_defs = len(defs)
+        templates = merge_obj.get("templates") if isinstance(merge_obj.get("templates"), list) else []
+        restored_merge_templates = _restore_merge_templates_from_backup(templates)
+
+    restored_users = 0
+    if "users" in active_sections and isinstance(payload.get("users"), dict):
+        write_json(USERS_PATH, payload.get("users"))
+        restored_users = len((payload.get("users") or {}).get("items", []) if isinstance(payload.get("users"), dict) else [])
+
+    restored_plugins = 0
+    if "plugins" in active_sections and isinstance(payload.get("plugins_enabled"), dict):
+        saved_map = save_plugins_enabled_map(payload.get("plugins_enabled"))
+        restored_plugins = len(saved_map)
+
+    restored_api_jobs = 0
+    if "api_scheduler" in active_sections and isinstance(payload.get("api_scheduler_jobs"), dict):
+        api_jobs_path = DATA_DIR / "app_data" / "api_scheduler_jobs.json"
+        write_json(api_jobs_path, payload.get("api_scheduler_jobs"))
+        restored_api_jobs = len((payload.get("api_scheduler_jobs") or {}).get("jobs", []) if isinstance(payload.get("api_scheduler_jobs"), dict) else [])
 
     return {
         "settings": saved_settings,
+        "restored_sections": sorted(active_sections),
         "restored_presets": restored_count,
         "skipped_presets": skipped_count,
+        "restored_sources": restored_sources,
+        "restored_merge_definitions": restored_merge_defs,
+        "restored_merge_templates": restored_merge_templates,
+        "restored_users": restored_users,
+        "restored_plugins": restored_plugins,
+        "restored_api_scheduler_jobs": restored_api_jobs,
     }
 
 
@@ -3471,14 +3605,15 @@ async def settings_save(request: Request):
 
 
 @app.get("/admin/backup/export")
-def admin_backup_export(request: Request):
+def admin_backup_export(request: Request, sections: str | None = Query(None)):
     current_user = require_admin(request)
     if not current_user:
         return JSONResponse({"error": "Non autorizzato"}, status_code=403)
     if not has_license_feature("backup_restore"):
         return JSONResponse({"error": "Funzione disponibile solo con licenza attiva."}, status_code=403)
 
-    return {"ok": True, "backup": build_backup_payload()}
+    selected = {x.strip() for x in str(sections or "").split(",") if x.strip()}
+    return {"ok": True, "backup": build_backup_payload(selected or None)}
 
 
 @app.post("/admin/backup/restore")
@@ -3496,7 +3631,9 @@ async def admin_backup_restore(request: Request):
             return JSONResponse({"error": "Payload backup non valido."}, status_code=400)
 
         replace_existing = bool(payload.get("replace_existing", True)) if isinstance(payload, dict) else True
-        result = restore_backup_payload(backup, replace_existing=replace_existing)
+        sections_raw = payload.get("sections", []) if isinstance(payload, dict) else []
+        selected_sections = {str(x).strip() for x in sections_raw if str(x).strip()} if isinstance(sections_raw, list) else set()
+        result = restore_backup_payload(backup, replace_existing=replace_existing, sections=selected_sections or None)
         return {"ok": True, **result}
     except ValueError as exc:
         return JSONResponse({"error": str(exc)}, status_code=400)
