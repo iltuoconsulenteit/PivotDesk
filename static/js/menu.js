@@ -137,6 +137,10 @@
     bind("menuOpenMergeModule", async function () {
       await safeCall("openMergeModuleFromMenu");
     });
+
+    bind("menuOpenApiSchedulerModule", async function () {
+      await safeCall("openApiSchedulerModuleFromMenu");
+    });
   };
 
   document.addEventListener("DOMContentLoaded", function () {

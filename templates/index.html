@@ -1252,6 +1252,7 @@ window.LICENSE_CONTEXT = {
           <button type="button" class="menu-btn" data-menu-target="menu-modules">Moduli</button>
           <div class="menu-dropdown hidden" id="menu-modules">
             <button type="button" id="menuOpenMergeModule">Merge sorgenti (plugin)</button>
+            <button type="button" id="menuOpenApiSchedulerModule">Scheduler API (plugin)</button>
           </div>
         </div>
       </div>
@@ -1821,6 +1822,7 @@ window.LICENSE_CONTEXT = {
       <div class="plugin-tools-tabs">
         <button type="button" class="quick-toggle active" id="btnPluginTabLookup">Lookup guidato</button>
         <button type="button" class="quick-toggle" id="btnPluginTabMerge">Merge guidato</button>
+        <button type="button" class="quick-toggle" id="btnPluginTabApiScheduler">API scheduler</button>
       </div>
       <div id="pluginToolLookup" class="plugin-tool-pane">
         <div class="plugin-tool-card">
@@ -1954,6 +1956,49 @@ window.LICENSE_CONTEXT = {
               </table>
             </div>
           </div>
+        </div>
+      </div>
+      <div id="pluginToolApiScheduler" class="plugin-tool-pane hidden">
+        <div class="plugin-tool-card">
+          <div style="font-weight:600; margin-bottom:6px;">API data scheduler</div>
+          <div class="small" style="margin-bottom:8px;">Configura più API (URL + credenziali/token), poi avvia manualmente o esegui i job schedulati per intervallo.</div>
+          <div class="builder-top" style="margin-bottom:8px;">
+            <div class="field">
+              <label for="apiSchedulerJobSelect">Job API salvato</label>
+              <select id="apiSchedulerJobSelect"><option value="">Nessun job</option></select>
+            </div>
+            <div class="field" style="display:flex; align-items:flex-end;">
+              <button id="btnReloadApiSchedulerJobs" type="button">Ricarica job</button>
+            </div>
+          </div>
+          <input id="apiSchedulerJobId" type="hidden">
+          <div class="builder-top">
+            <div class="field"><label for="apiSchedulerTitle">Titolo job</label><input id="apiSchedulerTitle" placeholder="Es. Anagrafica clienti API"></div>
+            <div class="field"><label for="apiSchedulerUrl">URL API</label><input id="apiSchedulerUrl" placeholder="https://api.example.com/v1/customers"></div>
+            <div class="field"><label for="apiSchedulerMethod">Metodo</label><select id="apiSchedulerMethod"><option>GET</option><option>POST</option><option>PUT</option><option>PATCH</option></select></div>
+          </div>
+          <div class="builder-top">
+            <div class="field"><label for="apiSchedulerAuthType">Autenticazione</label><select id="apiSchedulerAuthType"><option value="none">Nessuna</option><option value="basic">Basic (utente/password)</option><option value="bearer">Bearer token</option></select></div>
+            <div class="field"><label for="apiSchedulerUsername">Username</label><input id="apiSchedulerUsername" placeholder="utente API"></div>
+            <div class="field"><label for="apiSchedulerPassword">Password</label><input id="apiSchedulerPassword" type="password" placeholder="password API"></div>
+            <div class="field"><label for="apiSchedulerToken">Token</label><input id="apiSchedulerToken" placeholder="token bearer"></div>
+          </div>
+          <div class="builder-top">
+            <div class="field"><label for="apiSchedulerHeadersJson">Headers JSON (opz.)</label><textarea id="apiSchedulerHeadersJson" style="min-height:90px;" placeholder='{\"Accept\":\"application/json\"}'></textarea></div>
+            <div class="field"><label for="apiSchedulerBodyJson">Body JSON (POST/PUT/PATCH)</label><textarea id="apiSchedulerBodyJson" style="min-height:90px;" placeholder='{\"from\":\"2026-01-01\"}'></textarea></div>
+          </div>
+          <div class="builder-top">
+            <div class="field"><label for="apiSchedulerIntervalMinutes">Intervallo schedulazione (minuti)</label><input id="apiSchedulerIntervalMinutes" type="number" min="0" max="10080" value="0"></div>
+            <div class="field" style="display:flex; align-items:flex-end;"><label style="display:flex; gap:8px; align-items:center;"><input id="apiSchedulerEnabled" type="checkbox" checked> Job attivo</label></div>
+          </div>
+          <div class="builder-actions">
+            <button id="btnApiSchedulerNewJob" type="button">Nuovo job</button>
+            <button id="btnApiSchedulerSaveJob" type="button" class="primary">Salva job</button>
+            <button id="btnApiSchedulerDeleteJob" type="button" class="danger">Elimina job</button>
+            <button id="btnApiSchedulerRunNow" type="button">Esegui ora</button>
+            <button id="btnApiSchedulerRunDue" type="button">Esegui schedulati</button>
+          </div>
+          <div id="apiSchedulerStatus" class="small" style="margin-top:8px; color:#175cd3;"></div>
         </div>
       </div>
       <div style="margin-top:10px;">
@@ -2352,6 +2397,7 @@ let SETTINGS = {
   language: "en"
 };
 let PLUGINS_STATUS = null;
+let API_SCHEDULER_JOBS = [];
 let CURRENT_VIEW_OPTIONS = null;
 let CURRENT_HEADER_FILTERS = {};
 let BUILDER_SOURCE = null;
@@ -3314,26 +3360,34 @@ function getPluginStatusItem(pluginId){
   return items.find(p => String(p?.id || "").trim() === wanted) || null;
 }
 
-async function openMergeModuleFromMenu(){
+async function openPluginModuleFromMenu(pluginId, toolTab, label){
   if (!PLUGINS_STATUS) {
     try { await loadPluginsStatus(); } catch (_e) {}
   }
-  const item = getPluginStatusItem("multi_source_merge");
+  const item = getPluginStatusItem(pluginId);
   if (!item) {
-    setStatus("Plugin Multi Source Merge non installato.");
+    setStatus("Plugin " + String(label || pluginId) + " non installato.");
     return;
   }
   if (!item.effective_enabled) {
     const blockedByLicense = !!item.configured_enabled && !item.license_allowed;
     setStatus(blockedByLicense
-      ? "Plugin Multi Source Merge installato ma non abilitato dalla licenza."
-      : "Plugin Multi Source Merge disabilitato. Abilitalo da Impostazioni > Plugin.");
+      ? "Plugin " + String(label || pluginId) + " installato ma non abilitato dalla licenza."
+      : "Plugin " + String(label || pluginId) + " disabilitato. Abilitalo da Impostazioni > Plugin.");
     return;
   }
   openSourcesScreen();
   setSourceManagerTab("plugins");
-  setPluginToolTab("merge");
-  setStatus("Modulo Multi Source Merge aperto.");
+  setPluginToolTab(toolTab || "lookup");
+  setStatus("Modulo " + String(label || pluginId) + " aperto.");
+}
+
+async function openMergeModuleFromMenu(){
+  await openPluginModuleFromMenu("multi_source_merge", "merge", "Multi Source Merge");
+}
+
+async function openApiSchedulerModuleFromMenu(){
+  await openPluginModuleFromMenu("api_data_scheduler", "api_scheduler", "API Data Scheduler");
 }
 
 function startNewSourceFlow(){
@@ -4145,17 +4199,22 @@ function suggestMergeSourceIdentity(force = false){
 }
 
 function setPluginToolTab(tab){
-  const key = String(tab || "lookup").toLowerCase() === "merge" ? "merge" : "lookup";
+  const raw = String(tab || "lookup").toLowerCase();
+  const key = raw === "merge" ? "merge" : (raw === "api_scheduler" ? "api_scheduler" : "lookup");
   const lookupPane = document.getElementById("pluginToolLookup");
   const mergePane = document.getElementById("pluginToolMerge");
+  const apiPane = document.getElementById("pluginToolApiScheduler");
   const mergePreview = document.getElementById("mergePreviewCard");
   const lookupBtn = document.getElementById("btnPluginTabLookup");
   const mergeBtn = document.getElementById("btnPluginTabMerge");
+  const apiBtn = document.getElementById("btnPluginTabApiScheduler");
   if (lookupPane) lookupPane.classList.toggle("hidden", key !== "lookup");
   if (mergePane) mergePane.classList.toggle("hidden", key !== "merge");
+  if (apiPane) apiPane.classList.toggle("hidden", key !== "api_scheduler");
   if (mergePreview && key !== "merge") mergePreview.classList.add("hidden");
   if (lookupBtn) lookupBtn.classList.toggle("active", key === "lookup");
   if (mergeBtn) mergeBtn.classList.toggle("active", key === "merge");
+  if (apiBtn) apiBtn.classList.toggle("active", key === "api_scheduler");
 }
 
 function toggleMergeAdvancedPanel(forceOpen){
@@ -4327,6 +4386,120 @@ async function refreshMultiMergeSourceFromUi(){
   setStatus("Sorgente merge aggiornata: " + source_id);
 }
 
+function resetApiSchedulerJobForm(){
+  const setVal = (id, val = "") => { const el = document.getElementById(id); if (el) el.value = val; };
+  setVal("apiSchedulerJobId", "");
+  setVal("apiSchedulerTitle", "");
+  setVal("apiSchedulerUrl", "");
+  setVal("apiSchedulerMethod", "GET");
+  setVal("apiSchedulerAuthType", "none");
+  setVal("apiSchedulerUsername", "");
+  setVal("apiSchedulerPassword", "");
+  setVal("apiSchedulerToken", "");
+  setVal("apiSchedulerHeadersJson", "");
+  setVal("apiSchedulerBodyJson", "");
+  setVal("apiSchedulerIntervalMinutes", "0");
+  const en = document.getElementById("apiSchedulerEnabled");
+  if (en) en.checked = true;
+}
+
+function loadApiSchedulerJobIntoForm(job){
+  if (!job || typeof job !== "object") return;
+  const setVal = (id, val = "") => { const el = document.getElementById(id); if (el) el.value = val; };
+  setVal("apiSchedulerJobId", String(job.job_id || ""));
+  setVal("apiSchedulerTitle", String(job.title || ""));
+  setVal("apiSchedulerUrl", String(job.url || ""));
+  setVal("apiSchedulerMethod", String(job.method || "GET").toUpperCase());
+  setVal("apiSchedulerAuthType", String(job.auth_type || "none").toLowerCase());
+  setVal("apiSchedulerUsername", String(job.username || ""));
+  setVal("apiSchedulerPassword", String(job.password || ""));
+  setVal("apiSchedulerToken", String(job.token || ""));
+  setVal("apiSchedulerHeadersJson", String(job.headers_json || ""));
+  setVal("apiSchedulerBodyJson", String(job.body_json || ""));
+  setVal("apiSchedulerIntervalMinutes", String(job.interval_minutes || 0));
+  const en = document.getElementById("apiSchedulerEnabled");
+  if (en) en.checked = !!job.enabled;
+  const status = document.getElementById("apiSchedulerStatus");
+  if (status) status.textContent = "Ultima esecuzione: " + String(job.last_run_at || "mai") + " · Stato: " + String(job.last_status || "-");
+}
+
+async function loadApiSchedulerJobsIntoUi(keepSelection = true){
+  const sel = document.getElementById("apiSchedulerJobSelect");
+  if (!sel) return [];
+  const current = keepSelection ? String(sel.value || "").trim() : "";
+  const res = await api("/plugin/api-scheduler/jobs/list");
+  API_SCHEDULER_JOBS = Array.isArray(res?.jobs) ? res.jobs : [];
+  sel.innerHTML = '<option value="">Nessun job</option>';
+  API_SCHEDULER_JOBS.forEach(job => {
+    const id = String(job?.job_id || "").trim();
+    if (!id) return;
+    const o = document.createElement("option");
+    o.value = id;
+    o.textContent = String(job?.title || id) + " (" + id + ")";
+    sel.appendChild(o);
+  });
+  if (current && API_SCHEDULER_JOBS.some(j => String(j?.job_id || "").trim() === current)) {
+    sel.value = current;
+  }
+  return API_SCHEDULER_JOBS;
+}
+
+function collectApiSchedulerPayloadFromUi(){
+  const payload = {
+    job_id: String(document.getElementById("apiSchedulerJobId")?.value || "").trim() || null,
+    title: String(document.getElementById("apiSchedulerTitle")?.value || "").trim(),
+    url: String(document.getElementById("apiSchedulerUrl")?.value || "").trim(),
+    method: String(document.getElementById("apiSchedulerMethod")?.value || "GET").trim().toUpperCase(),
+    auth_type: String(document.getElementById("apiSchedulerAuthType")?.value || "none").trim().toLowerCase(),
+    username: String(document.getElementById("apiSchedulerUsername")?.value || "").trim(),
+    password: String(document.getElementById("apiSchedulerPassword")?.value || "").trim(),
+    token: String(document.getElementById("apiSchedulerToken")?.value || "").trim(),
+    headers_json: String(document.getElementById("apiSchedulerHeadersJson")?.value || "").trim(),
+    body_json: String(document.getElementById("apiSchedulerBodyJson")?.value || "").trim(),
+    interval_minutes: parseInt(String(document.getElementById("apiSchedulerIntervalMinutes")?.value || "0"), 10) || 0,
+    enabled: !!document.getElementById("apiSchedulerEnabled")?.checked
+  };
+  if (!payload.title) throw new Error("Inserisci un titolo job API.");
+  if (!payload.url) throw new Error("Inserisci URL API.");
+  return payload;
+}
+
+async function saveApiSchedulerJobFromUi(){
+  const payload = collectApiSchedulerPayloadFromUi();
+  const res = await api("/plugin/api-scheduler/jobs/save", { method: "POST", body: JSON.stringify(payload) });
+  await loadApiSchedulerJobsIntoUi(false);
+  const sel = document.getElementById("apiSchedulerJobSelect");
+  const savedId = String(res?.job?.job_id || "").trim();
+  if (sel && savedId) sel.value = savedId;
+  if (res?.job) loadApiSchedulerJobIntoForm(res.job);
+  setStatus("Job API salvato: " + savedId);
+}
+
+async function deleteApiSchedulerJobFromUi(){
+  const jobId = String(document.getElementById("apiSchedulerJobId")?.value || document.getElementById("apiSchedulerJobSelect")?.value || "").trim();
+  if (!jobId) throw new Error("Seleziona un job API da eliminare.");
+  await api("/plugin/api-scheduler/jobs/" + encodeURIComponent(jobId), { method: "DELETE" });
+  await loadApiSchedulerJobsIntoUi(false);
+  resetApiSchedulerJobForm();
+  setStatus("Job API eliminato: " + jobId);
+}
+
+async function runApiSchedulerJobNowFromUi(){
+  const jobId = String(document.getElementById("apiSchedulerJobId")?.value || document.getElementById("apiSchedulerJobSelect")?.value || "").trim();
+  if (!jobId) throw new Error("Seleziona un job API da eseguire.");
+  const res = await api("/plugin/api-scheduler/run/" + encodeURIComponent(jobId), { method: "POST", body: JSON.stringify({ force: true }) });
+  setSourcePluginOutput(res);
+  await loadApiSchedulerJobsIntoUi(true);
+  setStatus("Download API completato per job: " + jobId);
+}
+
+async function runApiSchedulerDueJobsFromUi(){
+  const res = await api("/plugin/api-scheduler/run-due", { method: "POST", body: JSON.stringify({}) });
+  setSourcePluginOutput(res);
+  await loadApiSchedulerJobsIntoUi(true);
+  setStatus("Esecuzione schedulata completata. Job eseguiti: " + String(res?.run_count || 0));
+}
+
 function closeSourcesScreen(){
   document.getElementById("sourcesScreen").classList.remove("active");
   document.getElementById("mainView").classList.remove("hidden");
@@ -4360,7 +4533,15 @@ async function initSourcePluginBuilders(){
   const resetMergeTemplateColsBtn = document.getElementById("btnResetMergeTemplateCols");
   const tabLookupBtn = document.getElementById("btnPluginTabLookup");
   const tabMergeBtn = document.getElementById("btnPluginTabMerge");
+  const tabApiSchedulerBtn = document.getElementById("btnPluginTabApiScheduler");
   const toggleMergeAdvancedBtn = document.getElementById("btnToggleMergeAdvanced");
+  const apiSchedulerSel = document.getElementById("apiSchedulerJobSelect");
+  const apiSchedulerReloadBtn = document.getElementById("btnReloadApiSchedulerJobs");
+  const apiSchedulerNewBtn = document.getElementById("btnApiSchedulerNewJob");
+  const apiSchedulerSaveBtn = document.getElementById("btnApiSchedulerSaveJob");
+  const apiSchedulerDeleteBtn = document.getElementById("btnApiSchedulerDeleteJob");
+  const apiSchedulerRunNowBtn = document.getElementById("btnApiSchedulerRunNow");
+  const apiSchedulerRunDueBtn = document.getElementById("btnApiSchedulerRunDue");
 
   if (primarySel && !primarySel.dataset.boundLookupPrimary) {
     primarySel.dataset.boundLookupPrimary = "1";
@@ -4515,6 +4696,7 @@ async function initSourcePluginBuilders(){
     }
   }
   await loadMergeTemplatesIntoUi(true).catch(() => []);
+  await loadApiSchedulerJobsIntoUi(true).catch(() => []);
   suggestMergeTemplateIdentity(false);
   renderMergeTemplateColumnChips();
   setMergeTemplateMode("source");
@@ -4526,9 +4708,62 @@ async function initSourcePluginBuilders(){
     tabMergeBtn.dataset.bound = "1";
     tabMergeBtn.addEventListener("click", () => setPluginToolTab("merge"));
   }
+  if (tabApiSchedulerBtn && !tabApiSchedulerBtn.dataset.bound) {
+    tabApiSchedulerBtn.dataset.bound = "1";
+    tabApiSchedulerBtn.addEventListener("click", async () => {
+      setPluginToolTab("api_scheduler");
+      await loadApiSchedulerJobsIntoUi(true).catch(() => []);
+    });
+  }
   if (toggleMergeAdvancedBtn && !toggleMergeAdvancedBtn.dataset.bound) {
     toggleMergeAdvancedBtn.dataset.bound = "1";
     toggleMergeAdvancedBtn.addEventListener("click", () => toggleMergeAdvancedPanel());
+  }
+  if (apiSchedulerReloadBtn && !apiSchedulerReloadBtn.dataset.bound) {
+    apiSchedulerReloadBtn.dataset.bound = "1";
+    apiSchedulerReloadBtn.addEventListener("click", async () => {
+      await loadApiSchedulerJobsIntoUi(true);
+      setStatus("Job API ricaricati.");
+    });
+  }
+  if (apiSchedulerSel && !apiSchedulerSel.dataset.bound) {
+    apiSchedulerSel.dataset.bound = "1";
+    apiSchedulerSel.addEventListener("change", () => {
+      const wanted = String(apiSchedulerSel.value || "").trim();
+      const found = (API_SCHEDULER_JOBS || []).find(j => String(j?.job_id || "").trim() === wanted);
+      if (found) loadApiSchedulerJobIntoForm(found);
+    });
+  }
+  if (apiSchedulerNewBtn && !apiSchedulerNewBtn.dataset.bound) {
+    apiSchedulerNewBtn.dataset.bound = "1";
+    apiSchedulerNewBtn.addEventListener("click", () => {
+      resetApiSchedulerJobForm();
+      setStatus("Nuovo job API.");
+    });
+  }
+  if (apiSchedulerSaveBtn && !apiSchedulerSaveBtn.dataset.bound) {
+    apiSchedulerSaveBtn.dataset.bound = "1";
+    apiSchedulerSaveBtn.addEventListener("click", async () => {
+      await saveApiSchedulerJobFromUi();
+    });
+  }
+  if (apiSchedulerDeleteBtn && !apiSchedulerDeleteBtn.dataset.bound) {
+    apiSchedulerDeleteBtn.dataset.bound = "1";
+    apiSchedulerDeleteBtn.addEventListener("click", async () => {
+      await deleteApiSchedulerJobFromUi();
+    });
+  }
+  if (apiSchedulerRunNowBtn && !apiSchedulerRunNowBtn.dataset.bound) {
+    apiSchedulerRunNowBtn.dataset.bound = "1";
+    apiSchedulerRunNowBtn.addEventListener("click", async () => {
+      await runApiSchedulerJobNowFromUi();
+    });
+  }
+  if (apiSchedulerRunDueBtn && !apiSchedulerRunDueBtn.dataset.bound) {
+    apiSchedulerRunDueBtn.dataset.bound = "1";
+    apiSchedulerRunDueBtn.addEventListener("click", async () => {
+      await runApiSchedulerDueJobsFromUi();
+    });
   }
   setPluginToolTab("lookup");
   toggleMergeAdvancedPanel(false);

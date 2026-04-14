@@ -1,0 +1,20 @@
+{
+  "id": "api_data_scheduler",
+  "name": "API Data Scheduler",
+  "version": "0.1.0",
+  "description": "Configure multiple authenticated API downloads and run them manually or on schedule.",
+  "enabled": false,
+  "license_feature": "plugin_api_data_scheduler",
+  "frontend": {
+    "menu": [
+      {
+        "id": "menuOpenApiSchedulerModule",
+        "label": "Scheduler API (plugin)"
+      }
+    ],
+    "panel": {
+      "id": "apiDataSchedulerPanel",
+      "title": "API Data Scheduler"
+    }
+  }
+}

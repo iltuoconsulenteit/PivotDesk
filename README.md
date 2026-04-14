@@ -151,6 +151,7 @@ The following diagrams are visual examples derived from the HTML layout structur
 - `plugins/calculated_fields/backend.py` – formula engine
 - `plugins/cross_source_lookup/plugin.py` – lookup/VLOOKUP-like join between two sources (optional plugin, disabled by default)
 - `plugins/multi_source_merge/plugin.py` – multi-source schema merge/union builder (optional plugin, disabled by default)
+- `plugins/api_data_scheduler/plugin.py` – scheduler per scarico dati da API (manuale o a intervalli), con supporto auth basic/bearer (optional plugin, disabled by default)
 - `plugins/multi_pivot_derived/plugin.py` – derive/cross data from multiple pivots (optional plugin, disabled by default; demo output is watermarked)
 - `templates/` – frontend pages
 - `static/js/` – frontend logic
@@ -165,6 +166,7 @@ The following diagrams are visual examples derived from the HTML layout structur
 - Multi-source merge plugin now supports template persistence + execution: create/list/get/delete templates (`/template/save`, `/template/list`, `/template/{id}`) and run append/union merges from a selected template (`POST /plugin/multi-source-merge/build-from-template`) so mapped rows from selected sources are appended under the same target headers.
 - Multi-source merge now also supports direct CSV export of the unified dataset (`POST /plugin/multi-source-merge/export-csv`), so users can download and transfer merged data as a standalone source file.
 - Multi-source merge is managed as an installable/enableable add-on module (disabled by default), with a dedicated top-menu entry (`Moduli > Merge sorgenti (plugin)`) and independent license gating (`plugin_multi_source_merge` / `plugins.multi_source_merge`, plus global `plugins` fallback).
+- API Data Scheduler is also an installable/enableable add-on module (disabled by default), with dedicated menu entry (`Moduli > Scheduler API (plugin)`), multi-endpoint configuration, manual run (`/plugin/api-scheduler/run/{job_id}`) and scheduled batch execution (`/plugin/api-scheduler/run-due`) using per-job `interval_minutes`.
 - In Source Manager, selecting a merge template now reloads full template details (`/template/{id}`), restoring every saved source block and `column_map`; running from template also works even when no builder blocks are manually re-added (server falls back to template sources).
 - Merge templates can now also persist source blocks and field mappings (`sources` + `column_map`), so reloading a template restores both selected sources and saved associations in the guided merge UI.
 - Merge templates are stored in SQLite under `DATA_DIR/app_data/merge_templates.db` (application metadata) with legacy auto-migration from `merge_templates.json`, keeping app-state separated from runtime/source user files.
