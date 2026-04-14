@@ -3651,7 +3651,9 @@ async function handleMergeActionClick(action){
     }
   } catch (e) {
     const msg = String(e?.message || e || "Errore azione merge");
+    console.error("Errore merge action [" + key + "]:", e);
     setStatus("ERRORE merge: " + msg);
+    try { window.alert("Errore merge:\n" + msg); } catch (_e) {}
   }
 }
 
