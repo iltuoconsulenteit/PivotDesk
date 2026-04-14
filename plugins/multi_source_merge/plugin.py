@@ -4,6 +4,7 @@ import csv
 import json
 import re
 import sqlite3
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -156,6 +157,22 @@ def _build_map_suggestions(df_columns: list[str], template_columns: list[str]) -
                 out[target] = src_col
                 break
     return out
+
+
+def _json_safe_value(value: Any) -> Any:
+    if value is None:
+        return ""
+    if isinstance(value, (str, int, float, bool)):
+        return value
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+    try:
+        # pandas / numpy nullable values
+        if value != value:  # NaN
+            return ""
+    except Exception:
+        pass
+    return str(value)
 
 
 def _normalize_template_id(value: str) -> str:
@@ -372,11 +389,11 @@ def _build_merge_result(plugin_api, payload: MultiMergeRequest) -> dict[str, Any
         for row in records:
             out = {}
             for target_col, src_col in (src_cfg.column_map or {}).items():
-                out[target_col] = row.get(src_col, "")
+                out[target_col] = _json_safe_value(row.get(src_col, ""))
                 if target_col not in discovered_targets:
                     discovered_targets.append(target_col)
             if payload.include_source_tag:
-                out["_source"] = src_cfg.source_tag or src_cfg.source_id
+                out["_source"] = _json_safe_value(src_cfg.source_tag or src_cfg.source_id)
                 if "_source" not in discovered_targets:
                     discovered_targets.append("_source")
             merged_rows.append(out)
