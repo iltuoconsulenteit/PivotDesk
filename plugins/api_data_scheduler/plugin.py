@@ -26,7 +26,12 @@ class ApiJobUpsertRequest(BaseModel):
     token: str | None = None
     headers_json: str | None = None
     body_json: str | None = None
-    interval_minutes: int = Field(default=0, ge=0, le=10080)
+    schedule_type: str = "none"  # none|minutely|hourly|daily|weekly|monthly
+    every_minutes: int = Field(default=0, ge=0, le=10080)
+    every_hours: int = Field(default=0, ge=0, le=720)
+    run_at_time: str | None = None  # HH:MM
+    week_day: int | None = None  # 0=Mon..6=Sun
+    month_day: int | None = None  # 1..31
     enabled: bool = True
 
 
@@ -207,6 +212,92 @@ def _run_job(job: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _parse_hhmm(value: str | None) -> tuple[int, int] | None:
+    raw = str(value or "").strip()
+    m = re.match(r"^([0-1]?[0-9]|2[0-3]):([0-5][0-9])$", raw)
+    if not m:
+        return None
+    return int(m.group(1)), int(m.group(2))
+
+
+def _is_job_due(job: dict[str, Any], now: datetime) -> bool:
+    mode = str(job.get("schedule_type") or "none").strip().lower()
+    if mode == "none":
+        legacy_interval = int(job.get("interval_minutes") or 0)
+        if legacy_interval > 0:
+            mode = "minutely"
+            job["every_minutes"] = legacy_interval
+        else:
+            return False
+
+    last_raw = str(job.get("last_run_at") or "").strip()
+    last_dt: datetime | None = None
+    if last_raw:
+        try:
+            last_dt = datetime.fromisoformat(last_raw)
+        except Exception:
+            last_dt = None
+
+    if mode == "minutely":
+        every = int(job.get("every_minutes") or 0)
+        if every <= 0:
+            return False
+        if not last_dt:
+            return True
+        return now >= (last_dt + timedelta(minutes=every))
+
+    if mode == "hourly":
+        every = int(job.get("every_hours") or 0)
+        if every <= 0:
+            return False
+        if not last_dt:
+            return True
+        return now >= (last_dt + timedelta(hours=every))
+
+    hhmm = _parse_hhmm(job.get("run_at_time"))
+    if mode == "daily":
+        if not hhmm:
+            return False
+        target = now.replace(hour=hhmm[0], minute=hhmm[1], second=0, microsecond=0)
+        if now < target:
+            return False
+        if not last_dt:
+            return True
+        return last_dt.date() < now.date()
+
+    if mode == "weekly":
+        if not hhmm:
+            return False
+        weekday = int(job.get("week_day") if job.get("week_day") is not None else -1)
+        if weekday < 0 or weekday > 6:
+            return False
+        if now.weekday() != weekday:
+            return False
+        target = now.replace(hour=hhmm[0], minute=hhmm[1], second=0, microsecond=0)
+        if now < target:
+            return False
+        if not last_dt:
+            return True
+        return last_dt.date() < now.date()
+
+    if mode == "monthly":
+        if not hhmm:
+            return False
+        month_day = int(job.get("month_day") if job.get("month_day") is not None else 0)
+        if month_day < 1 or month_day > 31:
+            return False
+        if now.day != month_day:
+            return False
+        target = now.replace(hour=hhmm[0], minute=hhmm[1], second=0, microsecond=0)
+        if now < target:
+            return False
+        if not last_dt:
+            return True
+        return (last_dt.year, last_dt.month, last_dt.day) != (now.year, now.month, now.day)
+
+    return False
+
+
 def register(app, plugin_api, manifest):
     router = APIRouter(prefix="/plugin/api-scheduler", tags=["plugins", "api_scheduler"])
 
@@ -236,7 +327,12 @@ def register(app, plugin_api, manifest):
             "token": str(payload.token or ""),
             "headers_json": str(payload.headers_json or "").strip(),
             "body_json": str(payload.body_json or "").strip(),
-            "interval_minutes": int(payload.interval_minutes or 0),
+            "schedule_type": str(payload.schedule_type or "none").strip().lower(),
+            "every_minutes": int(payload.every_minutes or 0),
+            "every_hours": int(payload.every_hours or 0),
+            "run_at_time": str(payload.run_at_time or "").strip(),
+            "week_day": (int(payload.week_day) if payload.week_day is not None else None),
+            "month_day": (int(payload.month_day) if payload.month_day is not None else None),
             "enabled": bool(payload.enabled),
             "updated_at": datetime.utcnow().isoformat(),
             "last_run_at": None,
@@ -294,26 +390,17 @@ def register(app, plugin_api, manifest):
             if not bool(job.get("enabled")):
                 skipped += 1
                 continue
-            interval = int(job.get("interval_minutes") or 0)
-            if interval <= 0:
-                skipped += 1
-                continue
-            last_raw = str(job.get("last_run_at") or "").strip()
-            due = True
-            if last_raw:
-                try:
-                    due_at = datetime.fromisoformat(last_raw) + timedelta(minutes=interval)
-                    due = now >= due_at
-                except Exception:
-                    due = True
-            if not due:
+            if not _is_job_due(job, now):
                 skipped += 1
                 continue
             try:
                 result = _run_job(job)
                 job["last_run_at"] = datetime.utcnow().isoformat()
                 job["last_status"] = int(result.get("status_code") or 0)
-                ran.append({"job_id": job.get("job_id"), "ok": True, "status_code": job.get("last_status")})
+                note = ""
+                if str(job.get("schedule_type") or "").lower() == "minutely" and int(job.get("every_minutes") or 0) > 0 and int(job.get("every_minutes") or 0) < 15:
+                    note = "Intervallo minuti molto basso: possibile sovraccarico server."
+                ran.append({"job_id": job.get("job_id"), "ok": True, "status_code": job.get("last_status"), "warning": note})
             except HTTPException as exc:
                 job["last_run_at"] = datetime.utcnow().isoformat()
                 job["last_status"] = 0

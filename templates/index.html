@@ -1817,8 +1817,8 @@ window.LICENSE_CONTEXT = {
     </div>
 
     <div class="card source-tab-panel hidden" data-source-tab="plugins" style="margin-top:16px;">
-      <div class="section-title">Plugin sorgenti (lookup / merge)</div>
-      <div class="small" style="margin-bottom:10px; color:#475467;">Utility guidate: seleziona un tool e compila solo i campi necessari. Le opzioni avanzate restano nascoste di default.</div>
+      <div class="section-title">Plugin sorgenti (lookup)</div>
+      <div class="small" style="margin-bottom:10px; color:#475467;">Il tab plugin ospita utility lookup. I moduli Merge/API Scheduler sono disponibili nelle rispettive pagine dedicate dal menu Moduli.</div>
       <div class="plugin-tools-tabs">
         <button type="button" class="quick-toggle active" id="btnPluginTabLookup">Lookup guidato</button>
         <button type="button" class="quick-toggle" id="btnPluginTabMerge">Merge guidato</button>
@@ -1988,9 +1988,25 @@ window.LICENSE_CONTEXT = {
             <div class="field"><label for="apiSchedulerBodyJson">Body JSON (POST/PUT/PATCH)</label><textarea id="apiSchedulerBodyJson" style="min-height:90px;" placeholder='{\"from\":\"2026-01-01\"}'></textarea></div>
           </div>
           <div class="builder-top">
-            <div class="field"><label for="apiSchedulerIntervalMinutes">Intervallo schedulazione (minuti)</label><input id="apiSchedulerIntervalMinutes" type="number" min="0" max="10080" value="0"></div>
+            <div class="field">
+              <label for="apiSchedulerScheduleType">Schedulazione</label>
+              <select id="apiSchedulerScheduleType">
+                <option value="none">Solo manuale</option>
+                <option value="monthly">Mensile (giorno + ora)</option>
+                <option value="weekly">Settimanale (giorno + ora)</option>
+                <option value="daily">Giornaliera (orario)</option>
+                <option value="hourly">Ogni tot ore</option>
+                <option value="minutely">Ogni tot minuti (sconsigliato)</option>
+              </select>
+            </div>
+            <div class="field"><label for="apiSchedulerRunAtTime">Orario (HH:MM)</label><input id="apiSchedulerRunAtTime" placeholder="es. 03:30"></div>
+            <div class="field"><label for="apiSchedulerWeekDay">Giorno settimana</label><select id="apiSchedulerWeekDay"><option value="0">Lunedì</option><option value="1">Martedì</option><option value="2">Mercoledì</option><option value="3">Giovedì</option><option value="4">Venerdì</option><option value="5">Sabato</option><option value="6">Domenica</option></select></div>
+            <div class="field"><label for="apiSchedulerMonthDay">Giorno mese</label><input id="apiSchedulerMonthDay" type="number" min="1" max="31" value="1"></div>
+            <div class="field"><label for="apiSchedulerEveryHours">Ogni quante ore</label><input id="apiSchedulerEveryHours" type="number" min="1" max="720" value="1"></div>
+            <div class="field"><label for="apiSchedulerEveryMinutes">Ogni quanti minuti</label><input id="apiSchedulerEveryMinutes" type="number" min="1" max="10080" value="15"></div>
             <div class="field" style="display:flex; align-items:flex-end;"><label style="display:flex; gap:8px; align-items:center;"><input id="apiSchedulerEnabled" type="checkbox" checked> Job attivo</label></div>
           </div>
+          <div id="apiSchedulerScheduleHint" class="small" style="margin-top:6px; color:#b54708;"></div>
           <div class="builder-actions">
             <button id="btnApiSchedulerNewJob" type="button">Nuovo job</button>
             <button id="btnApiSchedulerSaveJob" type="button" class="primary">Salva job</button>
@@ -4487,9 +4503,15 @@ function resetApiSchedulerJobForm(){
   setVal("apiSchedulerToken", "");
   setVal("apiSchedulerHeadersJson", "");
   setVal("apiSchedulerBodyJson", "");
-  setVal("apiSchedulerIntervalMinutes", "0");
+  setVal("apiSchedulerScheduleType", "none");
+  setVal("apiSchedulerRunAtTime", "03:30");
+  setVal("apiSchedulerWeekDay", "0");
+  setVal("apiSchedulerMonthDay", "1");
+  setVal("apiSchedulerEveryHours", "1");
+  setVal("apiSchedulerEveryMinutes", "15");
   const en = document.getElementById("apiSchedulerEnabled");
   if (en) en.checked = true;
+  updateApiSchedulerScheduleUi();
 }
 
 function loadApiSchedulerJobIntoForm(job){
@@ -4505,11 +4527,18 @@ function loadApiSchedulerJobIntoForm(job){
   setVal("apiSchedulerToken", String(job.token || ""));
   setVal("apiSchedulerHeadersJson", String(job.headers_json || ""));
   setVal("apiSchedulerBodyJson", String(job.body_json || ""));
-  setVal("apiSchedulerIntervalMinutes", String(job.interval_minutes || 0));
+  const scheduleType = String(job.schedule_type || "none").toLowerCase();
+  setVal("apiSchedulerScheduleType", scheduleType);
+  setVal("apiSchedulerRunAtTime", String(job.run_at_time || "03:30"));
+  setVal("apiSchedulerWeekDay", String(job.week_day ?? 0));
+  setVal("apiSchedulerMonthDay", String(job.month_day ?? 1));
+  setVal("apiSchedulerEveryHours", String(job.every_hours || 1));
+  setVal("apiSchedulerEveryMinutes", String(job.every_minutes || job.interval_minutes || 15));
   const en = document.getElementById("apiSchedulerEnabled");
   if (en) en.checked = !!job.enabled;
   const status = document.getElementById("apiSchedulerStatus");
   if (status) status.textContent = "Ultima esecuzione: " + String(job.last_run_at || "mai") + " · Stato: " + String(job.last_status || "-");
+  updateApiSchedulerScheduleUi();
 }
 
 async function loadApiSchedulerJobsIntoUi(keepSelection = true){
@@ -4534,6 +4563,7 @@ async function loadApiSchedulerJobsIntoUi(keepSelection = true){
 }
 
 function collectApiSchedulerPayloadFromUi(){
+  const scheduleType = String(document.getElementById("apiSchedulerScheduleType")?.value || "none").trim().toLowerCase();
   const payload = {
     job_id: String(document.getElementById("apiSchedulerJobId")?.value || "").trim() || null,
     title: String(document.getElementById("apiSchedulerTitle")?.value || "").trim(),
@@ -4545,12 +4575,42 @@ function collectApiSchedulerPayloadFromUi(){
     token: String(document.getElementById("apiSchedulerToken")?.value || "").trim(),
     headers_json: String(document.getElementById("apiSchedulerHeadersJson")?.value || "").trim(),
     body_json: String(document.getElementById("apiSchedulerBodyJson")?.value || "").trim(),
-    interval_minutes: parseInt(String(document.getElementById("apiSchedulerIntervalMinutes")?.value || "0"), 10) || 0,
+    schedule_type: scheduleType,
+    every_minutes: parseInt(String(document.getElementById("apiSchedulerEveryMinutes")?.value || "0"), 10) || 0,
+    every_hours: parseInt(String(document.getElementById("apiSchedulerEveryHours")?.value || "0"), 10) || 0,
+    run_at_time: String(document.getElementById("apiSchedulerRunAtTime")?.value || "").trim(),
+    week_day: parseInt(String(document.getElementById("apiSchedulerWeekDay")?.value || "0"), 10),
+    month_day: parseInt(String(document.getElementById("apiSchedulerMonthDay")?.value || "1"), 10),
     enabled: !!document.getElementById("apiSchedulerEnabled")?.checked
   };
   if (!payload.title) throw new Error("Inserisci un titolo job API.");
   if (!payload.url) throw new Error("Inserisci URL API.");
+  if (scheduleType === "daily" && !payload.run_at_time) throw new Error("Per schedulazione giornaliera devi indicare un orario.");
+  if (scheduleType === "weekly" && !payload.run_at_time) throw new Error("Per schedulazione settimanale devi indicare un orario.");
+  if (scheduleType === "monthly" && !payload.run_at_time) throw new Error("Per schedulazione mensile devi indicare un orario.");
+  if (scheduleType === "hourly" && payload.every_hours <= 0) throw new Error("Per schedulazione ogni tot ore devi indicare un valore > 0.");
+  if (scheduleType === "minutely" && payload.every_minutes <= 0) throw new Error("Per schedulazione ogni tot minuti devi indicare un valore > 0.");
   return payload;
+}
+
+function updateApiSchedulerScheduleUi(){
+  const mode = String(document.getElementById("apiSchedulerScheduleType")?.value || "none").toLowerCase();
+  const runAt = document.getElementById("apiSchedulerRunAtTime")?.closest(".field");
+  const weekDay = document.getElementById("apiSchedulerWeekDay")?.closest(".field");
+  const monthDay = document.getElementById("apiSchedulerMonthDay")?.closest(".field");
+  const everyHours = document.getElementById("apiSchedulerEveryHours")?.closest(".field");
+  const everyMinutes = document.getElementById("apiSchedulerEveryMinutes")?.closest(".field");
+  const hint = document.getElementById("apiSchedulerScheduleHint");
+  if (runAt) runAt.style.display = ["daily", "weekly", "monthly"].includes(mode) ? "" : "none";
+  if (weekDay) weekDay.style.display = mode === "weekly" ? "" : "none";
+  if (monthDay) monthDay.style.display = mode === "monthly" ? "" : "none";
+  if (everyHours) everyHours.style.display = mode === "hourly" ? "" : "none";
+  if (everyMinutes) everyMinutes.style.display = mode === "minutely" ? "" : "none";
+  if (hint) {
+    hint.textContent = mode === "minutely"
+      ? "Attenzione: schedulare ogni pochi minuti può sovraccaricare server/API. Valuta intervalli >= 15 minuti."
+      : "";
+  }
 }
 
 async function saveApiSchedulerJobFromUi(){
@@ -4634,6 +4694,9 @@ async function initSourcePluginBuilders(){
   const apiSchedulerDeleteBtn = document.getElementById("btnApiSchedulerDeleteJob");
   const apiSchedulerRunNowBtn = document.getElementById("btnApiSchedulerRunNow");
   const apiSchedulerRunDueBtn = document.getElementById("btnApiSchedulerRunDue");
+  const apiSchedulerScheduleType = document.getElementById("apiSchedulerScheduleType");
+  if (tabMergeBtn) tabMergeBtn.style.display = "none";
+  if (tabApiSchedulerBtn) tabApiSchedulerBtn.style.display = "none";
 
   if (primarySel && !primarySel.dataset.boundLookupPrimary) {
     primarySel.dataset.boundLookupPrimary = "1";
@@ -4857,6 +4920,11 @@ async function initSourcePluginBuilders(){
       await runApiSchedulerDueJobsFromUi();
     });
   }
+  if (apiSchedulerScheduleType && !apiSchedulerScheduleType.dataset.bound) {
+    apiSchedulerScheduleType.dataset.bound = "1";
+    apiSchedulerScheduleType.addEventListener("change", () => updateApiSchedulerScheduleUi());
+  }
+  updateApiSchedulerScheduleUi();
   setPluginToolTab("lookup");
   toggleMergeAdvancedPanel(false);
 
