@@ -4170,7 +4170,11 @@ async function runMultiSourceMergeFromTemplateUi(){
   });
   setSourcePluginOutput(res);
   renderMergePreview(res);
-  setStatus("Merge da template completato: " + templateId);
+  if (res?.warning) {
+    setStatus("ATTENZIONE: " + String(res.warning));
+  } else {
+    setStatus("Merge da template completato: " + templateId);
+  }
 }
 
 async function saveMultiSourceMergeAsSourceFromUi(){

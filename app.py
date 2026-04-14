@@ -2481,6 +2481,16 @@ async def merge_build_from_template_fallback(request: Request):
         template_id = str(payload.get("template_id", "")).strip()
         tpl = _load_merge_template_record(template_id)
         if not tpl:
+            fallback_sources = payload.get("sources") if isinstance(payload.get("sources"), list) else []
+            if fallback_sources:
+                result = _build_merge_payload_result({
+                    "sources": fallback_sources,
+                    "output_columns": payload.get("output_columns", []),
+                    "include_source_tag": payload.get("include_source_tag", True),
+                    "limit": payload.get("limit", 1000),
+                })
+                result["warning"] = f"Template non trovato: {template_id}. Usato mapping corrente del builder."
+                return result
             return JSONResponse({"error": "template non trovato"}, status_code=404)
         merged_payload = {
             "sources": payload.get("sources") or tpl.get("sources") or [],
