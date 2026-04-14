@@ -2479,6 +2479,31 @@ def _build_merge_payload_result(payload: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _load_merge_definitions() -> dict[str, Any]:
+    path = DATA_DIR / "generated_sources" / "merge_definitions.json"
+    raw = read_json(path, {}) or {}
+    return raw if isinstance(raw, dict) else {}
+
+
+def _save_merge_definitions(payload: dict[str, Any]) -> None:
+    path = DATA_DIR / "generated_sources" / "merge_definitions.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def _source_fingerprint_for_merge(source_id: str) -> dict[str, Any]:
+    src = get_source_by_id(source_id) or {}
+    path = Path(str(src.get("path") or "")).expanduser()
+    stat = path.stat() if path.exists() else None
+    return {
+        "source_id": source_id,
+        "path": str(path),
+        "exists": bool(stat),
+        "mtime": float(stat.st_mtime) if stat else None,
+        "size": int(stat.st_size) if stat else None,
+    }
+
+
 @app.post("/plugin/multi-source-merge/build")
 async def merge_build_fallback(request: Request):
     try:
@@ -2535,14 +2560,30 @@ async def merge_build_and_save_fallback(request: Request):
         merged = _build_merge_payload_result(payload)
         source_id = normalize_source_id(payload.get("source_id")) or "1"
         title = str(payload.get("source_title") or f"Merge {source_id}").strip() or f"Merge {source_id}"
+        save_mode = str(payload.get("save_mode") or "csv").strip().lower()
+        if save_mode not in {"csv", "sqlite"}:
+            save_mode = "csv"
         out_dir = DATA_DIR / "generated_sources"
         out_dir.mkdir(parents=True, exist_ok=True)
         out_file = out_dir / f"{source_id}.csv"
         columns = [str(c) for c in (merged.get("columns") or [])]
+        rows = merged.get("rows", []) or []
+        if save_mode == "sqlite":
+            db_path = out_dir / "merge_outputs.db"
+            table_name = f"merge_{normalize_source_id(source_id) or '1'}"
+            with sqlite3.connect(str(db_path)) as conn:
+                conn.execute(f'DROP TABLE IF EXISTS "{table_name}"')
+                col_defs = ", ".join([f'"{c}" TEXT' for c in columns]) if columns else '"value" TEXT'
+                conn.execute(f'CREATE TABLE "{table_name}" ({col_defs})')
+                if columns:
+                    placeholders = ", ".join(["?"] * len(columns))
+                    quoted_columns = ", ".join(f'"{c}"' for c in columns)
+                    insert_sql = f'INSERT INTO "{table_name}" ({quoted_columns}) VALUES ({placeholders})'
+                    conn.executemany(insert_sql, [[str(row.get(c, "")) for c in columns] for row in rows])
         with out_file.open("w", encoding="utf-8-sig", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=columns)
             writer.writeheader()
-            for row in merged.get("rows", []) or []:
+            for row in rows:
                 writer.writerow({c: row.get(c, "") for c in columns})
         data = load_sources_data()
         items = data.get("items", [])
@@ -2563,7 +2604,22 @@ async def merge_build_and_save_fallback(request: Request):
         if bool(payload.get("set_default")):
             data["default_source"] = source_id
         save_sources_data(data)
-        return {"ok": True, "source": new_item, "merge": merged}
+        defs = _load_merge_definitions()
+        defs[source_id] = {
+            "source_id": source_id,
+            "title": title,
+            "save_mode": save_mode,
+            "columns": columns,
+            "sources": payload.get("sources") if isinstance(payload.get("sources"), list) else [],
+            "updated_at": datetime.utcnow().isoformat(),
+            "source_fingerprints": [
+                _source_fingerprint_for_merge(str(s.get("source_id", "")).strip())
+                for s in (payload.get("sources") if isinstance(payload.get("sources"), list) else [])
+                if isinstance(s, dict) and str(s.get("source_id", "")).strip()
+            ],
+        }
+        _save_merge_definitions(defs)
+        return {"ok": True, "source": new_item, "merge": merged, "save_mode": save_mode}
     except ValueError as exc:
         return JSONResponse({"error": str(exc)}, status_code=400)
     except Exception as exc:
