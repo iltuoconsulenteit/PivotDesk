@@ -1915,10 +1915,10 @@ window.LICENSE_CONTEXT = {
               <b>Esegui merge</b> usa il mapping corrente del builder (anche senza template).
             </div>
             <div class="builder-actions" style="margin-bottom:8px;">
-              <button id="btnRunMultiMergeFromTemplate" type="button" class="primary">Esegui merge da template</button>
-              <button id="btnRunMultiMerge" type="button">Anteprima merge</button>
-              <button id="btnSaveMultiMergeSource" type="button" class="primary">Salva come nuova sorgente</button>
-              <button id="btnRefreshMultiMergeSource" type="button">Aggiorna sorgente merge</button>
+              <button id="btnRunMultiMergeFromTemplate" type="button" class="primary" onclick="handleMergeActionClick('run_template'); return false;">Esegui merge da template</button>
+              <button id="btnRunMultiMerge" type="button" onclick="handleMergeActionClick('preview'); return false;">Anteprima merge</button>
+              <button id="btnSaveMultiMergeSource" type="button" class="primary" onclick="handleMergeActionClick('save_source'); return false;">Salva come nuova sorgente</button>
+              <button id="btnRefreshMultiMergeSource" type="button" onclick="handleMergeActionClick('refresh_source'); return false;">Aggiorna sorgente merge</button>
             </div>
           </div>
 
@@ -3622,7 +3622,33 @@ async function applySelectedMergeTemplateToUi(){
     }
     setStatus("Template caricato con " + String(templateSources.length) + " sorgenti mappate.");
   }
+  suggestMergeSourceIdentity(true);
   return tpl;
+}
+
+async function handleMergeActionClick(action){
+  const key = String(action || "").trim().toLowerCase();
+  try {
+    if (key === "run_template") {
+      await runMultiSourceMergeFromTemplateUi();
+      return;
+    }
+    if (key === "preview") {
+      await runMultiSourceMergeFromUi();
+      return;
+    }
+    if (key === "save_source") {
+      await saveMultiSourceMergeAsSourceFromUi();
+      return;
+    }
+    if (key === "refresh_source") {
+      await refreshMultiMergeSourceFromUi();
+      return;
+    }
+  } catch (e) {
+    const msg = String(e?.message || e || "Errore azione merge");
+    setStatus("ERRORE merge: " + msg);
+  }
 }
 
 async function saveMergeTemplateFromUi(){
