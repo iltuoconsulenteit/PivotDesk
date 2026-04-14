@@ -3887,6 +3887,10 @@ async function addMergeSourceBlock(initial = null){
   block.style.padding = "8px";
   block.innerHTML =
     "<div class='field'><label>Sorgente</label><select data-merge-source></select></div>" +
+    "<div class='builder-actions' style='margin:6px 0 8px;'>" +
+      "<button type='button' data-merge-preview-source>Anteprima sorgente</button>" +
+      "<button type='button' data-merge-edit-source>Modifica sorgente</button>" +
+    "</div>" +
     "<div class='small' style='margin:6px 0 4px;'>Campi disponibili sorgente (trascina sul template):</div>" +
     "<div data-merge-source-fields style='display:flex; flex-wrap:wrap; gap:6px; min-height:34px; border:1px dashed #c7d7fe; border-radius:8px; padding:6px; margin-bottom:8px;'></div>" +
     "<div class='small' style='margin:4px 0;'>Associazione campi template:</div>" +
@@ -3930,6 +3934,40 @@ async function addMergeSourceBlock(initial = null){
   block.querySelector("[data-merge-remove-block]").onclick = () => {
     block.remove();
     suggestMergeSourceIdentity(false);
+  };
+  block.querySelector("[data-merge-preview-source]").onclick = async () => {
+    const sourceId = String(sourceSel.value || "").trim();
+    if (!sourceId) {
+      setStatus("Seleziona prima una sorgente per l'anteprima.");
+      return;
+    }
+    try {
+      const data = await api("/source-preview?source_id=" + encodeURIComponent(sourceId) + "&limit=20");
+      renderPreviewTableInto(data, "sourcePreviewModalMeta", "sourcePreviewModalTable", "Nessuna colonna disponibile per l'anteprima.");
+      const modal = document.getElementById("sourcePreviewModal");
+      if (modal) modal.style.display = "flex";
+      setStatus("Anteprima sorgente merge caricata.");
+    } catch (e) {
+      setStatus("ERRORE anteprima sorgente merge: " + (e?.message || e));
+    }
+  };
+  block.querySelector("[data-merge-edit-source]").onclick = () => {
+    const sourceId = String(sourceSel.value || "").trim();
+    if (!sourceId) {
+      setStatus("Seleziona prima una sorgente da modificare.");
+      return;
+    }
+    const src =
+      (SOURCES || []).find(s => String(s?.id || "").trim() === sourceId) ||
+      (SOURCES || []).find(s => String(s?.config?.legacy_source_id || "").trim() === sourceId);
+    if (!src) {
+      setStatus("ERRORE: sorgente merge non trovata in configurazione.");
+      return;
+    }
+    openSourcesScreen();
+    setSourceManagerTab("base");
+    loadSourceIntoForm(src);
+    setStatus("Modifica sorgente merge aperta: " + String(src.title || src.id || sourceId));
   };
   sourceSel.onchange = () => {
     loadSourceFields(sourceSel.value).then(async fields => {
