@@ -2009,6 +2009,32 @@ window.LICENSE_CONTEXT = {
   </div>
 </div>
 
+<div id="mergeModuleScreen" class="builder-screen">
+  <div class="card">
+    <div class="builder-head">
+      <div class="builder-head-left">
+        <div class="section-title">Modulo: Multi Source Merge</div>
+        <div class="small">Pagina dedicata del modulo aggiuntivo per creare sorgenti unite ed esportarle.</div>
+      </div>
+      <div><button type="button" id="btnCloseMergeModuleScreen">Chiudi modulo</button></div>
+    </div>
+    <div id="mergeModuleHost"></div>
+  </div>
+</div>
+
+<div id="apiSchedulerModuleScreen" class="builder-screen">
+  <div class="card">
+    <div class="builder-head">
+      <div class="builder-head-left">
+        <div class="section-title">Modulo: API Data Scheduler</div>
+        <div class="small">Pagina dedicata per configurare endpoint multipli e scarico manuale/schedulato.</div>
+      </div>
+      <div><button type="button" id="btnCloseApiSchedulerModuleScreen">Chiudi modulo</button></div>
+    </div>
+    <div id="apiSchedulerModuleHost"></div>
+  </div>
+</div>
+
 <div id="settingsScreen" class="builder-screen">
   <div class="card">
     <div class="builder-head">
@@ -2398,6 +2424,10 @@ let SETTINGS = {
 };
 let PLUGINS_STATUS = null;
 let API_SCHEDULER_JOBS = [];
+const MODULE_PANE_HOSTS = {
+  pluginToolMerge: null,
+  pluginToolApiScheduler: null
+};
 let CURRENT_VIEW_OPTIONS = null;
 let CURRENT_HEADER_FILTERS = {};
 let BUILDER_SOURCE = null;
@@ -2862,6 +2892,7 @@ function exportChartInteractiveHtml(){
 window.exportChartInteractiveHtml = exportChartInteractiveHtml;
 
 function openSettingsScreen(){
+  closeModuleScreens();
   document.getElementById("mainView").classList.add("hidden");
   document.getElementById("builderScreen").classList.remove("active");
   document.getElementById("sourcesScreen").classList.remove("active");
@@ -2871,6 +2902,7 @@ function openSettingsScreen(){
 }
 
 function closeSettingsScreen(){
+  closeModuleScreens();
   document.getElementById("settingsScreen").classList.remove("active");
   document.getElementById("mainView").classList.remove("hidden");
   window.scrollTo({ top: 0, behavior: "smooth" });
@@ -3278,6 +3310,7 @@ function setBuilderMode(mode, preset = null){
 }
 
 function openBuilderScreen(){
+  closeModuleScreens();
   document.getElementById("mainView").classList.add("hidden");
   document.getElementById("sourcesScreen").classList.remove("active");
   document.getElementById("settingsScreen").classList.remove("active");
@@ -3287,6 +3320,7 @@ function openBuilderScreen(){
 }
 
 function closeBuilderScreen(){
+  closeModuleScreens();
   document.getElementById("builderScreen").classList.remove("active");
   document.getElementById("mainView").classList.remove("hidden");
   window.scrollTo({ top: 0, behavior: "smooth" });
@@ -3323,6 +3357,7 @@ function openBuilderForCurrentPreset(){
 }
 
 function openSourcesScreen(){
+  closeModuleScreens();
   document.getElementById("mainView").classList.add("hidden");
   document.getElementById("builderScreen").classList.remove("active");
   document.getElementById("settingsScreen").classList.remove("active");
@@ -3360,6 +3395,51 @@ function getPluginStatusItem(pluginId){
   return items.find(p => String(p?.id || "").trim() === wanted) || null;
 }
 
+function restoreModulePanesToOriginalHosts(){
+  Object.keys(MODULE_PANE_HOSTS).forEach(paneId => {
+    const pane = document.getElementById(paneId);
+    const host = MODULE_PANE_HOSTS[paneId];
+    if (pane && host && pane.parentElement !== host) {
+      host.appendChild(pane);
+    }
+  });
+}
+
+function closeModuleScreens(){
+  restoreModulePanesToOriginalHosts();
+  document.getElementById("mergeModuleScreen")?.classList.remove("active");
+  document.getElementById("apiSchedulerModuleScreen")?.classList.remove("active");
+}
+
+function closeDedicatedModuleScreen(){
+  closeModuleScreens();
+  document.getElementById("mainView")?.classList.remove("hidden");
+}
+
+function openDedicatedModuleScreen(moduleKey){
+  const mainView = document.getElementById("mainView");
+  const builderScreen = document.getElementById("builderScreen");
+  const sourcesScreen = document.getElementById("sourcesScreen");
+  const settingsScreen = document.getElementById("settingsScreen");
+  const mergeModuleScreen = document.getElementById("mergeModuleScreen");
+  const apiModuleScreen = document.getElementById("apiSchedulerModuleScreen");
+  if (mainView) mainView.classList.add("hidden");
+  if (builderScreen) builderScreen.classList.remove("active");
+  if (sourcesScreen) sourcesScreen.classList.remove("active");
+  if (settingsScreen) settingsScreen.classList.remove("active");
+  if (mergeModuleScreen) mergeModuleScreen.classList.toggle("active", moduleKey === "merge");
+  if (apiModuleScreen) apiModuleScreen.classList.toggle("active", moduleKey === "api_scheduler");
+}
+
+function mountModulePane(paneId, hostId){
+  const pane = document.getElementById(paneId);
+  const host = document.getElementById(hostId);
+  if (!pane || !host) return;
+  if (!MODULE_PANE_HOSTS[paneId]) MODULE_PANE_HOSTS[paneId] = pane.parentElement;
+  if (pane.parentElement !== host) host.appendChild(pane);
+  pane.classList.remove("hidden");
+}
+
 async function openPluginModuleFromMenu(pluginId, toolTab, label){
   if (!PLUGINS_STATUS) {
     try { await loadPluginsStatus(); } catch (_e) {}
@@ -3376,8 +3456,17 @@ async function openPluginModuleFromMenu(pluginId, toolTab, label){
       : "Plugin " + String(label || pluginId) + " disabilitato. Abilitalo da Impostazioni > Plugin.");
     return;
   }
-  openSourcesScreen();
-  setSourceManagerTab("plugins");
+  await initSourcePluginBuilders().catch(() => {});
+  if (toolTab === "merge") {
+    openDedicatedModuleScreen("merge");
+    mountModulePane("pluginToolMerge", "mergeModuleHost");
+  } else if (toolTab === "api_scheduler") {
+    openDedicatedModuleScreen("api_scheduler");
+    mountModulePane("pluginToolApiScheduler", "apiSchedulerModuleHost");
+  } else {
+    openSourcesScreen();
+    setSourceManagerTab("plugins");
+  }
   setPluginToolTab(toolTab || "lookup");
   setStatus("Modulo " + String(label || pluginId) + " aperto.");
 }
@@ -4489,6 +4578,7 @@ async function runApiSchedulerJobNowFromUi(){
   if (!jobId) throw new Error("Seleziona un job API da eseguire.");
   const res = await api("/plugin/api-scheduler/run/" + encodeURIComponent(jobId), { method: "POST", body: JSON.stringify({ force: true }) });
   setSourcePluginOutput(res);
+  await api("/sources/scan-import-data", { method: "POST", body: JSON.stringify({}) }).catch(() => {});
   await loadApiSchedulerJobsIntoUi(true);
   setStatus("Download API completato per job: " + jobId);
 }
@@ -4496,11 +4586,13 @@ async function runApiSchedulerJobNowFromUi(){
 async function runApiSchedulerDueJobsFromUi(){
   const res = await api("/plugin/api-scheduler/run-due", { method: "POST", body: JSON.stringify({}) });
   setSourcePluginOutput(res);
+  await api("/sources/scan-import-data", { method: "POST", body: JSON.stringify({}) }).catch(() => {});
   await loadApiSchedulerJobsIntoUi(true);
   setStatus("Esecuzione schedulata completata. Job eseguiti: " + String(res?.run_count || 0));
 }
 
 function closeSourcesScreen(){
+  closeModuleScreens();
   document.getElementById("sourcesScreen").classList.remove("active");
   document.getElementById("mainView").classList.remove("hidden");
   window.scrollTo({ top: 0, behavior: "smooth" });
@@ -8006,6 +8098,8 @@ bindClick("btnLicenseActivateNow", async () => {
 
 bindClick("btnCloseSources", () => closeSourcesScreen());
 bindClick("btnCloseSourcesBottom", () => closeSourcesScreen());
+bindClick("btnCloseMergeModuleScreen", () => closeDedicatedModuleScreen());
+bindClick("btnCloseApiSchedulerModuleScreen", () => closeDedicatedModuleScreen());
 bindClick("btnSourceTabBase", () => setSourceManagerTab("base"));
 bindClick("btnSourceTabCatalog", () => setSourceManagerTab("catalog"));
 bindClick("btnSourceTabCalc", () => setSourceManagerTab("calc"));

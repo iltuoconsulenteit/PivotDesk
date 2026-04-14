@@ -110,6 +110,7 @@ SETTINGS_PATH = DATA_DIR / "settings.json"
 SOURCES_PATH = DATA_DIR / "sources.json"
 PLUGINS_CONFIG_PATH = DATA_DIR / "plugins.json"
 LEGACY_SOURCES_PATH = BASE_DIR / "sources.json"
+IMPORT_DATA_DIR = DATA_DIR / "import_data"
 LEGACY_PLUGINS_CONFIG_PATH = BASE_DIR / "plugins.json"
 USERS_PATH = DATA_DIR / "users.json"
 LICENSE_SETTINGS_PATH = DATA_DIR / "license_settings.json"
@@ -221,6 +222,7 @@ ensure_dir(DATA_DIR)
 ensure_dir(PIVOTS_DIR)
 ensure_dir(LICENSES_DIR)
 ensure_dir(APPDATA_LICENSE_DIR)
+ensure_dir(IMPORT_DATA_DIR)
 ensure_json_file(CONFIG_PATH, DEFAULT_CONFIG)
 ensure_json_file(SETTINGS_PATH, DEFAULT_SETTINGS)
 ensure_json_file(SOURCES_PATH, DEFAULT_SOURCES)
@@ -1413,6 +1415,70 @@ def remap_pivot_source_ids(id_map: dict[str, str]) -> bool:
     return changed
 
 
+def _infer_source_type_from_path(path: Path) -> str:
+    ext = path.suffix.lower()
+    if ext in {".xlsx", ".xlsm", ".xls"}:
+        return "xlsx"
+    if ext == ".ods":
+        return "ods"
+    return "csv"
+
+
+def _detect_columns_for_import_path(path: Path, source_type: str) -> list[str]:
+    try:
+        if source_type == "csv":
+            df, _, _ = _read_csv_local(str(path), delimiter=",", encoding="utf-8-sig", skip_rows=0)
+            return [str(c).strip() for c in list(df.columns) if str(c).strip()]
+        if source_type in {"xlsx", "ods"}:
+            df = pd.read_excel(str(path), nrows=0)
+            return [str(c).strip() for c in list(df.columns) if str(c).strip()]
+    except Exception:
+        return []
+    return []
+
+
+def _auto_import_data_sources(items: list[dict[str, Any]], used_numeric: set[int]) -> tuple[list[dict[str, Any]], bool]:
+    IMPORT_DATA_DIR.mkdir(parents=True, exist_ok=True)
+    files = [p for p in IMPORT_DATA_DIR.iterdir() if p.is_file() and p.suffix.lower() in {".csv", ".xlsx", ".xlsm", ".xls", ".ods"}]
+    if not files:
+        return items, False
+    by_path = {str(Path(str(row.get("path", ""))).resolve()): row for row in items}
+    changed = False
+    out = list(items)
+    for f in sorted(files):
+        f_resolved = str(f.resolve())
+        stype = _infer_source_type_from_path(f)
+        title = f"Import {f.stem}"
+        columns = _detect_columns_for_import_path(f, stype)
+        existing = by_path.get(f_resolved)
+        if existing:
+            cfg = dict(existing.get("config") if isinstance(existing.get("config"), dict) else {})
+            if columns:
+                cfg["detected_columns"] = columns
+            cfg["auto_import_data"] = True
+            existing["config"] = cfg
+            existing["type"] = stype
+            changed = True
+            continue
+        next_n = (max(used_numeric) + 1) if used_numeric else 1
+        while next_n in used_numeric:
+            next_n += 1
+        used_numeric.add(next_n)
+        new_item = normalize_source_item({
+            "id": str(next_n),
+            "title": title,
+            "type": stype,
+            "path": str(f),
+            "delimiter": ",",
+            "encoding": "utf-8-sig",
+            "config": {"auto_import_data": True, "detected_columns": columns},
+        })
+        if new_item:
+            out.append(new_item)
+            changed = True
+    return out, changed
+
+
 def load_sources_data() -> dict[str, Any]:
     raw = read_json(SOURCES_PATH, DEFAULT_SOURCES.copy()) or {}
 
@@ -1516,6 +1582,8 @@ def load_sources_data() -> dict[str, Any]:
         normalized_items.append(item)
         inferred_added = True
 
+    normalized_items, import_data_added = _auto_import_data_sources(normalized_items, used_numeric)
+
     if not default_source and normalized_items:
         default_source = normalized_items[0]["id"]
 
@@ -1526,7 +1594,7 @@ def load_sources_data() -> dict[str, Any]:
 
     pivots_remapped = remap_pivot_source_ids(id_remap) if changed_ids else False
 
-    if inferred_added or changed_ids or pivots_remapped:
+    if inferred_added or changed_ids or pivots_remapped or import_data_added:
         write_json(SOURCES_PATH, merged)
 
     return merged
@@ -2639,6 +2707,8 @@ async def merge_build_and_save_fallback(request: Request):
             writer.writeheader()
             for row in rows:
                 writer.writerow({c: row.get(c, "") for c in columns})
+        import_file = IMPORT_DATA_DIR / f"merge_{source_id}.csv"
+        shutil.copyfile(out_file, import_file)
         data = load_sources_data()
         items = data.get("items", [])
         new_item = normalize_source_item(
@@ -2671,6 +2741,7 @@ async def merge_build_and_save_fallback(request: Request):
                 for s in (payload.get("sources") if isinstance(payload.get("sources"), list) else [])
                 if isinstance(s, dict) and str(s.get("source_id", "")).strip()
             ],
+            "import_data_path": str(import_file),
         }
         _save_merge_definitions(defs)
         return {"ok": True, "source": new_item, "merge": merged, "save_mode": save_mode}
@@ -3445,6 +3516,22 @@ def sources_get(request: Request):
         }
     except Exception as exc:
         return JSONResponse({"error": str(exc)}, status_code=500)
+
+
+@app.post("/sources/scan-import-data")
+async def sources_scan_import_data(request: Request):
+    if not require_login(request):
+        return JSONResponse({"error": "Non autenticato"}, status_code=401)
+    try:
+        data = load_sources_data()
+        items = data.get("items", []) if isinstance(data, dict) else []
+        imported = [
+            x for x in items
+            if isinstance(x, dict) and bool((x.get("config") if isinstance(x.get("config"), dict) else {}).get("auto_import_data"))
+        ]
+        return {"ok": True, "import_data_dir": str(IMPORT_DATA_DIR), "imported_count": len(imported), "items": imported}
+    except Exception as exc:
+        return JSONResponse({"error": f"Errore scansione import_data: {exc}"}, status_code=500)
 
 
 @app.post("/sources/save")

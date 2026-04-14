@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import csv
 import json
 import re
 import urllib.request
@@ -163,6 +164,37 @@ def _run_job(job: dict[str, Any]) -> dict[str, Any]:
     latest_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     history_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
+    csv_rows: list[dict[str, Any]]
+    if isinstance(parsed, list) and parsed and all(isinstance(x, dict) for x in parsed):
+        csv_rows = [x for x in parsed if isinstance(x, dict)]
+    elif isinstance(parsed, dict):
+        items = parsed.get("items")
+        if isinstance(items, list) and items and all(isinstance(x, dict) for x in items):
+            csv_rows = [x for x in items if isinstance(x, dict)]
+        else:
+            csv_rows = [parsed]
+    else:
+        csv_rows = [{"value": json.dumps(parsed, ensure_ascii=False)}]
+
+    fieldnames: list[str] = []
+    for row in csv_rows:
+        for key in row.keys():
+            sk = str(key)
+            if sk not in fieldnames:
+                fieldnames.append(sk)
+    if not fieldnames:
+        fieldnames = ["value"]
+        csv_rows = [{"value": ""}]
+
+    import_dir = DATA_DIR / "import_data"
+    import_dir.mkdir(parents=True, exist_ok=True)
+    import_csv = import_dir / f"api_{job_id}.csv"
+    with import_csv.open("w", encoding="utf-8-sig", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        for row in csv_rows:
+            writer.writerow({c: row.get(c, "") for c in fieldnames})
+
     return {
         "ok": True,
         "job_id": job_id,
@@ -170,6 +202,7 @@ def _run_job(job: dict[str, Any]) -> dict[str, Any]:
         "content_type": content_type,
         "saved_latest": str(latest_path),
         "saved_history": str(history_path),
+        "import_csv_path": str(import_csv),
         "preview_type": "list" if isinstance(parsed, list) else type(parsed).__name__,
     }
 

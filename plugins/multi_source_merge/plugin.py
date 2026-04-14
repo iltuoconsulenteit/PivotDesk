@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 import json
 import re
+import shutil
 import sqlite3
 from datetime import date, datetime
 from pathlib import Path
@@ -649,6 +650,10 @@ def register(app, plugin_api, manifest):
                 writer.writeheader()
                 for row in rows:
                     writer.writerow({c: row.get(c, "") for c in columns})
+            import_dir = DATA_DIR / "import_data"
+            import_dir.mkdir(parents=True, exist_ok=True)
+            import_file = import_dir / f"merge_{source_id}.csv"
+            shutil.copyfile(out_file, import_file)
 
             sources = bundle.get("sources") if isinstance(bundle.get("sources"), list) else []
             item = {
@@ -658,7 +663,7 @@ def register(app, plugin_api, manifest):
                 "path": str(out_file),
                 "delimiter": ",",
                 "encoding": "utf-8-sig",
-                "options": {"generated_by": "multi_source_merge"},
+                "options": {"generated_by": "multi_source_merge", "import_data_path": str(import_file)},
             }
             replaced = False
             for idx, src in enumerate(sources):
