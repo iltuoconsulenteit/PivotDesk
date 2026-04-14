@@ -1920,6 +1920,7 @@ window.LICENSE_CONTEXT = {
               <button id="btnSaveMultiMergeSource" type="button" class="primary" onclick="handleMergeActionClick('save_source'); return false;">Salva come nuova sorgente</button>
               <button id="btnRefreshMultiMergeSource" type="button" onclick="handleMergeActionClick('refresh_source'); return false;">Aggiorna sorgente merge</button>
             </div>
+            <div id="mergeActionStatus" class="small" style="margin-bottom:8px; color:#175cd3;"></div>
           </div>
 
           <div id="mergeAdvancedPanel" class="hidden">
@@ -3628,30 +3629,46 @@ async function applySelectedMergeTemplateToUi(){
 
 async function handleMergeActionClick(action){
   const key = String(action || "").trim().toLowerCase();
+  const mergeStatusEl = document.getElementById("mergeActionStatus");
+  const setMergeStatus = (msg, isError = false) => {
+    if (mergeStatusEl) {
+      mergeStatusEl.textContent = String(msg || "");
+      mergeStatusEl.style.color = isError ? "#b42318" : "#175cd3";
+    }
+  };
   try {
     if (key === "run_template") {
+      setMergeStatus("Avvio merge da template...");
       setStatus("Avvio merge da template...");
       await runMultiSourceMergeFromTemplateUi();
+      setMergeStatus("Merge da template completato.");
       return;
     }
     if (key === "preview") {
+      setMergeStatus("Avvio anteprima merge...");
       setStatus("Avvio anteprima merge...");
       await runMultiSourceMergeFromUi();
+      setMergeStatus("Anteprima merge completata.");
       return;
     }
     if (key === "save_source") {
+      setMergeStatus("Salvataggio sorgente merge in corso...");
       setStatus("Salvataggio sorgente merge in corso...");
       await saveMultiSourceMergeAsSourceFromUi();
+      setMergeStatus("Sorgente merge salvata.");
       return;
     }
     if (key === "refresh_source") {
+      setMergeStatus("Aggiornamento sorgente merge in corso...");
       setStatus("Aggiornamento sorgente merge in corso...");
       await refreshMultiMergeSourceFromUi();
+      setMergeStatus("Sorgente merge aggiornata.");
       return;
     }
   } catch (e) {
     const msg = String(e?.message || e || "Errore azione merge");
     console.error("Errore merge action [" + key + "]:", e);
+    setMergeStatus("ERRORE: " + msg, true);
     setStatus("ERRORE merge: " + msg);
     try { window.alert("Errore merge:\n" + msg); } catch (_e) {}
   }
@@ -4214,6 +4231,8 @@ function closeSourcesScreen(){
 
 async function initSourcePluginBuilders(){
   await refreshLookupBuilders();
+  const mergeActionStatus = document.getElementById("mergeActionStatus");
+  if (mergeActionStatus) mergeActionStatus.textContent = "";
 
   const primarySel = document.getElementById("lkPrimarySourceSel");
   const secondarySel = document.getElementById("lkSecondarySourceSel");
