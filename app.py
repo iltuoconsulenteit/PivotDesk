@@ -12,6 +12,7 @@ import shutil
 import subprocess
 import uuid
 import time
+import sqlite3
 from io import BytesIO
 from collections import OrderedDict
 from datetime import datetime
@@ -2347,6 +2348,198 @@ def plugin_compute_pivot_result(
         filters=filters,
         view_options=view_options,
     )
+
+
+def _merge_json_safe(value: Any) -> Any:
+    if value is None:
+        return ""
+    if isinstance(value, (str, int, float, bool)):
+        return value
+    if hasattr(value, "isoformat"):
+        try:
+            return value.isoformat()
+        except Exception:
+            pass
+    try:
+        if value != value:  # NaN
+            return ""
+    except Exception:
+        pass
+    return str(value)
+
+
+def _load_merge_template_record(template_id: str) -> dict[str, Any] | None:
+    wanted = str(template_id or "").strip()
+    if not wanted:
+        return None
+    db_path = DATA_DIR / "app_data" / "merge_templates.db"
+    if db_path.exists():
+        try:
+            conn = sqlite3.connect(str(db_path))
+            row = conn.execute(
+                "SELECT template_id,title,columns_json,sources_json,include_source_tag FROM merge_templates WHERE template_id = ?",
+                (wanted,),
+            ).fetchone()
+            conn.close()
+            if row:
+                columns = json.loads(row[2]) if str(row[2] or "").strip() else []
+                sources = json.loads(row[3]) if str(row[3] or "").strip() else []
+                return {
+                    "template_id": str(row[0] or "").strip(),
+                    "title": str(row[1] or "").strip(),
+                    "columns": columns if isinstance(columns, list) else [],
+                    "sources": sources if isinstance(sources, list) else [],
+                    "include_source_tag": bool(row[4]),
+                }
+        except Exception:
+            pass
+
+    legacy = DATA_DIR / "merge_templates.json"
+    if legacy.exists():
+        try:
+            raw = read_json(legacy, {}) or {}
+            for item in (raw.get("templates", []) if isinstance(raw, dict) else []):
+                if str(item.get("template_id", "")).strip() == wanted:
+                    return item
+        except Exception:
+            return None
+    return None
+
+
+def _build_merge_payload_result(payload: dict[str, Any]) -> dict[str, Any]:
+    raw_sources = payload.get("sources", []) if isinstance(payload, dict) else []
+    sources = raw_sources if isinstance(raw_sources, list) else []
+    if not sources:
+        raise ValueError("sources obbligatorio")
+    include_source_tag = bool(payload.get("include_source_tag", True))
+    try:
+        limit = max(1, int(payload.get("limit", 1000)))
+    except Exception:
+        limit = 1000
+    output_columns = [str(c).strip() for c in (payload.get("output_columns", []) or []) if str(c).strip()]
+    merged_rows: list[dict[str, Any]] = []
+    discovered: list[str] = []
+
+    for src_cfg in sources:
+        if not isinstance(src_cfg, dict):
+            continue
+        source_id = str(src_cfg.get("source_id", "")).strip()
+        if not source_id:
+            continue
+        source = get_source_by_id(source_id)
+        if not source:
+            raise ValueError(f"Sorgente non trovata nel merge: {source_id}")
+        df = load_dataframe_for_plugin(source)
+        calc_defs = src_cfg.get("calculated_fields", [])
+        if isinstance(calc_defs, list) and calc_defs:
+            rows = df.fillna("").to_dict(orient="records")
+            df = pd.DataFrame(apply_calculated_fields(rows, calc_defs))
+        cmap = src_cfg.get("column_map", {})
+        column_map = cmap if isinstance(cmap, dict) else {}
+        for row in df.fillna("").to_dict(orient="records"):
+            out = {}
+            for target_col, src_col in column_map.items():
+                tcol = str(target_col).strip()
+                scol = str(src_col).strip()
+                if not tcol or not scol:
+                    continue
+                out[tcol] = _merge_json_safe(row.get(scol, ""))
+                if tcol not in discovered:
+                    discovered.append(tcol)
+            if include_source_tag:
+                out["_source"] = _merge_json_safe(src_cfg.get("source_tag") or source_id)
+                if "_source" not in discovered:
+                    discovered.append("_source")
+            merged_rows.append(out)
+            if len(merged_rows) >= limit:
+                break
+        if len(merged_rows) >= limit:
+            break
+
+    cols = output_columns or discovered
+    rows = [{c: r.get(c, "") for c in cols} for r in merged_rows]
+    return {"ok": True, "columns": cols, "rows": rows, "row_count": len(rows), "truncated": len(merged_rows) >= limit}
+
+
+@app.post("/plugin/multi-source-merge/build")
+async def merge_build_fallback(request: Request):
+    try:
+        payload = await request.json()
+        return _build_merge_payload_result(payload if isinstance(payload, dict) else {})
+    except ValueError as exc:
+        return JSONResponse({"error": str(exc)}, status_code=400)
+    except Exception as exc:
+        return JSONResponse({"error": f"Errore merge: {exc}"}, status_code=500)
+
+
+@app.post("/plugin/multi-source-merge/build-from-template")
+async def merge_build_from_template_fallback(request: Request):
+    try:
+        payload = await request.json()
+        if not isinstance(payload, dict):
+            payload = {}
+        template_id = str(payload.get("template_id", "")).strip()
+        tpl = _load_merge_template_record(template_id)
+        if not tpl:
+            return JSONResponse({"error": "template non trovato"}, status_code=404)
+        merged_payload = {
+            "sources": payload.get("sources") or tpl.get("sources") or [],
+            "output_columns": tpl.get("columns") or [],
+            "include_source_tag": payload.get("include_source_tag", tpl.get("include_source_tag", True)),
+            "limit": payload.get("limit", 1000),
+        }
+        result = _build_merge_payload_result(merged_payload)
+        result["template_id"] = template_id
+        result["template"] = tpl
+        return result
+    except ValueError as exc:
+        return JSONResponse({"error": str(exc)}, status_code=400)
+    except Exception as exc:
+        return JSONResponse({"error": f"Errore build da template: {exc}"}, status_code=500)
+
+
+@app.post("/plugin/multi-source-merge/build-and-save-source")
+async def merge_build_and_save_fallback(request: Request):
+    try:
+        payload = await request.json()
+        if not isinstance(payload, dict):
+            payload = {}
+        merged = _build_merge_payload_result(payload)
+        source_id = normalize_source_id(payload.get("source_id")) or "1"
+        title = str(payload.get("source_title") or f"Merge {source_id}").strip() or f"Merge {source_id}"
+        out_dir = DATA_DIR / "generated_sources"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        out_file = out_dir / f"{source_id}.csv"
+        columns = [str(c) for c in (merged.get("columns") or [])]
+        with out_file.open("w", encoding="utf-8-sig", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=columns)
+            writer.writeheader()
+            for row in merged.get("rows", []) or []:
+                writer.writerow({c: row.get(c, "") for c in columns})
+        data = load_sources_data()
+        items = data.get("items", [])
+        new_item = normalize_source_item(
+            {"id": source_id, "title": title, "type": "csv", "path": str(out_file), "delimiter": ",", "encoding": "utf-8-sig"}
+        )
+        if not new_item:
+            raise ValueError("Impossibile creare sorgente merge.")
+        replaced = False
+        for i, row in enumerate(items):
+            if str(row.get("id", "")).strip() == source_id:
+                items[i] = new_item
+                replaced = True
+                break
+        if not replaced:
+            items.append(new_item)
+        data["items"] = items
+        if bool(payload.get("set_default")):
+            data["default_source"] = source_id
+        save_sources_data(data)
+        return {"ok": True, "source": new_item, "merge": merged}
+    except ValueError as exc:
+        return JSONResponse({"error": str(exc)}, status_code=400)
+    except Exception as exc:
+        return JSONResponse({"error": f"Errore salvataggio sorgente merge: {exc}"}, status_code=500)
 
 plugin_manager = PluginManager(
     get_plugin_roots(),
