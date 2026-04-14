@@ -3606,6 +3606,19 @@ async function loadMergeTemplatesIntoUi(keepSelection = true){
   return MERGE_TEMPLATES;
 }
 
+async function fetchMergeTemplateDetail(templateId){
+  const wanted = String(templateId || "").trim();
+  if (!wanted) return null;
+  try {
+    const res = await api("/plugin/multi-source-merge/template/" + encodeURIComponent(wanted));
+    const tpl = (res && typeof res === "object" && res.template && typeof res.template === "object") ? res.template : null;
+    if (!tpl) return null;
+    return tpl;
+  } catch (_e) {
+    return MERGE_TEMPLATES.find(x => String(x?.template_id || "").trim() === wanted) || null;
+  }
+}
+
 async function applySelectedMergeTemplateToUi(){
   const sel = document.getElementById("mergeTemplateSelect");
   const idEl = document.getElementById("mergeTemplateId");
@@ -3615,7 +3628,7 @@ async function applySelectedMergeTemplateToUi(){
   const outputColsEl = document.getElementById("mergeOutputColumns");
   if (!sel || !idEl || !titleEl || !colsEl) return null;
   const wanted = String(sel.value || "").trim();
-  const tpl = MERGE_TEMPLATES.find(x => String(x?.template_id || "").trim() === wanted) || null;
+  const tpl = await fetchMergeTemplateDetail(wanted);
   if (!tpl) return null;
   idEl.value = String(tpl.template_id || "");
   if (idPreview) idPreview.value = idEl.value;
@@ -3624,13 +3637,14 @@ async function applySelectedMergeTemplateToUi(){
   setMergeTemplateColumnsToUi(cols);
   if (outputColsEl) outputColsEl.value = cols.join(",");
   const templateSources = Array.isArray(tpl.sources) ? tpl.sources : [];
+  const wrap = document.getElementById("mergeSourceBlocks");
+  if (wrap) wrap.innerHTML = "";
   if (templateSources.length) {
-    const wrap = document.getElementById("mergeSourceBlocks");
-    if (wrap) wrap.innerHTML = "";
-    for (const srcCfg of templateSources) {
-      await addMergeSourceBlock(srcCfg);
-    }
-    setStatus("Template caricato con " + String(templateSources.length) + " sorgenti mappate.");
+    for (const srcCfg of templateSources) await addMergeSourceBlock(srcCfg);
+    setStatus("Template caricato con " + String(templateSources.length) + " sorgenti e mapping associati.");
+  } else {
+    await addMergeSourceBlock();
+    setStatus("Template caricato senza sorgenti salvate: aggiungi almeno una sorgente.");
   }
   suggestMergeSourceIdentity(true);
   return tpl;
@@ -3693,7 +3707,12 @@ async function saveMergeTemplateFromUi(){
   if (!templateId) throw new Error("Template ID automatico non disponibile.");
   if (!title) throw new Error("Inserisci un titolo template.");
   if (!cols.length) throw new Error("Inserisci almeno una intestazione template.");
-  const sourcesForTemplate = buildMergeSourcesJsonFromBuilder();
+  let sourcesForTemplate = [];
+  try {
+    sourcesForTemplate = (buildMultiMergePayloadFromUi().sources || []).filter(x => x && typeof x === "object");
+  } catch (_e) {
+    sourcesForTemplate = buildMergeSourcesJsonFromBuilder();
+  }
   await api("/plugin/multi-source-merge/template/save", {
     method: "POST",
     body: JSON.stringify({
@@ -4168,14 +4187,11 @@ async function runMultiSourceMergeFromTemplateUi(){
   const templateId = String(document.getElementById("mergeTemplateSelect")?.value || "").trim();
   if (!templateId) throw new Error("Seleziona un template salvato.");
   const sources = buildMergeSourcesJsonFromBuilder();
-  if (!sources.length) throw new Error("Aggiungi almeno una sorgente da accodare.");
+  const body = { template_id: templateId, limit: 1000 };
+  if (sources.length) body.sources = sources;
   const res = await api("/plugin/multi-source-merge/build-from-template", {
     method: "POST",
-    body: JSON.stringify({
-      template_id: templateId,
-      sources,
-      limit: 1000
-    })
+    body: JSON.stringify(body)
   });
   setSourcePluginOutput(res);
   renderMergePreview(res);
