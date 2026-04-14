@@ -4014,9 +4014,12 @@ function suggestMergeSourceIdentity(force = false){
   if (force || !String(idEl.value || "").trim()) idEl.value = nextNumericId;
   idPreviewEl.value = idEl.value;
   if (force || !String(titleEl.value || "").trim()) {
+    const selectedTemplateId = String(document.getElementById("mergeTemplateSelect")?.value || "").trim();
+    const selectedTemplate = (MERGE_TEMPLATES || []).find(t => String(t?.template_id || "").trim() === selectedTemplateId) || null;
+    const selectedTemplateTitle = String(selectedTemplate?.title || selectedTemplate?.template_id || "").trim();
     const firstId = sourceIds.length ? sourceIds[0] : "";
     const firstSource = (SOURCES || []).find(src => String(src?.id || "").trim() === firstId);
-    const label = String(firstSource?.title || firstId || "sorgente");
+    const label = selectedTemplateTitle || String(firstSource?.title || firstId || "sorgente");
     titleEl.value = "Merge " + label + " " + stamp;
   }
 }
@@ -4281,25 +4284,41 @@ async function initSourcePluginBuilders(){
   if (runFromTemplateBtn && !runFromTemplateBtn.dataset.bound) {
     runFromTemplateBtn.dataset.bound = "1";
     runFromTemplateBtn.addEventListener("click", async () => {
-      await runMultiSourceMergeFromTemplateUi();
+      try {
+        await runMultiSourceMergeFromTemplateUi();
+      } catch (e) {
+        setStatus("ERRORE merge da template: " + (e?.message || e));
+      }
     });
   }
   if (runMergePreviewBtn && !runMergePreviewBtn.dataset.bound) {
     runMergePreviewBtn.dataset.bound = "1";
     runMergePreviewBtn.addEventListener("click", async () => {
-      await runMultiSourceMergeFromUi();
+      try {
+        await runMultiSourceMergeFromUi();
+      } catch (e) {
+        setStatus("ERRORE plugin merge: " + (e?.message || e));
+      }
     });
   }
   if (saveMergeBtn && !saveMergeBtn.dataset.bound) {
     saveMergeBtn.dataset.bound = "1";
     saveMergeBtn.addEventListener("click", async () => {
-      await saveMultiSourceMergeAsSourceFromUi();
+      try {
+        await saveMultiSourceMergeAsSourceFromUi();
+      } catch (e) {
+        setStatus("ERRORE salvataggio merge: " + (e?.message || e));
+      }
     });
   }
   if (refreshMergeBtn && !refreshMergeBtn.dataset.bound) {
     refreshMergeBtn.dataset.bound = "1";
     refreshMergeBtn.addEventListener("click", async () => {
-      await refreshMultiMergeSourceFromUi();
+      try {
+        await refreshMultiMergeSourceFromUi();
+      } catch (e) {
+        setStatus("ERRORE aggiornamento merge: " + (e?.message || e));
+      }
     });
   }
   if (mergeTemplateSel && !mergeTemplateSel.dataset.bound) {
@@ -7716,6 +7735,13 @@ bindClick("btnRunCrossLookup", async () => {
     await runCrossSourceLookupFromUi();
   } catch (e) {
     setStatus("ERRORE plugin lookup: " + e.message);
+  }
+});
+bindClick("btnRunMultiMergeFromTemplate", async () => {
+  try {
+    await runMultiSourceMergeFromTemplateUi();
+  } catch (e) {
+    setStatus("ERRORE merge da template: " + e.message);
   }
 });
 bindClick("btnRunMultiMerge", async () => {
