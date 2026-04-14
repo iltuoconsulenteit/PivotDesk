@@ -3630,18 +3630,22 @@ async function handleMergeActionClick(action){
   const key = String(action || "").trim().toLowerCase();
   try {
     if (key === "run_template") {
+      setStatus("Avvio merge da template...");
       await runMultiSourceMergeFromTemplateUi();
       return;
     }
     if (key === "preview") {
+      setStatus("Avvio anteprima merge...");
       await runMultiSourceMergeFromUi();
       return;
     }
     if (key === "save_source") {
+      setStatus("Salvataggio sorgente merge in corso...");
       await saveMultiSourceMergeAsSourceFromUi();
       return;
     }
     if (key === "refresh_source") {
+      setStatus("Aggiornamento sorgente merge in corso...");
       await refreshMultiMergeSourceFromUi();
       return;
     }

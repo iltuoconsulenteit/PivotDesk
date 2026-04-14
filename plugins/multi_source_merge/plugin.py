@@ -344,9 +344,23 @@ def _build_merge_result(plugin_api, payload: MultiMergeRequest) -> dict[str, Any
     discovered_targets: list[str] = []
 
     for src_cfg in payload.sources:
-        source = plugin_api.get_source(src_cfg.source_id)
-        df = plugin_api.load_dataframe_from_source(source)
-        df = _apply_calc(df, src_cfg.calculated_fields)
+        try:
+            source = plugin_api.get_source(src_cfg.source_id)
+        except Exception as exc:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Sorgente non trovata nel merge: {src_cfg.source_id} ({exc})",
+            ) from exc
+        try:
+            df = plugin_api.load_dataframe_from_source(source)
+            df = _apply_calc(df, src_cfg.calculated_fields)
+        except HTTPException:
+            raise
+        except Exception as exc:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Errore lettura sorgente merge {src_cfg.source_id}: {exc}",
+            ) from exc
 
         records = df.fillna("").to_dict(orient="records")
         for row in records:
@@ -389,8 +403,11 @@ def register(app, plugin_api, manifest):
     @router.post("/template/headers")
     def resolve_template_headers(payload: MergeTemplateHeadersRequest):
         if payload.source_id:
-            source = plugin_api.get_source(payload.source_id)
-            df = plugin_api.load_dataframe_from_source(source)
+            try:
+                source = plugin_api.get_source(payload.source_id)
+                df = plugin_api.load_dataframe_from_source(source)
+            except Exception as exc:
+                raise HTTPException(status_code=400, detail=f"Errore lettura sorgente {payload.source_id}: {exc}") from exc
             headers = [str(c).strip() for c in list(df.columns) if str(c).strip()][: payload.limit]
             return {"ok": True, "mode": "source", "headers": headers, "count": len(headers)}
 
@@ -401,8 +418,11 @@ def register(app, plugin_api, manifest):
     def suggest_map(payload: MergeMapSuggestionRequest):
         if not plugin_api.get_source or not plugin_api.load_dataframe_from_source:
             raise HTTPException(status_code=500, detail="Plugin API incompleta")
-        source = plugin_api.get_source(payload.source_id)
-        df = plugin_api.load_dataframe_from_source(source)
+        try:
+            source = plugin_api.get_source(payload.source_id)
+            df = plugin_api.load_dataframe_from_source(source)
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail=f"Errore lettura sorgente {payload.source_id}: {exc}") from exc
         df = _apply_calc(df, payload.calculated_fields)
         source_columns = [str(c).strip() for c in list(df.columns) if str(c).strip()]
         suggestions = _build_map_suggestions(source_columns, payload.template_columns)
