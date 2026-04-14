@@ -362,7 +362,13 @@ def _build_merge_result(plugin_api, payload: MultiMergeRequest) -> dict[str, Any
                 detail=f"Errore lettura sorgente merge {src_cfg.source_id}: {exc}",
             ) from exc
 
-        records = df.fillna("").to_dict(orient="records")
+        try:
+            records = df.fillna("").to_dict(orient="records")
+        except Exception as exc:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Formato dati non valido per sorgente {src_cfg.source_id}: {exc}",
+            ) from exc
         for row in records:
             out = {}
             for target_col, src_col in (src_cfg.column_map or {}).items():
@@ -398,7 +404,12 @@ def register(app, plugin_api, manifest):
     def merge_sources(payload: MultiMergeRequest):
         if not plugin_api.get_source or not plugin_api.load_dataframe_from_source:
             raise HTTPException(status_code=500, detail="Plugin API incompleta")
-        return _build_merge_result(plugin_api, payload)
+        try:
+            return _build_merge_result(plugin_api, payload)
+        except HTTPException:
+            raise
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail=f"Errore merge: {exc}") from exc
 
     @router.post("/template/headers")
     def resolve_template_headers(payload: MergeTemplateHeadersRequest):
@@ -505,73 +516,83 @@ def register(app, plugin_api, manifest):
 
     @router.post("/build-from-template")
     def build_from_template(payload: MergeTemplateBuildRequest):
-        items = _load_templates()
-        tpl = _find_template(items, payload.template_id)
-        if not tpl:
-            raise HTTPException(status_code=404, detail="template non trovato")
-        sources_payload = payload.sources
-        if not sources_payload:
-            fallback = tpl.get("sources") if isinstance(tpl, dict) else []
-            sources_payload = [MergeSourceConfig(**row) for row in (fallback or []) if isinstance(row, dict)]
-        if not sources_payload:
-            raise HTTPException(status_code=400, detail="sources obbligatorio")
-        req = MultiMergeRequest(
-            sources=sources_payload,
-            output_columns=[str(c) for c in (tpl.get("columns") or []) if str(c).strip()],
-            include_source_tag=(
-                bool(payload.include_source_tag)
-                if payload.include_source_tag is not None
-                else bool(tpl.get("include_source_tag", True))
-            ),
-            limit=payload.limit,
-        )
-        result = _build_merge_result(plugin_api, req)
-        result["template_id"] = payload.template_id
-        result["template"] = tpl
-        return result
+        try:
+            items = _load_templates()
+            tpl = _find_template(items, payload.template_id)
+            if not tpl:
+                raise HTTPException(status_code=404, detail="template non trovato")
+            sources_payload = payload.sources
+            if not sources_payload:
+                fallback = tpl.get("sources") if isinstance(tpl, dict) else []
+                sources_payload = [MergeSourceConfig(**row) for row in (fallback or []) if isinstance(row, dict)]
+            if not sources_payload:
+                raise HTTPException(status_code=400, detail="sources obbligatorio")
+            req = MultiMergeRequest(
+                sources=sources_payload,
+                output_columns=[str(c) for c in (tpl.get("columns") or []) if str(c).strip()],
+                include_source_tag=(
+                    bool(payload.include_source_tag)
+                    if payload.include_source_tag is not None
+                    else bool(tpl.get("include_source_tag", True))
+                ),
+                limit=payload.limit,
+            )
+            result = _build_merge_result(plugin_api, req)
+            result["template_id"] = payload.template_id
+            result["template"] = tpl
+            return result
+        except HTTPException:
+            raise
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail=f"Errore build da template: {exc}") from exc
 
     @router.post("/build-and-save-source")
     def merge_and_save_source(payload: MultiMergeSaveRequest):
         if not plugin_api.get_source or not plugin_api.load_dataframe_from_source:
             raise HTTPException(status_code=500, detail="Plugin API incompleta")
-        merged = _build_merge_result(plugin_api, payload)
-        bundle = load_sources()
-        source_id = _resolve_numeric_source_id(bundle, payload.source_id)
-        source_title = str(payload.source_title or f"Merge {source_id}").strip() or f"Merge {source_id}"
-        out_dir = DATA_DIR / "generated_sources"
-        out_dir.mkdir(parents=True, exist_ok=True)
-        out_file = out_dir / f"{source_id}.csv"
-        columns = [str(c) for c in (merged.get("columns") or [])]
-        rows = merged.get("rows") or []
-        with out_file.open("w", encoding="utf-8-sig", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=columns)
-            writer.writeheader()
-            for row in rows:
-                writer.writerow({c: row.get(c, "") for c in columns})
+        try:
+            merged = _build_merge_result(plugin_api, payload)
+            bundle = load_sources()
+            source_id = _resolve_numeric_source_id(bundle, payload.source_id)
+            source_title = str(payload.source_title or f"Merge {source_id}").strip() or f"Merge {source_id}"
+            out_dir = DATA_DIR / "generated_sources"
+            out_dir.mkdir(parents=True, exist_ok=True)
+            out_file = out_dir / f"{source_id}.csv"
+            columns = [str(c) for c in (merged.get("columns") or [])]
+            rows = merged.get("rows") or []
+            with out_file.open("w", encoding="utf-8-sig", newline="") as f:
+                writer = csv.DictWriter(f, fieldnames=columns)
+                writer.writeheader()
+                for row in rows:
+                    writer.writerow({c: row.get(c, "") for c in columns})
 
-        sources = bundle.get("sources") if isinstance(bundle.get("sources"), list) else []
-        item = {
-            "id": source_id,
-            "title": source_title,
-            "type": "csv",
-            "path": str(out_file),
-            "delimiter": ",",
-            "encoding": "utf-8-sig",
-            "options": {"generated_by": "multi_source_merge"},
-        }
-        replaced = False
-        for idx, src in enumerate(sources):
-            if str(src.get("id", "")).strip() == source_id:
-                sources[idx] = item
-                replaced = True
-                break
-        if not replaced:
-            sources.append(item)
-        bundle["sources"] = sources
-        if payload.set_default:
-            bundle["default_source"] = source_id
-        save_sources(bundle)
-        return {"ok": True, "source": item, "merge": merged}
+            sources = bundle.get("sources") if isinstance(bundle.get("sources"), list) else []
+            item = {
+                "id": source_id,
+                "title": source_title,
+                "type": "csv",
+                "path": str(out_file),
+                "delimiter": ",",
+                "encoding": "utf-8-sig",
+                "options": {"generated_by": "multi_source_merge"},
+            }
+            replaced = False
+            for idx, src in enumerate(sources):
+                if str(src.get("id", "")).strip() == source_id:
+                    sources[idx] = item
+                    replaced = True
+                    break
+            if not replaced:
+                sources.append(item)
+            bundle["sources"] = sources
+            if payload.set_default:
+                bundle["default_source"] = source_id
+            save_sources(bundle)
+            return {"ok": True, "source": item, "merge": merged}
+        except HTTPException:
+            raise
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail=f"Errore salvataggio sorgente merge: {exc}") from exc
 
     app.include_router(router)
 
