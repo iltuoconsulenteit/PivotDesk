@@ -8,7 +8,7 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Response
 from pydantic import BaseModel, Field
 
 from plugins.calculated_fields.backend import apply_calculated_fields
@@ -65,6 +65,10 @@ class MergeTemplateBuildRequest(BaseModel):
     sources: list[MergeSourceConfig] = Field(default_factory=list)
     include_source_tag: bool | None = None
     limit: int = Field(default=1000, ge=1, le=20000)
+
+
+class MergeExportCsvRequest(MultiMergeRequest):
+    filename: str | None = None
 
 
 def _apply_calc(df, defs: list[dict[str, Any]]):
@@ -414,6 +418,21 @@ def _build_merge_result(plugin_api, payload: MultiMergeRequest) -> dict[str, Any
     }
 
 
+def _merge_result_to_csv_bytes(merge_result: dict[str, Any]) -> bytes:
+    columns = [str(c) for c in (merge_result.get("columns") or [])]
+    rows = merge_result.get("rows") if isinstance(merge_result, dict) else []
+    safe_rows = rows if isinstance(rows, list) else []
+    from io import StringIO
+
+    out = StringIO()
+    writer = csv.DictWriter(out, fieldnames=columns)
+    writer.writeheader()
+    for row in safe_rows:
+        row_data = row if isinstance(row, dict) else {}
+        writer.writerow({c: row_data.get(c, "") for c in columns})
+    return out.getvalue().encode("utf-8-sig")
+
+
 def register(app, plugin_api, manifest):
     router = APIRouter(prefix="/plugin/multi-source-merge", tags=["plugins", "multi_source_merge"])
 
@@ -427,6 +446,24 @@ def register(app, plugin_api, manifest):
             raise
         except Exception as exc:
             raise HTTPException(status_code=400, detail=f"Errore merge: {exc}") from exc
+
+    @router.post("/export-csv")
+    def export_merge_csv(payload: MergeExportCsvRequest):
+        if not plugin_api.get_source or not plugin_api.load_dataframe_from_source:
+            raise HTTPException(status_code=500, detail="Plugin API incompleta")
+        try:
+            merged = _build_merge_result(plugin_api, payload)
+            csv_bytes = _merge_result_to_csv_bytes(merged)
+            suggested = str(payload.filename or f"merge_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.csv").strip()
+            safe = re.sub(r"[^A-Za-z0-9._-]+", "_", suggested) or "merge_export.csv"
+            if not safe.lower().endswith(".csv"):
+                safe += ".csv"
+            headers = {"Content-Disposition": f'attachment; filename=\"{safe}\"'}
+            return Response(content=csv_bytes, media_type="text/csv; charset=utf-8", headers=headers)
+        except HTTPException:
+            raise
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail=f"Errore export CSV merge: {exc}") from exc
 
     @router.post("/template/headers")
     def resolve_template_headers(payload: MergeTemplateHeadersRequest):

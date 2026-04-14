@@ -1917,6 +1917,7 @@ window.LICENSE_CONTEXT = {
             <div class="builder-actions" style="margin-bottom:8px;">
               <button id="btnRunMultiMergeFromTemplate" type="button" class="primary" onclick="handleMergeActionClick('run_template'); return false;">Esegui merge da template</button>
               <button id="btnRunMultiMerge" type="button" onclick="handleMergeActionClick('preview'); return false;">Anteprima merge</button>
+              <button id="btnExportMultiMergeCsv" type="button" onclick="handleMergeActionClick('export_csv'); return false;">Export CSV unione</button>
               <button id="btnSaveMultiMergeSource" type="button" class="primary" onclick="handleMergeActionClick('save_source'); return false;">Salva come nuova sorgente</button>
               <button id="btnRefreshMultiMergeSource" type="button" onclick="handleMergeActionClick('refresh_source'); return false;">Aggiorna sorgente merge</button>
             </div>
@@ -3681,6 +3682,13 @@ async function handleMergeActionClick(action){
       setMergeStatus("Sorgente merge salvata.");
       return;
     }
+    if (key === "export_csv") {
+      setMergeStatus("Export CSV merge in corso...");
+      setStatus("Export CSV merge in corso...");
+      await exportMultiSourceMergeCsvFromUi();
+      setMergeStatus("CSV merge esportato.");
+      return;
+    }
     if (key === "refresh_source") {
       setMergeStatus("Aggiornamento sorgente merge in corso...");
       setStatus("Aggiornamento sorgente merge in corso...");
@@ -4226,6 +4234,38 @@ async function saveMultiSourceMergeAsSourceFromUi(){
   }
   await refreshAll().catch(() => {});
   setStatus("Nuova sorgente merge salvata: " + source_id);
+}
+
+async function exportMultiSourceMergeCsvFromUi(){
+  const base = buildMultiMergePayloadFromUi();
+  const sourceTitle = String(document.getElementById("mergeNewSourceTitle")?.value || "").trim();
+  const sourceId = String(document.getElementById("mergeNewSourceId")?.value || "").trim();
+  const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+  const rawName = sourceTitle || ("merge_" + (sourceId || stamp));
+  const filename = rawName.replace(/[^A-Za-z0-9._-]+/g, "_").replace(/_+/g, "_") + ".csv";
+  const r = await fetch("/plugin/multi-source-merge/export-csv", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...base, filename })
+  });
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({}));
+    const msg = String(err?.detail || err?.error || "Errore export CSV merge");
+    throw new Error(msg);
+  }
+  const blob = await r.blob();
+  const cd = String(r.headers.get("Content-Disposition") || "");
+  const match = cd.match(/filename=\"?([^\";]+)\"?/i);
+  const downloadedName = (match && match[1]) ? String(match[1]) : filename;
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = downloadedName;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  setStatus("CSV merge esportato: " + downloadedName);
 }
 
 async function refreshMultiMergeSourceFromUi(){

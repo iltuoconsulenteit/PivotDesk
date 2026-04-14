@@ -13,7 +13,7 @@ import subprocess
 import uuid
 import time
 import sqlite3
-from io import BytesIO
+from io import BytesIO, StringIO
 from collections import OrderedDict
 from datetime import datetime
 from pathlib import Path
@@ -2479,6 +2479,19 @@ def _build_merge_payload_result(payload: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _merge_result_to_csv_bytes(merge_result: dict[str, Any]) -> bytes:
+    columns = [str(c) for c in (merge_result.get("columns") or [])]
+    rows = merge_result.get("rows") if isinstance(merge_result, dict) else []
+    safe_rows = rows if isinstance(rows, list) else []
+    out = StringIO()
+    writer = csv.DictWriter(out, fieldnames=columns)
+    writer.writeheader()
+    for row in safe_rows:
+        row_data = row if isinstance(row, dict) else {}
+        writer.writerow({c: row_data.get(c, "") for c in columns})
+    return out.getvalue().encode("utf-8-sig")
+
+
 def _load_merge_definitions() -> dict[str, Any]:
     path = DATA_DIR / "generated_sources" / "merge_definitions.json"
     raw = read_json(path, {}) or {}
@@ -2513,6 +2526,26 @@ async def merge_build_fallback(request: Request):
         return JSONResponse({"error": str(exc)}, status_code=400)
     except Exception as exc:
         return JSONResponse({"error": f"Errore merge: {exc}"}, status_code=500)
+
+
+@app.post("/plugin/multi-source-merge/export-csv")
+async def merge_export_csv_fallback(request: Request):
+    try:
+        payload = await request.json()
+        if not isinstance(payload, dict):
+            payload = {}
+        merged = _build_merge_payload_result(payload)
+        csv_bytes = _merge_result_to_csv_bytes(merged)
+        suggested = str(payload.get("filename") or f"merge_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.csv").strip()
+        safe = re.sub(r"[^A-Za-z0-9._-]+", "_", suggested) or "merge_export.csv"
+        if not safe.lower().endswith(".csv"):
+            safe += ".csv"
+        headers = {"Content-Disposition": f'attachment; filename="{safe}"'}
+        return Response(content=csv_bytes, media_type="text/csv; charset=utf-8", headers=headers)
+    except ValueError as exc:
+        return JSONResponse({"error": str(exc)}, status_code=400)
+    except Exception as exc:
+        return JSONResponse({"error": f"Errore export CSV merge: {exc}"}, status_code=500)
 
 
 @app.post("/plugin/multi-source-merge/build-from-template")
