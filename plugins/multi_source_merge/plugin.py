@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 import json
 import re
+import sqlite3
 from pathlib import Path
 from typing import Any
 
@@ -165,23 +166,147 @@ def _templates_path() -> Path:
     return DATA_DIR / "merge_templates.json"
 
 
-def _load_templates() -> list[dict[str, Any]]:
-    path = _templates_path()
-    if not path.exists():
-        return []
+def _templates_db_path() -> Path:
+    app_data_dir = DATA_DIR / "app_data"
+    app_data_dir.mkdir(parents=True, exist_ok=True)
+    return app_data_dir / "merge_templates.db"
+
+
+def _db_connect() -> sqlite3.Connection:
+    conn = sqlite3.connect(str(_templates_db_path()))
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS merge_templates (
+            template_id TEXT PRIMARY KEY,
+            title TEXT NOT NULL,
+            columns_json TEXT NOT NULL,
+            sources_json TEXT NOT NULL,
+            include_source_tag INTEGER NOT NULL DEFAULT 1,
+            updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+    conn.commit()
+    return conn
+
+
+def _migrate_templates_json_to_sqlite() -> None:
+    legacy = _templates_path()
+    if not legacy.exists():
+        return
     try:
-        raw = json.loads(path.read_text(encoding="utf-8"))
-        items = raw.get("templates", []) if isinstance(raw, dict) else []
-        return [i for i in items if isinstance(i, dict)]
+        raw = json.loads(legacy.read_text(encoding="utf-8"))
+        legacy_items = raw.get("templates", []) if isinstance(raw, dict) else []
     except Exception:
-        return []
+        return
+    if not isinstance(legacy_items, list) or not legacy_items:
+        return
+
+    conn = _db_connect()
+    cur = conn.cursor()
+    count_row = cur.execute("SELECT COUNT(1) FROM merge_templates").fetchone()
+    existing_count = int(count_row[0] or 0) if count_row else 0
+    if existing_count > 0:
+        conn.close()
+        return
+
+    for row in legacy_items:
+        if not isinstance(row, dict):
+            continue
+        template_id = str(row.get("template_id", "")).strip()
+        if not template_id:
+            continue
+        title = str(row.get("title") or template_id).strip() or template_id
+        columns = [str(c).strip() for c in (row.get("columns") or []) if str(c).strip()]
+        sources = row.get("sources") if isinstance(row.get("sources"), list) else []
+        include_source_tag = 1 if bool(row.get("include_source_tag", True)) else 0
+        cur.execute(
+            """
+            INSERT OR REPLACE INTO merge_templates
+            (template_id, title, columns_json, sources_json, include_source_tag, updated_at)
+            VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            """,
+            (
+                template_id,
+                title,
+                json.dumps(columns, ensure_ascii=False),
+                json.dumps(sources, ensure_ascii=False),
+                include_source_tag,
+            ),
+        )
+    conn.commit()
+    conn.close()
+
+
+def _load_templates() -> list[dict[str, Any]]:
+    _migrate_templates_json_to_sqlite()
+    conn = _db_connect()
+    cur = conn.cursor()
+    rows = cur.execute(
+        """
+        SELECT template_id, title, columns_json, sources_json, include_source_tag
+        FROM merge_templates
+        ORDER BY updated_at DESC, template_id DESC
+        """
+    ).fetchall()
+    conn.close()
+
+    out: list[dict[str, Any]] = []
+    for template_id, title, columns_json, sources_json, include_source_tag in rows:
+        try:
+            columns = json.loads(columns_json) if str(columns_json or "").strip() else []
+            if not isinstance(columns, list):
+                columns = []
+        except Exception:
+            columns = []
+        try:
+            sources = json.loads(sources_json) if str(sources_json or "").strip() else []
+            if not isinstance(sources, list):
+                sources = []
+        except Exception:
+            sources = []
+        out.append(
+            {
+                "template_id": str(template_id or "").strip(),
+                "title": str(title or "").strip(),
+                "columns": [str(c).strip() for c in columns if str(c).strip()],
+                "sources": [x for x in sources if isinstance(x, dict)],
+                "include_source_tag": bool(include_source_tag),
+            }
+        )
+    return [x for x in out if x.get("template_id")]
 
 
 def _save_templates(items: list[dict[str, Any]]) -> None:
-    path = _templates_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    payload = {"templates": items}
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    conn = _db_connect()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM merge_templates")
+    for row in items:
+        if not isinstance(row, dict):
+            continue
+        template_id = str(row.get("template_id", "")).strip()
+        if not template_id:
+            continue
+        title = str(row.get("title") or template_id).strip() or template_id
+        columns = [str(c).strip() for c in (row.get("columns") or []) if str(c).strip()]
+        sources = row.get("sources") if isinstance(row.get("sources"), list) else []
+        include_source_tag = 1 if bool(row.get("include_source_tag", True)) else 0
+        cur.execute(
+            """
+            INSERT INTO merge_templates
+            (template_id, title, columns_json, sources_json, include_source_tag, updated_at)
+            VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            """,
+            (
+                template_id,
+                title,
+                json.dumps(columns, ensure_ascii=False),
+                json.dumps(sources, ensure_ascii=False),
+                include_source_tag,
+            ),
+        )
+    conn.commit()
+    conn.close()
 
 
 def _find_template(items: list[dict[str, Any]], template_id: str) -> dict[str, Any] | None:
