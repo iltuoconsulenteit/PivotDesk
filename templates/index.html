@@ -4223,10 +4223,6 @@ async function initSourcePluginBuilders(){
   const loadTemplatesBtn = document.getElementById("btnLoadMergeTemplates");
   const saveTemplateBtn = document.getElementById("btnSaveMergeTemplate");
   const applyTemplateBtn = document.getElementById("btnApplyTemplateToMappings");
-  const runFromTemplateBtn = document.getElementById("btnRunMultiMergeFromTemplate");
-  const runMergePreviewBtn = document.getElementById("btnRunMultiMerge");
-  const saveMergeBtn = document.getElementById("btnSaveMultiMergeSource");
-  const refreshMergeBtn = document.getElementById("btnRefreshMultiMergeSource");
   const mergeTemplateSel = document.getElementById("mergeTemplateSelect");
   const mergeTemplateTitle = document.getElementById("mergeTemplateTitle");
   const mergeTemplateFromSource = document.getElementById("mergeTemplateFromSource");
@@ -4313,46 +4309,8 @@ async function initSourcePluginBuilders(){
       await applyTemplateToAllMappingsFromUi();
     });
   }
-  if (runFromTemplateBtn && !runFromTemplateBtn.dataset.bound) {
-    runFromTemplateBtn.dataset.bound = "1";
-    runFromTemplateBtn.addEventListener("click", async () => {
-      try {
-        await runMultiSourceMergeFromTemplateUi();
-      } catch (e) {
-        setStatus("ERRORE merge da template: " + (e?.message || e));
-      }
-    });
-  }
-  if (runMergePreviewBtn && !runMergePreviewBtn.dataset.bound) {
-    runMergePreviewBtn.dataset.bound = "1";
-    runMergePreviewBtn.addEventListener("click", async () => {
-      try {
-        await runMultiSourceMergeFromUi();
-      } catch (e) {
-        setStatus("ERRORE plugin merge: " + (e?.message || e));
-      }
-    });
-  }
-  if (saveMergeBtn && !saveMergeBtn.dataset.bound) {
-    saveMergeBtn.dataset.bound = "1";
-    saveMergeBtn.addEventListener("click", async () => {
-      try {
-        await saveMultiSourceMergeAsSourceFromUi();
-      } catch (e) {
-        setStatus("ERRORE salvataggio merge: " + (e?.message || e));
-      }
-    });
-  }
-  if (refreshMergeBtn && !refreshMergeBtn.dataset.bound) {
-    refreshMergeBtn.dataset.bound = "1";
-    refreshMergeBtn.addEventListener("click", async () => {
-      try {
-        await refreshMultiMergeSourceFromUi();
-      } catch (e) {
-        setStatus("ERRORE aggiornamento merge: " + (e?.message || e));
-      }
-    });
-  }
+  // Le azioni merge sono gestite da handleMergeActionClick (inline + bindClick globale)
+  // per evitare binding duplicati e richieste doppie.
   if (mergeTemplateSel && !mergeTemplateSel.dataset.bound) {
     mergeTemplateSel.dataset.bound = "1";
     mergeTemplateSel.addEventListener("change", async () => {

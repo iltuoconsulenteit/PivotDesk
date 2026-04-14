@@ -1648,8 +1648,8 @@ def get_runtime_paths() -> dict[str, str]:
 
 def get_plugin_roots() -> list[Path]:
     roots = [
-        APP_HOME_DIR / "plugins",
         BASE_DIR / "plugins",
+        APP_HOME_DIR / "plugins",
         resource_path("plugins"),
     ]
     out: list[Path] = []
