@@ -3589,6 +3589,8 @@ async function loadMergeTemplatesIntoUi(keepSelection = true){
   });
   if (current && MERGE_TEMPLATES.some(t => String(t?.template_id || "").trim() === current)) {
     sel.value = current;
+  } else if (MERGE_TEMPLATES.length) {
+    sel.value = String(MERGE_TEMPLATES[0]?.template_id || "").trim();
   }
   suggestMergeTemplateIdentity(false);
   return MERGE_TEMPLATES;
@@ -3618,6 +3620,7 @@ async function applySelectedMergeTemplateToUi(){
     for (const srcCfg of templateSources) {
       await addMergeSourceBlock(srcCfg);
     }
+    setStatus("Template caricato con " + String(templateSources.length) + " sorgenti mappate.");
   }
   return tpl;
 }
@@ -3899,7 +3902,22 @@ async function addMergeSourceBlock(initial = null){
     o.textContent = src.title || src.id;
     sourceSel.appendChild(o);
   });
-  if (initial && initial.source_id) sourceSel.value = initial.source_id;
+  if (initial && initial.source_id) {
+    const requested = String(initial.source_id || "").trim();
+    let resolved = requested;
+    if (!(SOURCES || []).some(s => String(s?.id || "").trim() === requested)) {
+      const legacyMatch = (SOURCES || []).find(s => String(s?.config?.legacy_source_id || "").trim() === requested);
+      if (legacyMatch?.id) resolved = String(legacyMatch.id).trim();
+    }
+    sourceSel.value = resolved;
+    if (!String(sourceSel.value || "").trim() && requested) {
+      const opt = document.createElement("option");
+      opt.value = requested;
+      opt.textContent = requested + " (non trovata)";
+      sourceSel.appendChild(opt);
+      sourceSel.value = requested;
+    }
+  }
 
   block.querySelector("[data-merge-suggest-map]").onclick = async () => {
     try {
