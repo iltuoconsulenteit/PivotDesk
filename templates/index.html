@@ -1892,7 +1892,7 @@ window.LICENSE_CONTEXT = {
               <div class="field"><label for="mergeTemplateTitle">Titolo template</label><input id="mergeTemplateTitle" placeholder="es. Estratti bancari unificati"></div>
             </div>
             <div class="builder-actions" style="margin-top:8px;">
-              <button id="btnSaveMergeTemplate" type="button">Salva template (fase 1)</button>
+              <button id="btnSaveMergeTemplate" type="button" style="background:#eef4ff; border-color:#b2ccff; color:#1849a9;">🧩 Salva struttura template</button>
             </div>
           </div>
 
@@ -1923,12 +1923,12 @@ window.LICENSE_CONTEXT = {
               <b>Esegui merge</b> usa il mapping corrente del builder (anche senza template).
             </div>
             <div class="builder-actions" style="margin-bottom:8px;">
-              <button id="btnRunMultiMergeFromTemplate" type="button" class="primary" onclick="handleMergeActionClick('run_template'); return false;">Esegui merge da template</button>
-              <button id="btnRunMultiMerge" type="button" onclick="handleMergeActionClick('preview'); return false;">Anteprima merge</button>
-              <button id="btnSaveMergeTemplateFull" type="button" onclick="handleMergeActionClick('save_template_full'); return false;">Salva template completo</button>
-              <button id="btnExportMultiMergeCsv" type="button" onclick="handleMergeActionClick('export_csv'); return false;">Export CSV unione</button>
-              <button id="btnSaveMultiMergeSource" type="button" class="primary" onclick="handleMergeActionClick('save_source'); return false;">Salva come nuova sorgente</button>
-              <button id="btnRefreshMultiMergeSource" type="button" onclick="handleMergeActionClick('refresh_source'); return false;">Aggiorna sorgente merge</button>
+              <button id="btnRunMultiMergeFromTemplate" type="button" class="primary" onclick="handleMergeActionClick('run_template'); return false;">🚀 Esegui merge da template</button>
+              <button id="btnRunMultiMerge" type="button" onclick="handleMergeActionClick('preview'); return false;">👁️ Anteprima merge</button>
+              <button id="btnSaveMergeTemplateFull" type="button" style="background:#ecfdf3; border-color:#abefc6; color:#067647;" onclick="handleMergeActionClick('save_template_full'); return false;">✅ Salva template completo</button>
+              <button id="btnExportMultiMergeCsv" type="button" onclick="handleMergeActionClick('export_csv'); return false;">📤 Export CSV unione</button>
+              <button id="btnSaveMultiMergeSource" type="button" class="primary" onclick="handleMergeActionClick('save_source'); return false;">💾 Salva come nuova sorgente</button>
+              <button id="btnRefreshMultiMergeSource" type="button" onclick="handleMergeActionClick('refresh_source'); return false;">🔄 Aggiorna sorgente merge</button>
             </div>
             <div id="mergeActionStatus" class="small" style="margin-bottom:8px; color:#175cd3;"></div>
           </div>
@@ -6079,7 +6079,13 @@ async function api(url, options = {}){
   };
 
   const r = await fetch(url, fetchOptions);
-  const data = await r.json().catch(() => ({}));
+  const rawText = await r.text();
+  let data = {};
+  try {
+    data = rawText ? JSON.parse(rawText) : {};
+  } catch (_e) {
+    data = {};
+  }
 
   if (!r.ok) {
     const details = [];
@@ -6087,6 +6093,8 @@ async function api(url, options = {}){
     if (data.error) details.push(data.error);
     if (data.message) details.push(data.message);
     if (data.missing_columns) details.push("Colonne mancanti: " + data.missing_columns.join(", "));
+    if (!details.length && rawText) details.push(rawText.slice(0, 240));
+    details.push("HTTP " + String(r.status) + " - " + url);
     throw new Error(details.join("\n") || ("Errore API: " + url));
   }
 

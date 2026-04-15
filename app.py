@@ -2621,6 +2621,119 @@ def _load_merge_template_record(template_id: str) -> dict[str, Any] | None:
     return None
 
 
+def _list_merge_template_records() -> list[dict[str, Any]]:
+    db_path = DATA_DIR / "app_data" / "merge_templates.db"
+    if db_path.exists():
+        try:
+            with sqlite3.connect(str(db_path)) as conn:
+                rows = conn.execute(
+                    """
+                    SELECT template_id,title,columns_json,sources_json,include_source_tag
+                    FROM merge_templates
+                    ORDER BY updated_at DESC, template_id DESC
+                    """
+                ).fetchall()
+            out: list[dict[str, Any]] = []
+            for row in rows:
+                try:
+                    columns = json.loads(row[2]) if str(row[2] or "").strip() else []
+                except Exception:
+                    columns = []
+                try:
+                    sources = json.loads(row[3]) if str(row[3] or "").strip() else []
+                except Exception:
+                    sources = []
+                out.append({
+                    "template_id": str(row[0] or "").strip(),
+                    "title": str(row[1] or "").strip(),
+                    "columns": columns if isinstance(columns, list) else [],
+                    "sources": sources if isinstance(sources, list) else [],
+                    "include_source_tag": bool(row[4]),
+                })
+            return [x for x in out if x.get("template_id")]
+        except Exception:
+            pass
+    legacy = DATA_DIR / "merge_templates.json"
+    if legacy.exists():
+        raw = read_json(legacy, {}) or {}
+        items = raw.get("templates", []) if isinstance(raw, dict) else []
+        return [x for x in items if isinstance(x, dict) and str(x.get("template_id", "")).strip()]
+    return []
+
+
+def _save_merge_template_record(payload: dict[str, Any]) -> dict[str, Any]:
+    items = _list_merge_template_records()
+    requested = str(payload.get("template_id") or "").strip()
+    numeric_ids: set[int] = set()
+    for row in items:
+        try:
+            numeric_ids.add(int(str(row.get("template_id", "")).strip()))
+        except Exception:
+            continue
+    template_id = requested
+    if not template_id:
+        n = (max(numeric_ids) + 1) if numeric_ids else 1
+        while n in numeric_ids:
+            n += 1
+        template_id = str(n)
+    title = str(payload.get("title") or template_id).strip() or template_id
+    columns = [str(c).strip() for c in (payload.get("columns") or []) if str(c).strip()]
+    sources_raw = payload.get("sources") if isinstance(payload.get("sources"), list) else []
+    sources = [x for x in sources_raw if isinstance(x, dict)]
+    include_source_tag = bool(payload.get("include_source_tag", True))
+
+    db_path = DATA_DIR / "app_data" / "merge_templates.db"
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    with sqlite3.connect(str(db_path)) as conn:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS merge_templates (
+                template_id TEXT PRIMARY KEY,
+                title TEXT NOT NULL,
+                columns_json TEXT NOT NULL,
+                sources_json TEXT NOT NULL,
+                include_source_tag INTEGER NOT NULL DEFAULT 1,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+        conn.execute(
+            """
+            INSERT OR REPLACE INTO merge_templates
+            (template_id,title,columns_json,sources_json,include_source_tag,updated_at)
+            VALUES (?,?,?,?,?,CURRENT_TIMESTAMP)
+            """,
+            (
+                template_id,
+                title,
+                json.dumps(columns, ensure_ascii=False),
+                json.dumps(sources, ensure_ascii=False),
+                1 if include_source_tag else 0,
+            ),
+        )
+        conn.commit()
+    return {
+        "template_id": template_id,
+        "title": title,
+        "columns": columns,
+        "sources": sources,
+        "include_source_tag": include_source_tag,
+    }
+
+
+def _delete_merge_template_record(template_id: str) -> bool:
+    wanted = str(template_id or "").strip()
+    if not wanted:
+        return False
+    db_path = DATA_DIR / "app_data" / "merge_templates.db"
+    if not db_path.exists():
+        return False
+    with sqlite3.connect(str(db_path)) as conn:
+        cur = conn.execute("DELETE FROM merge_templates WHERE template_id = ?", (wanted,))
+        conn.commit()
+        return (cur.rowcount or 0) > 0
+
+
 def _build_merge_payload_result(payload: dict[str, Any]) -> dict[str, Any]:
     raw_sources = payload.get("sources", []) if isinstance(payload, dict) else []
     sources = raw_sources if isinstance(raw_sources, list) else []
@@ -2743,6 +2856,48 @@ async def merge_build_fallback(request: Request):
         return JSONResponse({"error": str(exc)}, status_code=400)
     except Exception as exc:
         return JSONResponse({"error": f"Errore merge: {exc}"}, status_code=500)
+
+
+@app.get("/plugin/multi-source-merge/template/list")
+def merge_template_list_fallback():
+    if not has_plugin_license_access("multi_source_merge"):
+        return JSONResponse({"error": "Plugin Multi Source Merge non abilitato dalla licenza."}, status_code=403)
+    items = _list_merge_template_records()
+    return {"ok": True, "templates": items, "count": len(items)}
+
+
+@app.get("/plugin/multi-source-merge/template/{template_id}")
+def merge_template_get_fallback(template_id: str):
+    if not has_plugin_license_access("multi_source_merge"):
+        return JSONResponse({"error": "Plugin Multi Source Merge non abilitato dalla licenza."}, status_code=403)
+    found = _load_merge_template_record(template_id)
+    if not found:
+        return JSONResponse({"error": "template non trovato"}, status_code=404)
+    return {"ok": True, "template": found}
+
+
+@app.post("/plugin/multi-source-merge/template/save")
+async def merge_template_save_fallback(request: Request):
+    if not has_plugin_license_access("multi_source_merge"):
+        return JSONResponse({"error": "Plugin Multi Source Merge non abilitato dalla licenza."}, status_code=403)
+    try:
+        payload = await request.json()
+        if not isinstance(payload, dict):
+            payload = {}
+        saved = _save_merge_template_record(payload)
+        return {"ok": True, "template": saved}
+    except Exception as exc:
+        return JSONResponse({"error": f"Errore salvataggio template: {exc}"}, status_code=400)
+
+
+@app.delete("/plugin/multi-source-merge/template/{template_id}")
+def merge_template_delete_fallback(template_id: str):
+    if not has_plugin_license_access("multi_source_merge"):
+        return JSONResponse({"error": "Plugin Multi Source Merge non abilitato dalla licenza."}, status_code=403)
+    ok = _delete_merge_template_record(template_id)
+    if not ok:
+        return JSONResponse({"error": "template non trovato"}, status_code=404)
+    return {"ok": True, "deleted": template_id}
 
 
 @app.post("/plugin/multi-source-merge/export-csv")
