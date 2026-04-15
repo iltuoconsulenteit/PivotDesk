@@ -1892,7 +1892,7 @@ window.LICENSE_CONTEXT = {
               <div class="field"><label for="mergeTemplateTitle">Titolo template</label><input id="mergeTemplateTitle" placeholder="es. Estratti bancari unificati"></div>
             </div>
             <div class="builder-actions" style="margin-top:8px;">
-              <button id="btnSaveMergeTemplate" type="button">Salva template</button>
+              <button id="btnSaveMergeTemplate" type="button">Salva template (fase 1)</button>
             </div>
           </div>
 
@@ -1925,6 +1925,7 @@ window.LICENSE_CONTEXT = {
             <div class="builder-actions" style="margin-bottom:8px;">
               <button id="btnRunMultiMergeFromTemplate" type="button" class="primary" onclick="handleMergeActionClick('run_template'); return false;">Esegui merge da template</button>
               <button id="btnRunMultiMerge" type="button" onclick="handleMergeActionClick('preview'); return false;">Anteprima merge</button>
+              <button id="btnSaveMergeTemplateFull" type="button" onclick="handleMergeActionClick('save_template_full'); return false;">Salva template completo</button>
               <button id="btnExportMultiMergeCsv" type="button" onclick="handleMergeActionClick('export_csv'); return false;">Export CSV unione</button>
               <button id="btnSaveMultiMergeSource" type="button" class="primary" onclick="handleMergeActionClick('save_source'); return false;">Salva come nuova sorgente</button>
               <button id="btnRefreshMultiMergeSource" type="button" onclick="handleMergeActionClick('refresh_source'); return false;">Aggiorna sorgente merge</button>
@@ -3900,6 +3901,13 @@ async function handleMergeActionClick(action){
       setMergeStatus("Sorgente merge salvata.");
       return;
     }
+    if (key === "save_template_full") {
+      setMergeStatus("Salvataggio template completo in corso...");
+      setStatus("Salvataggio template completo in corso...");
+      await saveMergeTemplateFromUi();
+      setMergeStatus("Template completo salvato.");
+      return;
+    }
     if (key === "export_csv") {
       setMergeStatus("Export CSV merge in corso...");
       setStatus("Export CSV merge in corso...");
@@ -3933,11 +3941,13 @@ async function saveMergeTemplateFromUi(){
   if (!templateId) throw new Error("Template ID automatico non disponibile.");
   if (!title) throw new Error("Inserisci un titolo template.");
   if (!cols.length) throw new Error("Inserisci almeno una intestazione template.");
-  let sourcesForTemplate = [];
-  try {
-    sourcesForTemplate = (buildMultiMergePayloadFromUi().sources || []).filter(x => x && typeof x === "object");
-  } catch (_e) {
-    sourcesForTemplate = buildMergeSourcesJsonFromBuilder();
+  let sourcesForTemplate = buildMergeSourcesJsonFromBuilder().filter(x => x && typeof x === "object");
+  if (!sourcesForTemplate.length) {
+    try {
+      sourcesForTemplate = (buildMultiMergePayloadFromUi().sources || []).filter(x => x && typeof x === "object");
+    } catch (_e) {
+      sourcesForTemplate = [];
+    }
   }
   await api("/plugin/multi-source-merge/template/save", {
     method: "POST",
@@ -3955,7 +3965,7 @@ async function saveMergeTemplateFromUi(){
   if (sel) sel.value = templateId;
   await applySelectedMergeTemplateToUi();
   suggestMergeTemplateIdentity(false);
-  setStatus("Template merge salvato: " + templateId);
+  setStatus("Template merge salvato: " + templateId + " (sorgenti salvate: " + String(sourcesForTemplate.length) + ").");
 }
 
 async function loadTemplateHeadersFromSourceFromUi(){
