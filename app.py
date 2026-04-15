@@ -2619,6 +2619,9 @@ def _load_merge_template_record(template_id: str) -> dict[str, Any] | None:
                     return _normalize_merge_template_item(item)
         except Exception:
             return None
+    for item in _list_templates_from_merge_definitions():
+        if str(item.get("template_id", "")).strip() == wanted:
+            return item
     return None
 
 
@@ -2652,15 +2655,19 @@ def _list_merge_template_records() -> list[dict[str, Any]]:
                     "sources": sources if isinstance(sources, list) else [],
                     "include_source_tag": bool(row[4]),
                 }))
-            return [x for x in out if x.get("template_id")]
+            normalized = [x for x in out if x.get("template_id")]
+            if normalized:
+                return normalized
         except Exception:
             pass
     legacy = DATA_DIR / "merge_templates.json"
     if legacy.exists():
         raw = read_json(legacy, {}) or {}
         items = raw.get("templates", []) if isinstance(raw, dict) else []
-        return [_normalize_merge_template_item(x) for x in items if isinstance(x, dict) and str(x.get("template_id", "")).strip()]
-    return []
+        normalized = [_normalize_merge_template_item(x) for x in items if isinstance(x, dict) and str(x.get("template_id", "")).strip()]
+        if normalized:
+            return normalized
+    return _list_templates_from_merge_definitions()
 
 
 def _normalize_merge_template_item(item: dict[str, Any]) -> dict[str, Any]:
@@ -2735,6 +2742,27 @@ def _migrate_merge_templates_json_to_sqlite() -> None:
                 ),
             )
         conn.commit()
+
+
+def _list_templates_from_merge_definitions() -> list[dict[str, Any]]:
+    defs = _load_merge_definitions()
+    items: list[dict[str, Any]] = []
+    for key, row in defs.items():
+        if not isinstance(row, dict):
+            continue
+        template_id = str(row.get("template_id") or row.get("source_id") or key or "").strip()
+        if not template_id:
+            continue
+        item = _normalize_merge_template_item({
+            "template_id": template_id,
+            "title": row.get("title") or f"Merge {template_id}",
+            "columns": row.get("columns") or row.get("output_columns") or row.get("headers") or [],
+            "sources": row.get("sources") if isinstance(row.get("sources"), list) else [],
+            "include_source_tag": row.get("include_source_tag", True),
+        })
+        if item.get("columns"):
+            items.append(item)
+    return items
 
 
 def _save_merge_template_record(payload: dict[str, Any]) -> dict[str, Any]:
