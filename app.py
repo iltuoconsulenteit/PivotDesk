@@ -2587,6 +2587,7 @@ def _load_merge_template_record(template_id: str) -> dict[str, Any] | None:
     wanted = str(template_id or "").strip()
     if not wanted:
         return None
+    _migrate_merge_templates_json_to_sqlite()
     db_path = DATA_DIR / "app_data" / "merge_templates.db"
     if db_path.exists():
         try:
@@ -2599,13 +2600,13 @@ def _load_merge_template_record(template_id: str) -> dict[str, Any] | None:
             if row:
                 columns = json.loads(row[2]) if str(row[2] or "").strip() else []
                 sources = json.loads(row[3]) if str(row[3] or "").strip() else []
-                return {
+                return _normalize_merge_template_item({
                     "template_id": str(row[0] or "").strip(),
                     "title": str(row[1] or "").strip(),
                     "columns": columns if isinstance(columns, list) else [],
                     "sources": sources if isinstance(sources, list) else [],
                     "include_source_tag": bool(row[4]),
-                }
+                })
         except Exception:
             pass
 
@@ -2615,13 +2616,14 @@ def _load_merge_template_record(template_id: str) -> dict[str, Any] | None:
             raw = read_json(legacy, {}) or {}
             for item in (raw.get("templates", []) if isinstance(raw, dict) else []):
                 if str(item.get("template_id", "")).strip() == wanted:
-                    return item
+                    return _normalize_merge_template_item(item)
         except Exception:
             return None
     return None
 
 
 def _list_merge_template_records() -> list[dict[str, Any]]:
+    _migrate_merge_templates_json_to_sqlite()
     db_path = DATA_DIR / "app_data" / "merge_templates.db"
     if db_path.exists():
         try:
@@ -2643,13 +2645,13 @@ def _list_merge_template_records() -> list[dict[str, Any]]:
                     sources = json.loads(row[3]) if str(row[3] or "").strip() else []
                 except Exception:
                     sources = []
-                out.append({
+                out.append(_normalize_merge_template_item({
                     "template_id": str(row[0] or "").strip(),
                     "title": str(row[1] or "").strip(),
                     "columns": columns if isinstance(columns, list) else [],
                     "sources": sources if isinstance(sources, list) else [],
                     "include_source_tag": bool(row[4]),
-                })
+                }))
             return [x for x in out if x.get("template_id")]
         except Exception:
             pass
@@ -2657,8 +2659,82 @@ def _list_merge_template_records() -> list[dict[str, Any]]:
     if legacy.exists():
         raw = read_json(legacy, {}) or {}
         items = raw.get("templates", []) if isinstance(raw, dict) else []
-        return [x for x in items if isinstance(x, dict) and str(x.get("template_id", "")).strip()]
+        return [_normalize_merge_template_item(x) for x in items if isinstance(x, dict) and str(x.get("template_id", "")).strip()]
     return []
+
+
+def _normalize_merge_template_item(item: dict[str, Any]) -> dict[str, Any]:
+    template_id = str(item.get("template_id") or "").strip()
+    title = str(item.get("title") or template_id).strip() or template_id
+    raw_columns = item.get("columns")
+    if not isinstance(raw_columns, list):
+        raw_columns = item.get("template_columns")
+    if not isinstance(raw_columns, list):
+        raw_columns = item.get("headers")
+    if not isinstance(raw_columns, list):
+        raw_columns = item.get("output_columns")
+    columns = [str(c).strip() for c in (raw_columns or []) if str(c).strip()]
+    raw_sources = item.get("sources")
+    sources = [x for x in (raw_sources if isinstance(raw_sources, list) else []) if isinstance(x, dict)]
+    include_source_tag = bool(item.get("include_source_tag", True))
+    return {
+        "template_id": template_id,
+        "title": title,
+        "columns": columns,
+        "sources": sources,
+        "include_source_tag": include_source_tag,
+    }
+
+
+def _migrate_merge_templates_json_to_sqlite() -> None:
+    legacy = DATA_DIR / "merge_templates.json"
+    if not legacy.exists():
+        return
+    db_path = DATA_DIR / "app_data" / "merge_templates.db"
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    raw = read_json(legacy, {}) or {}
+    legacy_items = raw.get("templates", []) if isinstance(raw, dict) else []
+    if not isinstance(legacy_items, list) or not legacy_items:
+        return
+    with sqlite3.connect(str(db_path)) as conn:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS merge_templates (
+                template_id TEXT PRIMARY KEY,
+                title TEXT NOT NULL,
+                columns_json TEXT NOT NULL,
+                sources_json TEXT NOT NULL,
+                include_source_tag INTEGER NOT NULL DEFAULT 1,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+        count_row = conn.execute("SELECT COUNT(1) FROM merge_templates").fetchone()
+        existing_count = int(count_row[0] or 0) if count_row else 0
+        if existing_count > 0:
+            return
+        for row in legacy_items:
+            if not isinstance(row, dict):
+                continue
+            item = _normalize_merge_template_item(row)
+            template_id = str(item.get("template_id") or "").strip()
+            if not template_id:
+                continue
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO merge_templates
+                (template_id,title,columns_json,sources_json,include_source_tag,updated_at)
+                VALUES (?,?,?,?,?,CURRENT_TIMESTAMP)
+                """,
+                (
+                    template_id,
+                    str(item.get("title") or template_id).strip(),
+                    json.dumps(item.get("columns") or [], ensure_ascii=False),
+                    json.dumps(item.get("sources") or [], ensure_ascii=False),
+                    1 if bool(item.get("include_source_tag", True)) else 0,
+                ),
+            )
+        conn.commit()
 
 
 def _save_merge_template_record(payload: dict[str, Any]) -> dict[str, Any]:
