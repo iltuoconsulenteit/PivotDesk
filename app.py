@@ -136,6 +136,7 @@ DEFAULT_SETTINGS = {
     "print_show_logos": True,
     "language": "en",
     "pivot_case_sensitive": False,
+    "merge_csv_delimiter": ";",
 }
 
 DEFAULT_SOURCES = {
@@ -519,6 +520,10 @@ def load_settings_data() -> dict[str, Any]:
     if out["language"] not in {"it", "en"}:
         out["language"] = "en"
     out["pivot_case_sensitive"] = bool(out.get("pivot_case_sensitive", False))
+    delim = str(out.get("merge_csv_delimiter", ";") or ";")
+    if delim not in {",", ";", "\t", "|"}:
+        delim = ";"
+    out["merge_csv_delimiter"] = delim
     return out
 
 
@@ -530,6 +535,10 @@ def save_settings_data(payload: dict[str, Any]) -> dict[str, Any]:
         lang = "en"
     data["language"] = lang
     data["pivot_case_sensitive"] = bool(data.get("pivot_case_sensitive", False))
+    delim = str(data.get("merge_csv_delimiter", ";") or ";")
+    if delim not in {",", ";", "\t", "|"}:
+        delim = ";"
+    data["merge_csv_delimiter"] = delim
     write_json(SETTINGS_PATH, data)
     return data
 
@@ -2911,12 +2920,28 @@ def _build_merge_payload_result(payload: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _merge_result_to_csv_bytes(merge_result: dict[str, Any]) -> bytes:
+def _resolve_merge_csv_delimiter(payload: dict[str, Any] | None = None) -> str:
+    requested = ""
+    if isinstance(payload, dict):
+        requested = str(payload.get("csv_delimiter", "") or "").strip()
+    if requested in {",", ";", "\t", "|"}:
+        return requested
+    try:
+        settings = load_settings_data()
+        cfg = str(settings.get("merge_csv_delimiter", ";") or ";").strip()
+        if cfg in {",", ";", "\t", "|"}:
+            return cfg
+    except Exception:
+        pass
+    return ";"
+
+
+def _merge_result_to_csv_bytes(merge_result: dict[str, Any], delimiter: str = ";") -> bytes:
     columns = [str(c) for c in (merge_result.get("columns") or [])]
     rows = merge_result.get("rows") if isinstance(merge_result, dict) else []
     safe_rows = rows if isinstance(rows, list) else []
     out = StringIO()
-    writer = csv.DictWriter(out, fieldnames=columns)
+    writer = csv.DictWriter(out, fieldnames=columns, delimiter=delimiter)
     writer.writeheader()
     for row in safe_rows:
         row_data = row if isinstance(row, dict) else {}
@@ -3013,7 +3038,8 @@ async def merge_export_csv_fallback(request: Request):
         if not isinstance(payload, dict):
             payload = {}
         merged = _build_merge_payload_result(payload)
-        csv_bytes = _merge_result_to_csv_bytes(merged)
+        csv_delimiter = _resolve_merge_csv_delimiter(payload)
+        csv_bytes = _merge_result_to_csv_bytes(merged, delimiter=csv_delimiter)
         suggested = str(payload.get("filename") or f"merge_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.csv").strip()
         safe = re.sub(r"[^A-Za-z0-9._-]+", "_", suggested) or "merge_export.csv"
         if not safe.lower().endswith(".csv"):
@@ -3073,6 +3099,7 @@ async def merge_build_and_save_fallback(request: Request):
         if not isinstance(payload, dict):
             payload = {}
         merged = _build_merge_payload_result(payload)
+        csv_delimiter = _resolve_merge_csv_delimiter(payload)
         source_id = normalize_source_id(payload.get("source_id")) or "1"
         title = str(payload.get("source_title") or f"Merge {source_id}").strip() or f"Merge {source_id}"
         save_mode = str(payload.get("save_mode") or "csv").strip().lower()
@@ -3096,7 +3123,7 @@ async def merge_build_and_save_fallback(request: Request):
                     insert_sql = f'INSERT INTO "{table_name}" ({quoted_columns}) VALUES ({placeholders})'
                     conn.executemany(insert_sql, [[str(row.get(c, "")) for c in columns] for row in rows])
         with out_file.open("w", encoding="utf-8-sig", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=columns)
+            writer = csv.DictWriter(f, fieldnames=columns, delimiter=csv_delimiter)
             writer.writeheader()
             for row in rows:
                 writer.writerow({c: row.get(c, "") for c in columns})
@@ -3105,7 +3132,14 @@ async def merge_build_and_save_fallback(request: Request):
         data = load_sources_data()
         items = data.get("items", [])
         new_item = normalize_source_item(
-            {"id": source_id, "title": title, "type": "csv", "path": str(out_file), "delimiter": ",", "encoding": "utf-8-sig"}
+            {
+                "id": source_id,
+                "title": title,
+                "type": "csv",
+                "path": str(out_file),
+                "delimiter": csv_delimiter,
+                "encoding": "utf-8-sig",
+            }
         )
         if not new_item:
             raise ValueError("Impossibile creare sorgente merge.")
@@ -3135,9 +3169,10 @@ async def merge_build_and_save_fallback(request: Request):
                 if isinstance(s, dict) and str(s.get("source_id", "")).strip()
             ],
             "import_data_path": str(import_file),
+            "csv_delimiter": csv_delimiter,
         }
         _save_merge_definitions(defs)
-        return {"ok": True, "source": new_item, "merge": merged, "save_mode": save_mode}
+        return {"ok": True, "source": new_item, "merge": merged, "save_mode": save_mode, "csv_delimiter": csv_delimiter}
     except ValueError as exc:
         return JSONResponse({"error": str(exc)}, status_code=400)
     except Exception as exc:

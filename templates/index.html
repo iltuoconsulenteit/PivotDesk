@@ -2080,6 +2080,15 @@ window.LICENSE_CONTEXT = {
         <input id="settingPivotCaseSensitive" type="checkbox">
         <label for="settingPivotCaseSensitive" style="margin:0;">Pivot case-sensitive (A ≠ a)</label>
       </div>
+      <div class="field" style="margin-top:10px;">
+        <label for="settingMergeCsvDelimiter">Separatore CSV merge (default export/salvataggio)</label>
+        <select id="settingMergeCsvDelimiter">
+          <option value=";">Punto e virgola (;)</option>
+          <option value=",">Virgola (,)</option>
+          <option value="\t">Tab (TAB)</option>
+          <option value="|">Pipe (|)</option>
+        </select>
+      </div>
     </div>
 
     <div class="settings-backup-box" style="margin-top:12px;">
@@ -2446,7 +2455,8 @@ let BUILDER_MODE = "new";
 let BUILDER_EDITING_ID = null;
 let SETTINGS = {
   print_show_logos: true,
-  language: "en"
+  language: "en",
+  merge_csv_delimiter: ";"
 };
 let PLUGINS_STATUS = null;
 let API_SCHEDULER_JOBS = [];
@@ -2941,6 +2951,8 @@ function renderSettingsForm(){
   if (langSelect) langSelect.value = (SETTINGS.language || "en");
   const topLang = document.getElementById("appLanguageSelect");
   if (topLang) topLang.value = (SETTINGS.language || "en");
+  const mergeDelim = document.getElementById("settingMergeCsvDelimiter");
+  if (mergeDelim) mergeDelim.value = String(SETTINGS.merge_csv_delimiter || ";");
   renderPluginsSettingsList();
   applyI18n();
 }
@@ -3011,9 +3023,10 @@ async function savePluginsConfigFromSettings(){
 
 async function loadSettings(){
   const j = await api("/settings");
-  SETTINGS = j.settings || { print_show_logos: true, language: "en", pivot_case_sensitive: false };
+  SETTINGS = j.settings || { print_show_logos: true, language: "en", pivot_case_sensitive: false, merge_csv_delimiter: ";" };
   if (!SETTINGS.language) SETTINGS.language = "en";
   SETTINGS.pivot_case_sensitive = !!SETTINGS.pivot_case_sensitive;
+  if (![";", ",", "\t", "|"].includes(String(SETTINGS.merge_csv_delimiter || ""))) SETTINGS.merge_csv_delimiter = ";";
   try {
     await loadPluginsStatus();
   } catch (_e) {
@@ -3026,7 +3039,8 @@ async function saveSettingsFromForm(){
   const payload = {
     print_show_logos: document.getElementById("settingPrintShowLogos").checked,
     language: (document.getElementById("settingLanguage").value || "en").toLowerCase(),
-    pivot_case_sensitive: document.getElementById("settingPivotCaseSensitive").checked
+    pivot_case_sensitive: document.getElementById("settingPivotCaseSensitive").checked,
+    merge_csv_delimiter: String(document.getElementById("settingMergeCsvDelimiter")?.value || ";")
   };
   const j = await api("/settings/save", {
     method: "POST",
@@ -3897,8 +3911,9 @@ async function handleMergeActionClick(action){
     if (key === "save_source") {
       setMergeStatus("Salvataggio sorgente merge in corso...");
       setStatus("Salvataggio sorgente merge in corso...");
-      await saveMultiSourceMergeAsSourceFromUi();
-      setMergeStatus("Sorgente merge salvata.");
+      const saved = await saveMultiSourceMergeAsSourceFromUi();
+      const suffix = saved?.rows != null ? (" (righe: " + String(saved.rows) + ")") : "";
+      setMergeStatus("Sorgente merge salvata." + suffix);
       return;
     }
     if (key === "save_template_full") {
@@ -4450,12 +4465,14 @@ async function saveMultiSourceMergeAsSourceFromUi(){
   const source_title = String(document.getElementById("mergeNewSourceTitle")?.value || "").trim();
   if (!source_id) throw new Error("Impossibile generare source_id merge.");
   const finalTitle = source_title || "Merge " + source_id;
+  const csv_delimiter = String(SETTINGS.merge_csv_delimiter || ";");
   const res = await api("/plugin/multi-source-merge/build-and-save-source", {
     method: "POST",
     body: JSON.stringify({
       ...base,
       source_id,
       source_title: finalTitle,
+      csv_delimiter,
       set_default: false
     })
   });
@@ -4466,7 +4483,13 @@ async function saveMultiSourceMergeAsSourceFromUi(){
     setSourcePluginOutput(res);
   }
   await refreshAll().catch(() => {});
-  setStatus("Nuova sorgente merge salvata: " + source_id);
+  const rows = Number(res?.merge?.row_count || 0);
+  const usedDelimiter = String(res?.csv_delimiter || csv_delimiter || ";");
+  const delimLabel = usedDelimiter === "\t" ? "TAB" : usedDelimiter;
+  const message = "Nuova sorgente merge salvata: " + source_id + " · righe: " + String(rows) + " · separatore CSV: " + delimLabel;
+  setStatus(message);
+  try { window.alert(message); } catch (_e) {}
+  return { source_id, rows, delimiter: usedDelimiter };
 }
 
 async function exportMultiSourceMergeCsvFromUi(){
@@ -4476,10 +4499,11 @@ async function exportMultiSourceMergeCsvFromUi(){
   const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
   const rawName = sourceTitle || ("merge_" + (sourceId || stamp));
   const filename = rawName.replace(/[^A-Za-z0-9._-]+/g, "_").replace(/_+/g, "_") + ".csv";
+  const csv_delimiter = String(SETTINGS.merge_csv_delimiter || ";");
   const r = await fetch("/plugin/multi-source-merge/export-csv", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ...base, filename })
+    body: JSON.stringify({ ...base, filename, csv_delimiter })
   });
   if (!r.ok) {
     const err = await r.json().catch(() => ({}));
@@ -4498,7 +4522,8 @@ async function exportMultiSourceMergeCsvFromUi(){
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
-  setStatus("CSV merge esportato: " + downloadedName);
+  const delimLabel = csv_delimiter === "\t" ? "TAB" : csv_delimiter;
+  setStatus("CSV merge esportato: " + downloadedName + " · separatore: " + delimLabel);
 }
 
 async function refreshMultiMergeSourceFromUi(){

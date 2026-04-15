@@ -34,6 +34,7 @@ class MultiMergeSaveRequest(MultiMergeRequest):
     source_id: str = Field(..., min_length=2)
     source_title: str = Field(..., min_length=2)
     set_default: bool = False
+    csv_delimiter: str = ";"
 
 
 class MergeTemplateHeadersRequest(BaseModel):
@@ -70,6 +71,7 @@ class MergeTemplateBuildRequest(BaseModel):
 
 class MergeExportCsvRequest(MultiMergeRequest):
     filename: str | None = None
+    csv_delimiter: str = ";"
 
 
 def _apply_calc(df, defs: list[dict[str, Any]]):
@@ -419,14 +421,19 @@ def _build_merge_result(plugin_api, payload: MultiMergeRequest) -> dict[str, Any
     }
 
 
-def _merge_result_to_csv_bytes(merge_result: dict[str, Any]) -> bytes:
+def _normalize_csv_delimiter(value: Any) -> str:
+    raw = str(value or ";")
+    return raw if raw in {",", ";", "\t", "|"} else ";"
+
+
+def _merge_result_to_csv_bytes(merge_result: dict[str, Any], delimiter: str = ";") -> bytes:
     columns = [str(c) for c in (merge_result.get("columns") or [])]
     rows = merge_result.get("rows") if isinstance(merge_result, dict) else []
     safe_rows = rows if isinstance(rows, list) else []
     from io import StringIO
 
     out = StringIO()
-    writer = csv.DictWriter(out, fieldnames=columns)
+    writer = csv.DictWriter(out, fieldnames=columns, delimiter=_normalize_csv_delimiter(delimiter))
     writer.writeheader()
     for row in safe_rows:
         row_data = row if isinstance(row, dict) else {}
@@ -476,7 +483,7 @@ def register(app, plugin_api, manifest):
             raise HTTPException(status_code=500, detail="Plugin API incompleta")
         try:
             merged = _build_merge_result(plugin_api, payload)
-            csv_bytes = _merge_result_to_csv_bytes(merged)
+            csv_bytes = _merge_result_to_csv_bytes(merged, delimiter=_normalize_csv_delimiter(payload.csv_delimiter))
             suggested = str(payload.filename or f"merge_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.csv").strip()
             safe = re.sub(r"[^A-Za-z0-9._-]+", "_", suggested) or "merge_export.csv"
             if not safe.lower().endswith(".csv"):
@@ -645,8 +652,9 @@ def register(app, plugin_api, manifest):
             out_file = out_dir / f"{source_id}.csv"
             columns = [str(c) for c in (merged.get("columns") or [])]
             rows = merged.get("rows") or []
+            csv_delimiter = _normalize_csv_delimiter(payload.csv_delimiter)
             with out_file.open("w", encoding="utf-8-sig", newline="") as f:
-                writer = csv.DictWriter(f, fieldnames=columns)
+                writer = csv.DictWriter(f, fieldnames=columns, delimiter=csv_delimiter)
                 writer.writeheader()
                 for row in rows:
                     writer.writerow({c: row.get(c, "") for c in columns})
@@ -661,7 +669,7 @@ def register(app, plugin_api, manifest):
                 "title": source_title,
                 "type": "csv",
                 "path": str(out_file),
-                "delimiter": ",",
+                "delimiter": csv_delimiter,
                 "encoding": "utf-8-sig",
                 "options": {"generated_by": "multi_source_merge", "import_data_path": str(import_file)},
             }
@@ -677,7 +685,7 @@ def register(app, plugin_api, manifest):
             if payload.set_default:
                 bundle["default_source"] = source_id
             save_sources(bundle)
-            return {"ok": True, "source": item, "merge": merged}
+            return {"ok": True, "source": item, "merge": merged, "csv_delimiter": csv_delimiter}
         except HTTPException:
             raise
         except Exception as exc:
