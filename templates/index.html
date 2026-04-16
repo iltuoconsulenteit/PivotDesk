@@ -229,6 +229,13 @@
     body.wiki-open #mainView{
       margin-right:var(--wiki-drawer-width);
     }
+    #mainView.module-header-only .compact-pivot-layout,
+    #mainView.module-header-only #columnsPanel,
+    #mainView.module-header-only #status,
+    #mainView.module-header-only #report,
+    #mainView.module-header-only .footer{
+      display:none !important;
+    }
     .wiki-drawer{
       position:fixed;
       top:0;
@@ -3464,6 +3471,7 @@ function closeModuleScreens(){
   restoreModulePanesToOriginalHosts();
   document.getElementById("mergeModuleScreen")?.classList.remove("active");
   document.getElementById("apiSchedulerModuleScreen")?.classList.remove("active");
+  document.getElementById("mainView")?.classList.remove("module-header-only");
 }
 
 function closeDedicatedModuleScreen(){
@@ -3478,7 +3486,10 @@ function openDedicatedModuleScreen(moduleKey){
   const settingsScreen = document.getElementById("settingsScreen");
   const mergeModuleScreen = document.getElementById("mergeModuleScreen");
   const apiModuleScreen = document.getElementById("apiSchedulerModuleScreen");
-  if (mainView) mainView.classList.add("hidden");
+  if (mainView) {
+    mainView.classList.remove("hidden");
+    mainView.classList.add("module-header-only");
+  }
   if (builderScreen) builderScreen.classList.remove("active");
   if (sourcesScreen) sourcesScreen.classList.remove("active");
   if (settingsScreen) settingsScreen.classList.remove("active");
