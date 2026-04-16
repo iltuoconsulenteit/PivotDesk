@@ -1271,8 +1271,8 @@ window.LICENSE_CONTEXT = {
         <div class="menu-group">
           <button type="button" class="menu-btn" data-menu-target="menu-modules">Moduli</button>
           <div class="menu-dropdown hidden" id="menu-modules">
-            <button type="button" id="menuOpenMergeModule">Merge sorgenti (plugin)</button>
-            <button type="button" id="menuOpenApiSchedulerModule">Scheduler API (plugin)</button>
+            <button type="button" id="menuOpenMergeModule">Merge sorgenti</button>
+            <button type="button" id="menuOpenApiSchedulerModule">Scheduler API</button>
           </div>
         </div>
       </div>
@@ -3966,8 +3966,8 @@ async function loadMergeTemplatesIntoUi(keepSelection = true){
   });
   if (current && MERGE_TEMPLATES.some(t => String(t?.template_id || "").trim() === current)) {
     sel.value = current;
-  } else if (MERGE_TEMPLATES.length) {
-    sel.value = String(MERGE_TEMPLATES[0]?.template_id || "").trim();
+  } else {
+    sel.value = "";
   }
   suggestMergeTemplateIdentity(false);
   return MERGE_TEMPLATES;
@@ -4990,8 +4990,7 @@ async function initSourcePluginBuilders(){
     loadTemplatesBtn.dataset.bound = "1";
     loadTemplatesBtn.addEventListener("click", async () => {
       try {
-        await loadMergeTemplatesIntoUi(true);
-        await applySelectedMergeTemplateToUi();
+        await loadMergeTemplatesIntoUi(false);
         setStatus("Template merge aggiornati.");
       } catch (e) {
         setStatus("ERRORE ricarica template: " + (e?.message || e));
@@ -5092,7 +5091,7 @@ async function initSourcePluginBuilders(){
       mergeTemplateFromSource.value = current;
     }
   }
-  await loadMergeTemplatesIntoUi(true).catch(() => []);
+  await loadMergeTemplatesIntoUi(false).catch(() => []);
   await loadApiSchedulerJobsIntoUi(true).catch(() => []);
   suggestMergeTemplateIdentity(false);
   renderMergeTemplateColumnChips();
