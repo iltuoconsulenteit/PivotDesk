@@ -2632,6 +2632,7 @@ let PLUGINS_STATUS = null;
 let MODULES_STATUS = null;
 let API_SCHEDULER_JOBS = [];
 let SOURCE_SCREEN_CONTEXT = { return_to_module: "", keep_header: true };
+let CATALOG_SCREEN_CONTEXT = { return_to_screen: "main" };
 const MODULE_PANE_HOSTS = {
   pluginToolMerge: null,
   pluginToolApiScheduler: null
@@ -3178,7 +3179,7 @@ function openSourceEditorFromCatalog(sourceId){
   if (src) {
     loadSourceIntoForm(src);
     setSourceManagerTab("base");
-    setStatus("Modifica sorgente: " + String(src.title || src.id));
+    setStatus(translateText("catalog_status_edit_source") + ": " + String(src.title || src.id));
   }
 }
 window.openSourceEditorFromCatalog = openSourceEditorFromCatalog;
@@ -3186,7 +3187,10 @@ window.openSourceEditorFromCatalog = openSourceEditorFromCatalog;
 async function deleteSourceFromCatalog(sourceId){
   const wanted = String(sourceId || "").trim();
   if (!wanted) return;
-  const ok = window.confirm('Confermi eliminazione sorgente "' + wanted + '"?\nI preset non vengono eliminati automaticamente.');
+  const ok = window.confirm(
+    translateText("catalog_confirm_delete_source_prefix") + ' "' + wanted + '"?\n' +
+    translateText("catalog_confirm_delete_source_note")
+  );
   if (!ok) return;
   try {
     await api("/sources/delete", {
@@ -3197,9 +3201,9 @@ async function deleteSourceFromCatalog(sourceId){
     await loadFields();
     await loadPresets();
     await renderCatalogScreen();
-    setStatus("Sorgente eliminata: " + wanted);
+    setStatus(translateText("catalog_status_deleted_source") + ": " + wanted);
   } catch (e) {
-    setStatus("ERRORE eliminazione sorgente: " + (e?.message || e));
+    setStatus(translateText("catalog_error_delete_source") + ": " + (e?.message || e));
   }
 }
 window.deleteSourceFromCatalog = deleteSourceFromCatalog;
@@ -3209,11 +3213,13 @@ async function openPivotEditorFromCatalog(pivotId, sourceId){
   const wantedSource = String(sourceId || "").trim();
   if (!wantedPivot || !wantedSource) return;
   try {
-    CURRENT_SOURCE = wantedSource;
+    const resolvedSource = (SOURCES || []).find(s => String(s?.id || "").trim() === wantedSource)
+      || (SOURCES || []).find(s => String(s?.config?.legacy_source_id || "").trim() === wantedSource);
+    CURRENT_SOURCE = String(resolvedSource?.id || wantedSource).trim();
     await loadSources();
-    if ((SOURCES || []).some(s => String(s?.id || "").trim() === wantedSource)) {
-      const sel = document.getElementById("sourceSelect");
-      if (sel) sel.value = wantedSource;
+    const sel = document.getElementById("sourceSelect");
+    if (sel && (SOURCES || []).some(s => String(s?.id || "").trim() === CURRENT_SOURCE)) {
+      sel.value = CURRENT_SOURCE;
     }
     await loadFields();
     await loadPresets();
@@ -3221,12 +3227,12 @@ async function openPivotEditorFromCatalog(pivotId, sourceId){
     if (target) {
       CURRENT = wantedPivot;
       openBuilderForCurrentPreset();
-      setStatus("Modifica pivot: " + String(target.title || target.id));
+      setStatus(translateText("catalog_status_edit_pivot") + ": " + String(target.title || target.id));
       return;
     }
-    setStatus("Preset non trovato per la sorgente selezionata.");
+    setStatus(translateText("catalog_status_pivot_not_found"));
   } catch (e) {
-    setStatus("ERRORE apertura pivot: " + (e?.message || e));
+    setStatus(translateText("catalog_error_open_pivot") + ": " + (e?.message || e));
   }
 }
 window.openPivotEditorFromCatalog = openPivotEditorFromCatalog;
@@ -3235,7 +3241,7 @@ async function deletePivotFromCatalog(pivotId, sourceId, filename){
   const wantedPivot = String(pivotId || "").trim();
   const wantedSource = String(sourceId || "").trim();
   if (!wantedPivot || !wantedSource) return;
-  const ok = window.confirm('Confermi eliminazione pivot "' + wantedPivot + '"?');
+  const ok = window.confirm(translateText("catalog_confirm_delete_pivot_prefix") + ' "' + wantedPivot + '"?');
   if (!ok) return;
   try {
     await api("/preset-editor/delete", {
@@ -3250,14 +3256,20 @@ async function deletePivotFromCatalog(pivotId, sourceId, filename){
       await loadPresets();
     }
     await renderCatalogScreen();
-    setStatus("Pivot eliminata: " + wantedPivot);
+    setStatus(translateText("catalog_status_deleted_pivot") + ": " + wantedPivot);
   } catch (e) {
-    setStatus("ERRORE eliminazione pivot: " + (e?.message || e));
+    setStatus(translateText("catalog_error_delete_pivot") + ": " + (e?.message || e));
   }
 }
 window.deletePivotFromCatalog = deletePivotFromCatalog;
 
 async function openCatalogScreen(){
+  const fromBuilder = document.getElementById("builderScreen")?.classList.contains("active");
+  const fromSources = document.getElementById("sourcesScreen")?.classList.contains("active");
+  const fromSettings = document.getElementById("settingsScreen")?.classList.contains("active");
+  CATALOG_SCREEN_CONTEXT = {
+    return_to_screen: fromBuilder ? "builder" : (fromSources ? "sources" : (fromSettings ? "settings" : "main"))
+  };
   closeModuleScreens();
   closeInlineModulePanel();
   document.getElementById("mainView").classList.remove("hidden");
@@ -3273,6 +3285,19 @@ async function openCatalogScreen(){
 function closeCatalogScreen(){
   closeModuleScreens();
   document.getElementById("catalogScreen").classList.remove("active");
+  const backTo = String(CATALOG_SCREEN_CONTEXT?.return_to_screen || "main");
+  if (backTo === "builder") {
+    openBuilderScreen();
+    return;
+  }
+  if (backTo === "sources") {
+    openSourcesScreen({ keep_header: true });
+    return;
+  }
+  if (backTo === "settings") {
+    openSettingsScreen();
+    return;
+  }
   document.getElementById("mainView").classList.remove("hidden");
   document.getElementById("mainView").classList.remove("module-header-only");
   window.scrollTo({ top: 0, behavior: "smooth" });

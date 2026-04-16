@@ -83,7 +83,18 @@
   "catalog_total_pivots": "Totale pivot/preset",
   "catalog_source_type": "tipo",
   "catalog_pivot_source_id": "source_id",
-  "catalog_pivots_load_error": "Errore caricamento pivot"
+  "catalog_pivots_load_error": "Errore caricamento pivot",
+  "catalog_status_edit_source": "Modifica sorgente",
+  "catalog_confirm_delete_source_prefix": "Confermi eliminazione sorgente",
+  "catalog_confirm_delete_source_note": "I preset pivot non vengono eliminati automaticamente.",
+  "catalog_status_deleted_source": "Sorgente eliminata",
+  "catalog_error_delete_source": "Errore eliminazione sorgente",
+  "catalog_status_edit_pivot": "Modifica pivot",
+  "catalog_status_pivot_not_found": "Preset non trovato per la sorgente selezionata.",
+  "catalog_error_open_pivot": "Errore apertura pivot",
+  "catalog_confirm_delete_pivot_prefix": "Confermi eliminazione pivot",
+  "catalog_status_deleted_pivot": "Pivot eliminata",
+  "catalog_error_delete_pivot": "Errore eliminazione pivot"
   ,"users_management": "Gestione utenti"
   ,"users_management_subtitle": "Amministrazione accessi e profili multiutente di PivotDesk in ambiente LAN."
   ,"open_pivotdesk": "Apri PivotDesk"

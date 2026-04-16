@@ -83,7 +83,18 @@
   "catalog_total_pivots": "Total pivots/presets",
   "catalog_source_type": "type",
   "catalog_pivot_source_id": "source_id",
-  "catalog_pivots_load_error": "Error loading pivots"
+  "catalog_pivots_load_error": "Error loading pivots",
+  "catalog_status_edit_source": "Editing source",
+  "catalog_confirm_delete_source_prefix": "Confirm source deletion",
+  "catalog_confirm_delete_source_note": "Pivot presets are not deleted automatically.",
+  "catalog_status_deleted_source": "Source deleted",
+  "catalog_error_delete_source": "Source deletion error",
+  "catalog_status_edit_pivot": "Editing pivot",
+  "catalog_status_pivot_not_found": "Preset not found for selected source.",
+  "catalog_error_open_pivot": "Pivot open error",
+  "catalog_confirm_delete_pivot_prefix": "Confirm pivot deletion",
+  "catalog_status_deleted_pivot": "Pivot deleted",
+  "catalog_error_delete_pivot": "Pivot deletion error"
   ,"users_management": "User management"
   ,"users_management_subtitle": "Manage access and multi-user profiles in PivotDesk LAN environments."
   ,"open_pivotdesk": "Open PivotDesk"
