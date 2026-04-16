@@ -2521,7 +2521,7 @@ let SETTINGS = {
 };
 let PLUGINS_STATUS = null;
 let API_SCHEDULER_JOBS = [];
-let SOURCE_SCREEN_CONTEXT = { return_to_module: "", keep_header: false };
+let SOURCE_SCREEN_CONTEXT = { return_to_module: "", keep_header: true };
 const MODULE_PANE_HOSTS = {
   pluginToolMerge: null,
   pluginToolApiScheduler: null
@@ -3478,15 +3478,16 @@ function openBuilderForCurrentPreset(){
 }
 
 function openSourcesScreen(options = {}){
+  const keepHeader = options.keep_header !== false;
   SOURCE_SCREEN_CONTEXT = {
     return_to_module: String(options.return_to_module || "").trim(),
-    keep_header: !!options.keep_header
+    keep_header: keepHeader
   };
   closeModuleScreens();
   closeInlineModulePanel();
   const mainView = document.getElementById("mainView");
   if (mainView) {
-    if (SOURCE_SCREEN_CONTEXT.keep_header) {
+    if (keepHeader) {
       mainView.classList.remove("hidden");
       mainView.classList.add("module-header-only");
     } else {
@@ -4912,7 +4913,7 @@ function closeSourcesScreen(){
     document.getElementById("mainView").classList.remove("module-header-only");
     closeInlineModulePanel();
   }
-  SOURCE_SCREEN_CONTEXT = { return_to_module: "", keep_header: false };
+  SOURCE_SCREEN_CONTEXT = { return_to_module: "", keep_header: true };
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
