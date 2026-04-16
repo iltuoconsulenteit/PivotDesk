@@ -130,6 +130,8 @@ Change this password immediately in shared environments.
 - LAN diagnostics/probe/firewall helper endpoints.
 - Customer branding (logo upload + rendering in UI/print contexts).
 - Backup/restore endpoints for presets/settings.
+- Settings screen with accordion sections and dedicated visibility for both module registry (`/modules`) and plugin runtime status.
+- Catalog module for unified listing of all data sources and pivot presets (uses `GET /pivots/all` for cross-source preset inventory).
 - UI localization (English/Italian).
 
 ## UI structure previews

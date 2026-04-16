@@ -4524,6 +4524,27 @@ def pivots(source_id: str = Query(...)):
         return JSONResponse({"error": str(exc)}, status_code=500)
 
 
+@app.get("/pivots/all")
+def pivots_all(request: Request):
+    if not require_login(request):
+        return JSONResponse({"error": "Non autenticato"}, status_code=401)
+    try:
+        items = load_pivot_files()
+        compact = [
+            {
+                "id": str(row.get("id", "")).strip(),
+                "title": str(row.get("title") or row.get("id") or "").strip(),
+                "source_id": str(row.get("source_id", "")).strip(),
+                "filename": str(row.get("_filename") or "").strip(),
+            }
+            for row in items
+            if isinstance(row, dict) and str(row.get("id", "")).strip()
+        ]
+        return {"items": compact, "count": len(compact)}
+    except Exception as exc:
+        return JSONResponse({"error": str(exc)}, status_code=500)
+
+
 @app.get("/filter-values")
 def filter_values(
     source_id: str = Query(...),

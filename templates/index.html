@@ -1073,6 +1073,52 @@
       flex-wrap: wrap;
       margin-top: 10px;
     }
+    .settings-accordion{
+      margin-top:12px;
+      display:grid;
+      gap:10px;
+    }
+    .settings-accordion details{
+      border:1px solid #d8e2ec;
+      border-radius:12px;
+      background:#fff;
+      overflow:hidden;
+    }
+    .settings-accordion summary{
+      cursor:pointer;
+      list-style:none;
+      padding:12px 14px;
+      font-weight:700;
+      color:#1d2939;
+      border-bottom:1px solid transparent;
+    }
+    .settings-accordion details[open] summary{
+      border-bottom-color:#eaecf0;
+      background:#f8fafc;
+    }
+    .settings-accordion-content{
+      padding:12px 14px;
+    }
+    .catalog-grid{
+      display:grid;
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:12px;
+    }
+    .catalog-list{
+      display:grid;
+      gap:8px;
+      max-height:340px;
+      overflow:auto;
+    }
+    .catalog-item{
+      border:1px solid #eaecf0;
+      border-radius:10px;
+      padding:8px 10px;
+      background:#fff;
+    }
+    @media (max-width: 980px){
+      .catalog-grid{ grid-template-columns:1fr; }
+    }
     .formula-drop-active {
       border-color: #175cd3 !important;
       box-shadow: 0 0 0 3px rgba(23,92,211,.14);
@@ -1233,6 +1279,7 @@ window.LICENSE_CONTEXT = {
           <button type="button" class="menu-btn" data-menu-target="menu-data" data-i18n="menu_data">Dati</button>
           <div class="menu-dropdown hidden" id="menu-data">
             <button type="button" id="menuReload" data-i18n="menu_reload">Ricarica</button>
+            <button type="button" id="menuOpenCatalog">Elenco sorgenti e pivot</button>
             <button type="button" id="menuOpenSources" data-i18n="menu_manage_sources">Gestisci sorgenti dati</button>
             <button type="button" id="menuToggleColumns" data-i18n="menu_toggle_columns">Mostra/Nascondi colonne CSV</button>
           </div>
@@ -2123,67 +2170,106 @@ window.LICENSE_CONTEXT = {
       </div>
     </div>
 
-    <div class="card">
-      <div class="field" style="margin-bottom:10px;">
-        <label for="settingLanguage" data-i18n="settings_language_label">Lingua interfaccia</label>
-        <select id="settingLanguage">
-          <option value="it">Italiano</option>
-          <option value="en">English</option>
-        </select>
-      </div>
-      <div class="settings-line">
-        <input id="settingPrintShowLogos" type="checkbox">
-        <label for="settingPrintShowLogos" style="margin:0;" data-i18n="settings_print_logos">Mostra i loghi nella stampa</label>
-      </div>
-      <div class="settings-line">
-        <input id="settingPivotCaseSensitive" type="checkbox">
-        <label for="settingPivotCaseSensitive" style="margin:0;">Pivot case-sensitive (A ≠ a)</label>
-      </div>
-      <div class="field" style="margin-top:10px;">
-        <label for="settingMergeCsvDelimiter">Separatore CSV merge (default export/salvataggio)</label>
-        <select id="settingMergeCsvDelimiter">
-          <option value=";">Punto e virgola (;)</option>
-          <option value=",">Virgola (,)</option>
-          <option value="\t">Tab (TAB)</option>
-          <option value="|">Pipe (|)</option>
-        </select>
-      </div>
-    </div>
+    <div class="settings-accordion">
+      <details open>
+        <summary>Impostazioni generali</summary>
+        <div class="settings-accordion-content">
+          <div class="field" style="margin-bottom:10px;">
+            <label for="settingLanguage" data-i18n="settings_language_label">Lingua interfaccia</label>
+            <select id="settingLanguage">
+              <option value="it">Italiano</option>
+              <option value="en">English</option>
+            </select>
+          </div>
+          <div class="settings-line">
+            <input id="settingPrintShowLogos" type="checkbox">
+            <label for="settingPrintShowLogos" style="margin:0;" data-i18n="settings_print_logos">Mostra i loghi nella stampa</label>
+          </div>
+          <div class="settings-line">
+            <input id="settingPivotCaseSensitive" type="checkbox">
+            <label for="settingPivotCaseSensitive" style="margin:0;">Pivot case-sensitive (A ≠ a)</label>
+          </div>
+          <div class="field" style="margin-top:10px;">
+            <label for="settingMergeCsvDelimiter">Separatore CSV merge (default export/salvataggio)</label>
+            <select id="settingMergeCsvDelimiter">
+              <option value=";">Punto e virgola (;)</option>
+              <option value=",">Virgola (,)</option>
+              <option value="\t">Tab (TAB)</option>
+              <option value="|">Pipe (|)</option>
+            </select>
+          </div>
+          <div class="builder-actions">
+            <button id="btnSaveSettings" type="button" class="primary" data-i18n="settings_save">Salva impostazioni</button>
+          </div>
+        </div>
+      </details>
 
-    <div class="settings-backup-box" style="margin-top:12px;">
-      <div class="section-title" style="font-size:15px; margin-bottom:2px;">Plugin (developer/admin)</div>
-      <div class="small" style="margin-bottom:8px;">Mostra stato plugin, licenza e abilitazione runtime. Le modifiche di configurazione richiedono riavvio.</div>
-      <div id="pluginsSettingsStatus" class="small" style="margin-bottom:8px; color:#475467;">Caricamento plugin...</div>
-      <div id="pluginsSettingsList" style="display:grid; gap:8px;"></div>
-      <div class="settings-backup-actions" style="margin-top:10px;">
-        <button id="btnReloadPluginsStatus" type="button">Ricarica plugin</button>
-        <button id="btnSavePluginsConfig" type="button" class="primary">Salva configurazione plugin</button>
-      </div>
-    </div>
+      <details open>
+        <summary>Moduli e plugin (developer/admin)</summary>
+        <div class="settings-accordion-content">
+          <div class="small" style="margin-bottom:8px;">Mostra stato moduli, plugin, licenza e abilitazione runtime. Le modifiche di configurazione richiedono riavvio.</div>
+          <div id="modulesSettingsStatus" class="small" style="margin-bottom:8px; color:#475467;">Caricamento moduli...</div>
+          <div id="modulesSettingsList" style="display:grid; gap:8px; margin-bottom:10px;"></div>
+          <div id="pluginsSettingsStatus" class="small" style="margin-bottom:8px; color:#475467;">Caricamento plugin...</div>
+          <div id="pluginsSettingsList" style="display:grid; gap:8px;"></div>
+          <div class="settings-backup-actions" style="margin-top:10px;">
+            <button id="btnReloadPluginsStatus" type="button">Ricarica moduli/plugin</button>
+            <button id="btnSavePluginsConfig" type="button" class="primary">Salva configurazione plugin</button>
+          </div>
+        </div>
+      </details>
 
-    <div class="builder-actions">
-      <button id="btnSaveSettings" type="button" class="primary" data-i18n="settings_save">Salva impostazioni</button>
+      <details>
+        <summary>Backup & Restore</summary>
+        <div class="settings-accordion-content">
+          <div class="small">
+            Esporta/ripristina in modo selettivo preset, sorgenti, merge, impostazioni, utenti e job scheduler. Funzione disponibile con licenza attiva.
+          </div>
+          <div id="backupSectionsWrap" class="small" style="display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; margin-top:8px;">
+            <label><input type="checkbox" data-backup-section="settings" checked> Impostazioni</label>
+            <label><input type="checkbox" data-backup-section="presets" checked> Preset pivot</label>
+            <label><input type="checkbox" data-backup-section="sources" checked> Sorgenti</label>
+            <label><input type="checkbox" data-backup-section="merge" checked> Merge/templates</label>
+            <label><input type="checkbox" data-backup-section="users" checked> Utenti</label>
+            <label><input type="checkbox" data-backup-section="plugins" checked> Config plugin</label>
+            <label><input type="checkbox" data-backup-section="api_scheduler" checked> API scheduler jobs</label>
+          </div>
+          <div class="settings-backup-actions">
+            <button id="btnExportBackup" type="button">Esporta backup selettivo</button>
+            <button id="btnRestoreBackup" type="button">Ripristina backup</button>
+          </div>
+          <input id="backupRestoreFile" type="file" accept=".json,application/json" style="display:none;">
+        </div>
+      </details>
     </div>
+  </div>
+</div>
 
-    <div class="settings-backup-box">
-      <div class="section-title" style="font-size:15px; margin-bottom:2px;">Backup & Restore</div>
-      <div class="small">
-        Esporta/ripristina in modo selettivo preset, sorgenti, merge, impostazioni, utenti e job scheduler. Funzione disponibile con licenza attiva.
+<div id="catalogScreen" class="builder-screen">
+  <div class="builder-head module-screen-header">
+    <div class="builder-head-left">
+      <div class="section-title">Catalogo sorgenti e pivot</div>
+      <div class="small">Elenco centralizzato per consultare e gestire tutte le sorgenti e tutti i preset pivot.</div>
+    </div>
+    <div><button id="btnCloseCatalog" type="button">Chiudi modulo</button></div>
+  </div>
+  <div class="card">
+    <div class="settings-backup-actions" style="margin-top:0;">
+      <button id="btnRefreshCatalog" type="button">Aggiorna elenco</button>
+      <button id="btnCatalogOpenSources" type="button">Apri gestione sorgenti</button>
+      <button id="btnCatalogOpenBuilder" type="button">Apri costruttore pivot</button>
+    </div>
+    <div class="catalog-grid" style="margin-top:10px;">
+      <div class="card">
+        <div class="section-title" style="font-size:16px;">Sorgenti</div>
+        <div id="catalogSourcesCount" class="small" style="margin-bottom:8px;">Caricamento...</div>
+        <div id="catalogSourcesList" class="catalog-list"></div>
       </div>
-      <div id="backupSectionsWrap" class="small" style="display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; margin-top:8px;">
-        <label><input type="checkbox" data-backup-section="settings" checked> Impostazioni</label>
-        <label><input type="checkbox" data-backup-section="presets" checked> Preset pivot</label>
-        <label><input type="checkbox" data-backup-section="sources" checked> Sorgenti</label>
-        <label><input type="checkbox" data-backup-section="merge" checked> Merge/templates</label>
-        <label><input type="checkbox" data-backup-section="users" checked> Utenti</label>
-        <label><input type="checkbox" data-backup-section="plugins" checked> Config plugin</label>
-        <label><input type="checkbox" data-backup-section="api_scheduler" checked> API scheduler jobs</label>
+      <div class="card">
+        <div class="section-title" style="font-size:16px;">Pivot / Preset</div>
+        <div id="catalogPivotsCount" class="small" style="margin-bottom:8px;">Caricamento...</div>
+        <div id="catalogPivotsList" class="catalog-list"></div>
       </div>
-      <div class="settings-backup-actions">
-        <button id="btnExportBackup" type="button">Esporta backup selettivo</button>
-        <button id="btnRestoreBackup" type="button">Ripristina backup</button>
-      </div>
-      <input id="backupRestoreFile" type="file" accept=".json,application/json" style="display:none;">
     </div>
   </div>
 </div>
@@ -2519,6 +2605,7 @@ let SETTINGS = {
   merge_csv_delimiter: ";"
 };
 let PLUGINS_STATUS = null;
+let MODULES_STATUS = null;
 let API_SCHEDULER_JOBS = [];
 let SOURCE_SCREEN_CONTEXT = { return_to_module: "", keep_header: true };
 const MODULE_PANE_HOSTS = {
@@ -2990,6 +3077,7 @@ window.exportChartInteractiveHtml = exportChartInteractiveHtml;
 
 function openSettingsScreen(){
   closeModuleScreens();
+  document.getElementById("catalogScreen").classList.remove("active");
   document.getElementById("mainView").classList.add("hidden");
   document.getElementById("builderScreen").classList.remove("active");
   document.getElementById("sourcesScreen").classList.remove("active");
@@ -3005,6 +3093,60 @@ function closeSettingsScreen(){
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
+async function renderCatalogScreen(){
+  const srcWrap = document.getElementById("catalogSourcesList");
+  const pivWrap = document.getElementById("catalogPivotsList");
+  const srcCount = document.getElementById("catalogSourcesCount");
+  const pivCount = document.getElementById("catalogPivotsCount");
+  if (srcWrap) {
+    srcWrap.innerHTML = (SOURCES || []).map(src => (
+      "<div class='catalog-item'>" +
+        "<div><strong>" + escapeHtml(String(src?.title || src?.id || "")) + "</strong></div>" +
+        "<div class='small'>id: " + escapeHtml(String(src?.id || "")) + " · tipo: " + escapeHtml(String(src?.type || "n/a")) + "</div>" +
+      "</div>"
+    )).join("") || "<div class='small'>Nessuna sorgente disponibile.</div>";
+  }
+  if (srcCount) srcCount.textContent = "Totale sorgenti: " + String((SOURCES || []).length);
+
+  try {
+    const res = await api("/pivots/all");
+    const items = Array.isArray(res?.items) ? res.items : [];
+    if (pivWrap) {
+      pivWrap.innerHTML = items.map(p => (
+        "<div class='catalog-item'>" +
+          "<div><strong>" + escapeHtml(String(p?.title || p?.id || "")) + "</strong></div>" +
+          "<div class='small'>id: " + escapeHtml(String(p?.id || "")) + " · source_id: " + escapeHtml(String(p?.source_id || "")) + "</div>" +
+        "</div>"
+      )).join("") || "<div class='small'>Nessun preset pivot disponibile.</div>";
+    }
+    if (pivCount) pivCount.textContent = "Totale pivot/preset: " + String(items.length);
+  } catch (e) {
+    if (pivWrap) pivWrap.innerHTML = "<div class='small'>Errore caricamento pivot: " + escapeHtml(String(e?.message || e)) + "</div>";
+    if (pivCount) pivCount.textContent = "Totale pivot/preset: n/d";
+  }
+}
+
+async function openCatalogScreen(){
+  closeModuleScreens();
+  closeInlineModulePanel();
+  document.getElementById("mainView").classList.remove("hidden");
+  document.getElementById("mainView").classList.add("module-header-only");
+  document.getElementById("builderScreen").classList.remove("active");
+  document.getElementById("sourcesScreen").classList.remove("active");
+  document.getElementById("settingsScreen").classList.remove("active");
+  document.getElementById("catalogScreen").classList.add("active");
+  await renderCatalogScreen();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function closeCatalogScreen(){
+  closeModuleScreens();
+  document.getElementById("catalogScreen").classList.remove("active");
+  document.getElementById("mainView").classList.remove("hidden");
+  document.getElementById("mainView").classList.remove("module-header-only");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
 function renderSettingsForm(){
   document.getElementById("settingPrintShowLogos").checked = !!SETTINGS.print_show_logos;
   document.getElementById("settingPivotCaseSensitive").checked = !!SETTINGS.pivot_case_sensitive;
@@ -3014,6 +3156,7 @@ function renderSettingsForm(){
   if (topLang) topLang.value = (SETTINGS.language || "en");
   const mergeDelim = document.getElementById("settingMergeCsvDelimiter");
   if (mergeDelim) mergeDelim.value = String(SETTINGS.merge_csv_delimiter || ";");
+  renderModulesSettingsList();
   renderPluginsSettingsList();
   applyI18n();
 }
@@ -3064,6 +3207,42 @@ function renderPluginsSettingsList(){
   }).join("");
 }
 
+function renderModulesSettingsList(){
+  const list = document.getElementById("modulesSettingsList");
+  const status = document.getElementById("modulesSettingsStatus");
+  if (!list || !status) return;
+  const items = Array.isArray(MODULES_STATUS?.items) ? MODULES_STATUS.items : [];
+  if (!items.length) {
+    list.innerHTML = "<div class='small'>Nessun modulo disponibile.</div>";
+    status.textContent = "Nessun modulo rilevato.";
+    return;
+  }
+  status.textContent = "Moduli caricati: " + String(items.length) + ".";
+  list.innerHTML = items.map(m => {
+    const moduleId = String(m?.id || "");
+    const pluginId = String(m?.plugin_id || "");
+    const kind = String(m?.kind || "core");
+    const badge = kind === "core" ? "Modulo core" : "Modulo ibrido";
+    const note = pluginId ? ("Plugin collegato: " + pluginId) : "Gestito dal core";
+    return (
+      "<div class='catalog-item'>" +
+        "<div style='display:flex; justify-content:space-between; gap:8px; align-items:center;'>" +
+          "<strong>" + escapeHtml(String(m?.name || moduleId)) + "</strong>" +
+          "<span class='small' style='color:#667085;'>" + escapeHtml(badge) + "</span>" +
+        "</div>" +
+        "<div class='small' style='color:#475467; margin-top:2px;'>" + escapeHtml(String(m?.description || "Nessuna descrizione")) + "</div>" +
+        "<div class='small' style='color:#667085; margin-top:4px;'>id: " + escapeHtml(moduleId) + " · " + escapeHtml(note) + " · versione: " + escapeHtml(String(m?.version || "n/a")) + "</div>" +
+      "</div>"
+    );
+  }).join("");
+}
+
+async function loadModulesStatus(){
+  const data = await api("/modules");
+  MODULES_STATUS = data || { items: [] };
+  renderModulesSettingsList();
+}
+
 async function loadPluginsStatus(){
   const data = await api("/plugins/status");
   PLUGINS_STATUS = data || { plugins: [] };
@@ -3092,6 +3271,11 @@ async function loadSettings(){
   if (!SETTINGS.language) SETTINGS.language = "en";
   SETTINGS.pivot_case_sensitive = !!SETTINGS.pivot_case_sensitive;
   if (![";", ",", "\t", "|"].includes(String(SETTINGS.merge_csv_delimiter || ""))) SETTINGS.merge_csv_delimiter = ";";
+  try {
+    await loadModulesStatus();
+  } catch (_e) {
+    // eventuali limitazioni non devono bloccare il caricamento impostazioni
+  }
   try {
     await loadPluginsStatus();
   } catch (_e) {
@@ -3435,6 +3619,7 @@ function openBuilderScreen(){
   document.getElementById("mainView").classList.add("module-header-only");
   document.getElementById("sourcesScreen").classList.remove("active");
   document.getElementById("settingsScreen").classList.remove("active");
+  document.getElementById("catalogScreen").classList.remove("active");
   document.getElementById("builderScreen").classList.add("active");
   setScreenActionStatus("builder", "");
   window.scrollTo({ top: 0, behavior: "smooth" });
@@ -3497,6 +3682,7 @@ function openSourcesScreen(options = {}){
   }
   document.getElementById("builderScreen").classList.remove("active");
   document.getElementById("settingsScreen").classList.remove("active");
+  document.getElementById("catalogScreen").classList.remove("active");
   document.getElementById("sourcesScreen").classList.add("active");
   renderSourcesManager();
   bindSourceUiButtons();
@@ -3545,6 +3731,7 @@ function closeModuleScreens(){
   restoreModulePanesToOriginalHosts();
   document.getElementById("mergeModuleScreen")?.classList.remove("active");
   document.getElementById("apiSchedulerModuleScreen")?.classList.remove("active");
+  document.getElementById("catalogScreen")?.classList.remove("active");
   document.getElementById("mainView")?.classList.remove("module-header-only");
 }
 
@@ -3583,6 +3770,7 @@ function openDedicatedModuleScreen(moduleKey){
   const builderScreen = document.getElementById("builderScreen");
   const sourcesScreen = document.getElementById("sourcesScreen");
   const settingsScreen = document.getElementById("settingsScreen");
+  const catalogScreen = document.getElementById("catalogScreen");
   const mergeModuleScreen = document.getElementById("mergeModuleScreen");
   const apiModuleScreen = document.getElementById("apiSchedulerModuleScreen");
   if (mainView) {
@@ -3592,6 +3780,7 @@ function openDedicatedModuleScreen(moduleKey){
   if (builderScreen) builderScreen.classList.remove("active");
   if (sourcesScreen) sourcesScreen.classList.remove("active");
   if (settingsScreen) settingsScreen.classList.remove("active");
+  if (catalogScreen) catalogScreen.classList.remove("active");
   if (mergeModuleScreen) mergeModuleScreen.classList.toggle("active", moduleKey === "merge");
   if (apiModuleScreen) apiModuleScreen.classList.toggle("active", moduleKey === "api_scheduler");
 }
@@ -3627,6 +3816,7 @@ async function openPluginModuleFromMenu(pluginId, toolTab, label){
     document.getElementById("sourcesScreen")?.classList.remove("active");
     document.getElementById("builderScreen")?.classList.remove("active");
     document.getElementById("settingsScreen")?.classList.remove("active");
+    document.getElementById("catalogScreen")?.classList.remove("active");
     openInlineModulePanel(toolTab, label);
   } else {
     openSourcesScreen();
@@ -8698,6 +8888,28 @@ bindClick("menuOpenSources", () => {
   try { renderSourcesManager(); } catch (_) {}
   openSourcesScreen();
 });
+bindClick("menuOpenCatalog", async () => {
+  try {
+    await openCatalogScreen();
+  } catch (e) {
+    setStatus("ERRORE catalogo: " + (e?.message || e));
+  }
+});
+bindClick("btnCloseCatalog", () => closeCatalogScreen());
+bindClick("btnRefreshCatalog", async () => {
+  try {
+    await renderCatalogScreen();
+    setStatus("Catalogo aggiornato.");
+  } catch (e) {
+    setStatus("ERRORE catalogo: " + (e?.message || e));
+  }
+});
+bindClick("btnCatalogOpenSources", () => {
+  try { resetSourceForm(); } catch (_) {}
+  try { renderSourcesManager(); } catch (_) {}
+  openSourcesScreen({ keep_header: true });
+});
+bindClick("btnCatalogOpenBuilder", () => openBuilderForNew());
 bindClick("btnSaveSettings", async () => {
   try {
     await saveSettingsFromForm();
@@ -8707,10 +8919,11 @@ bindClick("btnSaveSettings", async () => {
 });
 bindClick("btnReloadPluginsStatus", async () => {
   try {
+    await loadModulesStatus();
     await loadPluginsStatus();
-    setStatus("Stato plugin aggiornato.");
+    setStatus("Stato moduli/plugin aggiornato.");
   } catch (e) {
-    setStatus("ERRORE plugin: " + e.message);
+    setStatus("ERRORE moduli/plugin: " + e.message);
   }
 });
 bindClick("btnSavePluginsConfig", async () => {
