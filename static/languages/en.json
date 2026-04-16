@@ -15,6 +15,7 @@
   "logout": "Logout",
   "menu_data": "Data",
   "menu_reload": "Reload",
+  "menu_sources_pivots_catalog": "Sources and pivots list",
   "menu_manage_sources": "Manage data sources",
   "menu_toggle_columns": "Show/Hide CSV columns",
   "menu_pivot": "Pivot",
@@ -63,7 +64,26 @@
   "wiki_quick_title": "PivotDesk quick wiki",
   "close": "Close",
   "width": "Width",
-  "wiki_loading": "Loading wiki..."
+  "wiki_loading": "Loading wiki...",
+  "catalog_title": "Sources and pivots catalog",
+  "catalog_subtitle": "Centralized list to inspect and manage all data sources and all pivot presets.",
+  "catalog_close_module": "Close module",
+  "catalog_refresh": "Refresh list",
+  "catalog_open_sources": "Open source management",
+  "catalog_open_builder": "Open pivot builder",
+  "catalog_sources_title": "Sources",
+  "catalog_pivots_title": "Pivots / Presets",
+  "catalog_no_sources": "No sources available.",
+  "catalog_no_pivots": "No pivot presets available.",
+  "catalog_edit_source": "Edit",
+  "catalog_delete_source": "Delete",
+  "catalog_edit_pivot": "Edit",
+  "catalog_delete_pivot": "Delete",
+  "catalog_total_sources": "Total sources",
+  "catalog_total_pivots": "Total pivots/presets",
+  "catalog_source_type": "type",
+  "catalog_pivot_source_id": "source_id",
+  "catalog_pivots_load_error": "Error loading pivots"
   ,"users_management": "User management"
   ,"users_management_subtitle": "Manage access and multi-user profiles in PivotDesk LAN environments."
   ,"open_pivotdesk": "Open PivotDesk"

@@ -1303,7 +1303,7 @@ window.LICENSE_CONTEXT = {
           <button type="button" class="menu-btn" data-menu-target="menu-data" data-i18n="menu_data">Dati</button>
           <div class="menu-dropdown hidden" id="menu-data">
             <button type="button" id="menuReload" data-i18n="menu_reload">Ricarica</button>
-            <button type="button" id="menuOpenCatalog">Elenco sorgenti e pivot</button>
+            <button type="button" id="menuOpenCatalog" data-i18n="menu_sources_pivots_catalog">Elenco sorgenti e pivot</button>
             <button type="button" id="menuOpenSources" data-i18n="menu_manage_sources">Gestisci sorgenti dati</button>
             <button type="button" id="menuToggleColumns" data-i18n="menu_toggle_columns">Mostra/Nascondi colonne CSV</button>
           </div>
@@ -2272,25 +2272,25 @@ window.LICENSE_CONTEXT = {
 <div id="catalogScreen" class="builder-screen">
   <div class="builder-head module-screen-header">
     <div class="builder-head-left">
-      <div class="section-title">Catalogo sorgenti e pivot</div>
-      <div class="small">Elenco centralizzato per consultare e gestire tutte le sorgenti e tutti i preset pivot.</div>
+      <div class="section-title" data-i18n="catalog_title">Catalogo sorgenti e pivot</div>
+      <div class="small" data-i18n="catalog_subtitle">Elenco centralizzato per consultare e gestire tutte le sorgenti e tutti i preset pivot.</div>
     </div>
-    <div><button id="btnCloseCatalog" type="button">Chiudi modulo</button></div>
+    <div><button id="btnCloseCatalog" type="button" data-i18n="catalog_close_module">Chiudi modulo</button></div>
   </div>
   <div class="card">
     <div class="settings-backup-actions" style="margin-top:0;">
-      <button id="btnRefreshCatalog" type="button">Aggiorna elenco</button>
-      <button id="btnCatalogOpenSources" type="button">Apri gestione sorgenti</button>
-      <button id="btnCatalogOpenBuilder" type="button">Apri costruttore pivot</button>
+      <button id="btnRefreshCatalog" type="button" data-i18n="catalog_refresh">Aggiorna elenco</button>
+      <button id="btnCatalogOpenSources" type="button" data-i18n="catalog_open_sources">Apri gestione sorgenti</button>
+      <button id="btnCatalogOpenBuilder" type="button" data-i18n="catalog_open_builder">Apri costruttore pivot</button>
     </div>
     <div class="catalog-grid" style="margin-top:10px;">
       <div class="card">
-        <div class="section-title" style="font-size:16px;">Sorgenti</div>
+        <div class="section-title" style="font-size:16px;" data-i18n="catalog_sources_title">Sorgenti</div>
         <div id="catalogSourcesCount" class="small" style="margin-bottom:8px;">Caricamento...</div>
         <div id="catalogSourcesList" class="catalog-list"></div>
       </div>
       <div class="card">
-        <div class="section-title" style="font-size:16px;">Pivot / Preset</div>
+        <div class="section-title" style="font-size:16px;" data-i18n="catalog_pivots_title">Pivot / Preset</div>
         <div id="catalogPivotsCount" class="small" style="margin-bottom:8px;">Caricamento...</div>
         <div id="catalogPivotsList" class="catalog-list"></div>
       </div>
@@ -3122,19 +3122,30 @@ async function renderCatalogScreen(){
   const pivWrap = document.getElementById("catalogPivotsList");
   const srcCount = document.getElementById("catalogSourcesCount");
   const pivCount = document.getElementById("catalogPivotsCount");
+  const txtNoSources = translateText("catalog_no_sources");
+  const txtNoPivots = translateText("catalog_no_pivots");
+  const txtEditSource = translateText("catalog_edit_source");
+  const txtDeleteSource = translateText("catalog_delete_source");
+  const txtEditPivot = translateText("catalog_edit_pivot");
+  const txtDeletePivot = translateText("catalog_delete_pivot");
+  const txtTotalSources = translateText("catalog_total_sources");
+  const txtTotalPivots = translateText("catalog_total_pivots");
+  const txtSourceType = translateText("catalog_source_type");
+  const txtPivotSourceId = translateText("catalog_pivot_source_id");
+  const txtLoadError = translateText("catalog_pivots_load_error");
   if (srcWrap) {
     srcWrap.innerHTML = (SOURCES || []).map(src => (
       "<div class='catalog-item'>" +
         "<div><strong>" + escapeHtml(String(src?.title || src?.id || "")) + "</strong></div>" +
-        "<div class='small'>id: " + escapeHtml(String(src?.id || "")) + " · tipo: " + escapeHtml(String(src?.type || "n/a")) + "</div>" +
+        "<div class='small'>id: " + escapeHtml(String(src?.id || "")) + " · " + escapeHtml(txtSourceType) + ": " + escapeHtml(String(src?.type || "n/a")) + "</div>" +
         "<div class='catalog-actions'>" +
-          "<button type='button' class='btn-mini edit' onclick='openSourceEditorFromCatalog(" + JSON.stringify(String(src?.id || "")) + ")'>✏️ Modifica</button>" +
-          "<button type='button' class='btn-mini delete' onclick='deleteSourceFromCatalog(" + JSON.stringify(String(src?.id || "")) + ")'>🗑️ Elimina</button>" +
+          "<button type='button' class='btn-mini edit' onclick='openSourceEditorFromCatalog(" + JSON.stringify(String(src?.id || "")) + ")'>✏️ " + escapeHtml(txtEditSource) + "</button>" +
+          "<button type='button' class='btn-mini delete' onclick='deleteSourceFromCatalog(" + JSON.stringify(String(src?.id || "")) + ")'>🗑️ " + escapeHtml(txtDeleteSource) + "</button>" +
         "</div>" +
       "</div>"
-    )).join("") || "<div class='small'>Nessuna sorgente disponibile.</div>";
+    )).join("") || ("<div class='small'>" + escapeHtml(txtNoSources) + "</div>");
   }
-  if (srcCount) srcCount.textContent = "Totale sorgenti: " + String((SOURCES || []).length);
+  if (srcCount) srcCount.textContent = txtTotalSources + ": " + String((SOURCES || []).length);
 
   try {
     const res = await api("/pivots/all");
@@ -3143,18 +3154,18 @@ async function renderCatalogScreen(){
       pivWrap.innerHTML = items.map(p => (
         "<div class='catalog-item'>" +
           "<div><strong>" + escapeHtml(String(p?.title || p?.id || "")) + "</strong></div>" +
-          "<div class='small'>id: " + escapeHtml(String(p?.id || "")) + " · source_id: " + escapeHtml(String(p?.source_id || "")) + "</div>" +
+          "<div class='small'>id: " + escapeHtml(String(p?.id || "")) + " · " + escapeHtml(txtPivotSourceId) + ": " + escapeHtml(String(p?.source_id || "")) + "</div>" +
           "<div class='catalog-actions'>" +
-            "<button type='button' class='btn-mini edit' onclick='openPivotEditorFromCatalog(" + JSON.stringify(String(p?.id || "")) + ", " + JSON.stringify(String(p?.source_id || "")) + ")'>🧩 Modifica</button>" +
-            "<button type='button' class='btn-mini delete' onclick='deletePivotFromCatalog(" + JSON.stringify(String(p?.id || "")) + ", " + JSON.stringify(String(p?.source_id || "")) + ", " + JSON.stringify(String(p?.filename || "")) + ")'>🗑️ Elimina</button>" +
+            "<button type='button' class='btn-mini edit' onclick='openPivotEditorFromCatalog(" + JSON.stringify(String(p?.id || "")) + ", " + JSON.stringify(String(p?.source_id || "")) + ")'>🧩 " + escapeHtml(txtEditPivot) + "</button>" +
+            "<button type='button' class='btn-mini delete' onclick='deletePivotFromCatalog(" + JSON.stringify(String(p?.id || "")) + ", " + JSON.stringify(String(p?.source_id || "")) + ", " + JSON.stringify(String(p?.filename || "")) + ")'>🗑️ " + escapeHtml(txtDeletePivot) + "</button>" +
           "</div>" +
         "</div>"
-      )).join("") || "<div class='small'>Nessun preset pivot disponibile.</div>";
+      )).join("") || ("<div class='small'>" + escapeHtml(txtNoPivots) + "</div>");
     }
-    if (pivCount) pivCount.textContent = "Totale pivot/preset: " + String(items.length);
+    if (pivCount) pivCount.textContent = txtTotalPivots + ": " + String(items.length);
   } catch (e) {
-    if (pivWrap) pivWrap.innerHTML = "<div class='small'>Errore caricamento pivot: " + escapeHtml(String(e?.message || e)) + "</div>";
-    if (pivCount) pivCount.textContent = "Totale pivot/preset: n/d";
+    if (pivWrap) pivWrap.innerHTML = "<div class='small'>" + escapeHtml(txtLoadError) + ": " + escapeHtml(String(e?.message || e)) + "</div>";
+    if (pivCount) pivCount.textContent = txtTotalPivots + ": n/d";
   }
 }
 

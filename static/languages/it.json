@@ -15,6 +15,7 @@
   "logout": "Logout",
   "menu_data": "Dati",
   "menu_reload": "Ricarica",
+  "menu_sources_pivots_catalog": "Elenco sorgenti e pivot",
   "menu_manage_sources": "Gestisci sorgenti dati",
   "menu_toggle_columns": "Mostra/Nascondi colonne CSV",
   "menu_pivot": "Pivot",
@@ -63,7 +64,26 @@
   "wiki_quick_title": "Wiki rapida PivotDesk",
   "close": "Chiudi",
   "width": "Larghezza",
-  "wiki_loading": "Caricamento wiki..."
+  "wiki_loading": "Caricamento wiki...",
+  "catalog_title": "Catalogo sorgenti e pivot",
+  "catalog_subtitle": "Elenco centralizzato per consultare e gestire tutte le sorgenti e tutti i preset pivot.",
+  "catalog_close_module": "Chiudi modulo",
+  "catalog_refresh": "Aggiorna elenco",
+  "catalog_open_sources": "Apri gestione sorgenti",
+  "catalog_open_builder": "Apri costruttore pivot",
+  "catalog_sources_title": "Sorgenti",
+  "catalog_pivots_title": "Pivot / Preset",
+  "catalog_no_sources": "Nessuna sorgente disponibile.",
+  "catalog_no_pivots": "Nessun preset pivot disponibile.",
+  "catalog_edit_source": "Modifica",
+  "catalog_delete_source": "Elimina",
+  "catalog_edit_pivot": "Modifica",
+  "catalog_delete_pivot": "Elimina",
+  "catalog_total_sources": "Totale sorgenti",
+  "catalog_total_pivots": "Totale pivot/preset",
+  "catalog_source_type": "tipo",
+  "catalog_pivot_source_id": "source_id",
+  "catalog_pivots_load_error": "Errore caricamento pivot"
   ,"users_management": "Gestione utenti"
   ,"users_management_subtitle": "Amministrazione accessi e profili multiutente di PivotDesk in ambiente LAN."
   ,"open_pivotdesk": "Apri PivotDesk"
