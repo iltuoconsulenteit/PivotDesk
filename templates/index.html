@@ -1650,6 +1650,7 @@ window.LICENSE_CONTEXT = {
     </div>
     <div class="field">
       <label>Alias colonne (opzionale)</label>
+      <div id="sourceAliasAvailableWrap" class="small" style="margin-bottom:6px; color:#475467;">Intestazioni rilevate: nessuna (aggiorna anteprima sorgente).</div>
       <div id="sourceAliasRows" style="display:grid; gap:8px;"></div>
       <div class="builder-actions" style="margin-top:8px;">
         <button id="btnSourceAliasAddRow" type="button">+ Alias colonna</button>
@@ -2468,6 +2469,7 @@ let CURRENT_FIELDS = [];
 let CURRENT_SOURCE_EDIT = null;
 let SOURCE_CALC_DRAFT = [];
 let SOURCE_ALIAS_DRAFT = [];
+let SOURCE_ALIAS_AVAILABLE_COLUMNS = [];
 let CALC_MODAL_CONTEXT = "pivot";
 let SOURCE_CALC_EDIT_INDEX = null;
 let BUILDER_MODE = "new";
@@ -5574,12 +5576,14 @@ function clearSourceFormPreview(message = "Compila il percorso file per visualiz
   if (meta) meta.textContent = message;
   if (thead) thead.innerHTML = "";
   if (tbody) tbody.innerHTML = "";
+  setSourceAliasAvailableColumns([]);
 }
 
 function renderSourceFormPreview(data){
   renderPreviewTableInto(data, "sourceFormPreviewMeta", "sourceFormPreviewTable", "Nessuna colonna disponibile per l'anteprima.");
   const resolved = document.getElementById("srcResolvedInfo");
   if (resolved && data && data.resolved_info) resolved.value = data.resolved_info;
+  setSourceAliasAvailableColumns(Array.isArray(data?.columns) ? data.columns : []);
 }
 
 function normalizeSourceCalcItems(items){
@@ -5715,13 +5719,17 @@ function syncSourceAliasRowsToJson(){
 }
 
 function renderSourceAliasRows(aliases){
-  const wrap = document.getElementById("sourceAliasRows");
-  if (!wrap) return;
   const source = normalizeColumnAliasesMap(aliases);
   SOURCE_ALIAS_DRAFT = Object.entries(source).map(([from, to]) => ({
     source: String(from || "").trim(),
     alias: String(to || "").trim()
   }));
+  renderSourceAliasDraftRows();
+}
+
+function renderSourceAliasDraftRows(){
+  const wrap = document.getElementById("sourceAliasRows");
+  if (!wrap) return;
   wrap.innerHTML = "";
   if (!SOURCE_ALIAS_DRAFT.length) {
     wrap.innerHTML = "<div class='small'>Nessun alias definito.</div>";
@@ -5731,11 +5739,13 @@ function renderSourceAliasRows(aliases){
   SOURCE_ALIAS_DRAFT.forEach((row, idx) => {
     const item = document.createElement("div");
     item.style.display = "grid";
-    item.style.gridTemplateColumns = "1fr 1fr auto";
+    item.style.gridTemplateColumns = "1fr 1fr auto auto auto";
     item.style.gap = "8px";
     item.innerHTML =
       "<input data-alias-col='source' placeholder='Intestazione originale'>" +
       "<input data-alias-col='alias' placeholder='Alias leggibile'>" +
+      "<button type='button' data-alias-up title='Sposta su'>↑</button>" +
+      "<button type='button' data-alias-down title='Sposta giù'>↓</button>" +
       "<button type='button' data-alias-remove>Rimuovi</button>";
     const sourceEl = item.querySelector("[data-alias-col='source']");
     const aliasEl = item.querySelector("[data-alias-col='alias']");
@@ -5751,7 +5761,21 @@ function renderSourceAliasRows(aliases){
     });
     item.querySelector("[data-alias-remove]").addEventListener("click", () => {
       SOURCE_ALIAS_DRAFT.splice(idx, 1);
-      renderSourceAliasRows(Object.fromEntries(SOURCE_ALIAS_DRAFT.map(x => [x.source, x.alias])));
+      renderSourceAliasDraftRows();
+    });
+    item.querySelector("[data-alias-up]").addEventListener("click", () => {
+      if (idx <= 0) return;
+      const cur = SOURCE_ALIAS_DRAFT[idx];
+      SOURCE_ALIAS_DRAFT[idx] = SOURCE_ALIAS_DRAFT[idx - 1];
+      SOURCE_ALIAS_DRAFT[idx - 1] = cur;
+      renderSourceAliasDraftRows();
+    });
+    item.querySelector("[data-alias-down]").addEventListener("click", () => {
+      if (idx >= SOURCE_ALIAS_DRAFT.length - 1) return;
+      const cur = SOURCE_ALIAS_DRAFT[idx];
+      SOURCE_ALIAS_DRAFT[idx] = SOURCE_ALIAS_DRAFT[idx + 1];
+      SOURCE_ALIAS_DRAFT[idx + 1] = cur;
+      renderSourceAliasDraftRows();
     });
     wrap.appendChild(item);
   });
@@ -5763,7 +5787,31 @@ function addSourceAliasRow(source = "", alias = ""){
     source: String(source || "").trim(),
     alias: String(alias || "").trim()
   });
-  renderSourceAliasRows(Object.fromEntries(SOURCE_ALIAS_DRAFT.map(x => [x.source, x.alias])));
+  renderSourceAliasDraftRows();
+}
+
+function setSourceAliasAvailableColumns(columns){
+  SOURCE_ALIAS_AVAILABLE_COLUMNS = (Array.isArray(columns) ? columns : []).map(x => String(x || "").trim()).filter(Boolean);
+  const wrap = document.getElementById("sourceAliasAvailableWrap");
+  if (!wrap) return;
+  if (!SOURCE_ALIAS_AVAILABLE_COLUMNS.length) {
+    wrap.textContent = "Intestazioni rilevate: nessuna (aggiorna anteprima sorgente).";
+    return;
+  }
+  const chips = SOURCE_ALIAS_AVAILABLE_COLUMNS
+    .slice(0, 60)
+    .map(col => "<button type='button' data-alias-col-add='" + escapeHtml(col) + "' style='border:1px solid #d0d5dd; background:#f8fafc; border-radius:999px; padding:2px 8px; margin:2px; cursor:pointer;'>" + escapeHtml(col) + "</button>")
+    .join("");
+  wrap.innerHTML = "<div>Intestazioni rilevate (clicca per aggiungere alias):</div><div>" + chips + "</div>";
+  wrap.querySelectorAll("[data-alias-col-add]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const col = String(btn.getAttribute("data-alias-col-add") || "").trim();
+      if (!col) return;
+      const exists = (SOURCE_ALIAS_DRAFT || []).some(x => String(x?.source || "").trim() === col);
+      if (exists) return;
+      addSourceAliasRow(col, col);
+    });
+  });
 }
 
 function readSourceAliasesFromJson(){
@@ -5996,6 +6044,8 @@ function loadSourceIntoForm(src){
   document.getElementById("srcGsheetRange").value = src.config?.range || "";
   const sourceAliases = src.column_aliases || src.config?.column_aliases || {};
   renderSourceAliasRows(sourceAliases);
+  const detectedCols = Array.isArray(src.config?.detected_columns) ? src.config.detected_columns : [];
+  if (detectedCols.length) setSourceAliasAvailableColumns(detectedCols);
   const sourceCalc = Array.isArray(src.calculated_fields)
     ? src.calculated_fields
     : (Array.isArray(src.config?.calculated_fields) ? src.config.calculated_fields : []);
