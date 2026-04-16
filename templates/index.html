@@ -1295,6 +1295,17 @@ window.LICENSE_CONTEXT = {
     </div>
   </div>
 
+  <div id="moduleInlinePanel" class="card hidden" style="margin-top:10px; border-color:#b8d4ff;">
+    <div class="builder-head" style="margin-bottom:8px;">
+      <div class="builder-head-left">
+        <div id="moduleInlineTitle" class="section-title">Modulo</div>
+        <div class="small">Vista modulo con intestazione home attiva.</div>
+      </div>
+      <div><button type="button" id="btnCloseInlineModulePanel">Chiudi modulo</button></div>
+    </div>
+    <div id="moduleInlineHost"></div>
+  </div>
+
   <div class="compact-pivot-layout">
     <div class="card compact-panel compact-col source" data-collapsible="sourcePanel">
       <div class="compact-panel-head">
@@ -3452,6 +3463,7 @@ function openSourcesScreen(options = {}){
     keep_header: !!options.keep_header
   };
   closeModuleScreens();
+  closeInlineModulePanel();
   const mainView = document.getElementById("mainView");
   if (mainView) {
     if (SOURCE_SCREEN_CONTEXT.keep_header) {
@@ -3520,6 +3532,31 @@ function closeDedicatedModuleScreen(){
   document.getElementById("mainView")?.classList.remove("hidden");
 }
 
+function closeInlineModulePanel(){
+  const panel = document.getElementById("moduleInlinePanel");
+  if (panel) panel.classList.add("hidden");
+  document.getElementById("moduleInlineHost") && (document.getElementById("moduleInlineHost").innerHTML = "");
+  document.getElementById("mainView")?.classList.remove("module-header-only");
+}
+
+function openInlineModulePanel(toolTab, label){
+  const panel = document.getElementById("moduleInlinePanel");
+  const host = document.getElementById("moduleInlineHost");
+  const title = document.getElementById("moduleInlineTitle");
+  const mainView = document.getElementById("mainView");
+  if (!panel || !host || !mainView) return;
+  mainView.classList.remove("hidden");
+  mainView.classList.add("module-header-only");
+  if (title) title.textContent = String(label || "Modulo");
+  panel.classList.remove("hidden");
+  if (toolTab === "merge") {
+    mountModulePane("pluginToolMerge", "moduleInlineHost");
+  } else if (toolTab === "api_scheduler") {
+    mountModulePane("pluginToolApiScheduler", "moduleInlineHost");
+  }
+  setPluginToolTab(toolTab);
+}
+
 function openDedicatedModuleScreen(moduleKey){
   const mainView = document.getElementById("mainView");
   const builderScreen = document.getElementById("builderScreen");
@@ -3564,12 +3601,12 @@ async function openPluginModuleFromMenu(pluginId, toolTab, label){
     return;
   }
   await initSourcePluginBuilders().catch(() => {});
-  if (toolTab === "merge") {
-    openDedicatedModuleScreen("merge");
-    mountModulePane("pluginToolMerge", "mergeModuleHost");
-  } else if (toolTab === "api_scheduler") {
-    openDedicatedModuleScreen("api_scheduler");
-    mountModulePane("pluginToolApiScheduler", "apiSchedulerModuleHost");
+  if (toolTab === "merge" || toolTab === "api_scheduler") {
+    closeModuleScreens();
+    document.getElementById("sourcesScreen")?.classList.remove("active");
+    document.getElementById("builderScreen")?.classList.remove("active");
+    document.getElementById("settingsScreen")?.classList.remove("active");
+    openInlineModulePanel(toolTab, label);
   } else {
     openSourcesScreen();
     setSourceManagerTab("plugins");
@@ -4423,7 +4460,14 @@ async function refreshMergeSourceBlocksAfterSourceUpdate(updatedSourceId = ""){
       sourceSel.appendChild(o);
     });
     if (currentValue) sourceSel.value = currentValue;
-    if (wanted && currentValue !== wanted) continue;
+    if (wanted) {
+      const currentSrc = (SOURCES || []).find(s =>
+        String(s?.id || "").trim() === currentValue ||
+        String(s?.config?.legacy_source_id || "").trim() === currentValue
+      );
+      const resolvedCurrent = String(currentSrc?.id || currentValue || "").trim();
+      if (resolvedCurrent !== wanted) continue;
+    }
     const prevMap = extractMappingFromBlock(block);
     const fields = await loadSourceFields(currentValue);
     renderSourceFieldChipsForBlock(block, fields);
@@ -4840,16 +4884,13 @@ function closeSourcesScreen(){
   closeModuleScreens();
   document.getElementById("sourcesScreen").classList.remove("active");
   if (backToModule === "merge") {
-    openDedicatedModuleScreen("merge");
-    mountModulePane("pluginToolMerge", "mergeModuleHost");
-    setPluginToolTab("merge");
+    openInlineModulePanel("merge", "Multi Source Merge");
   } else if (backToModule === "api_scheduler") {
-    openDedicatedModuleScreen("api_scheduler");
-    mountModulePane("pluginToolApiScheduler", "apiSchedulerModuleHost");
-    setPluginToolTab("api_scheduler");
+    openInlineModulePanel("api_scheduler", "API Data Scheduler");
   } else {
     document.getElementById("mainView").classList.remove("hidden");
     document.getElementById("mainView").classList.remove("module-header-only");
+    closeInlineModulePanel();
   }
   SOURCE_SCREEN_CONTEXT = { return_to_module: "", keep_header: false };
   window.scrollTo({ top: 0, behavior: "smooth" });
@@ -8422,6 +8463,7 @@ bindClick("btnCloseSources", () => closeSourcesScreen());
 bindClick("btnCloseSourcesBottom", () => closeSourcesScreen());
 bindClick("btnCloseMergeModuleScreen", () => closeDedicatedModuleScreen());
 bindClick("btnCloseApiSchedulerModuleScreen", () => closeDedicatedModuleScreen());
+bindClick("btnCloseInlineModulePanel", () => closeInlineModulePanel());
 bindClick("btnSourceTabBase", () => setSourceManagerTab("base"));
 bindClick("btnSourceTabCatalog", () => setSourceManagerTab("catalog"));
 bindClick("btnSourceTabCalc", () => setSourceManagerTab("calc"));
