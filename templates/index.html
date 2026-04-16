@@ -236,6 +236,19 @@
     #mainView.module-header-only .footer{
       display:none !important;
     }
+    #mergeModuleScreen.active .card,
+    #apiSchedulerModuleScreen.active .card,
+    #sourcesScreen.active .card{
+      border-radius:16px;
+      border:1px solid #d8e2ec;
+      box-shadow:0 8px 24px rgba(15,23,42,.08);
+      background:#ffffff;
+    }
+    #mergeModuleScreen.active,
+    #apiSchedulerModuleScreen.active,
+    #sourcesScreen.active{
+      background:linear-gradient(180deg,#f4f7fb 0%, #eef3f7 100%);
+    }
     .wiki-drawer{
       position:fixed;
       top:0;
@@ -2481,6 +2494,7 @@ let SETTINGS = {
 };
 let PLUGINS_STATUS = null;
 let API_SCHEDULER_JOBS = [];
+let SOURCE_SCREEN_CONTEXT = { return_to_module: "", keep_header: false };
 const MODULE_PANE_HOSTS = {
   pluginToolMerge: null,
   pluginToolApiScheduler: null
@@ -3432,9 +3446,22 @@ function openBuilderForCurrentPreset(){
   loadCurrentPresetIntoBuilder();
 }
 
-function openSourcesScreen(){
+function openSourcesScreen(options = {}){
+  SOURCE_SCREEN_CONTEXT = {
+    return_to_module: String(options.return_to_module || "").trim(),
+    keep_header: !!options.keep_header
+  };
   closeModuleScreens();
-  document.getElementById("mainView").classList.add("hidden");
+  const mainView = document.getElementById("mainView");
+  if (mainView) {
+    if (SOURCE_SCREEN_CONTEXT.keep_header) {
+      mainView.classList.remove("hidden");
+      mainView.classList.add("module-header-only");
+    } else {
+      mainView.classList.remove("module-header-only");
+      mainView.classList.add("hidden");
+    }
+  }
   document.getElementById("builderScreen").classList.remove("active");
   document.getElementById("settingsScreen").classList.remove("active");
   document.getElementById("sourcesScreen").classList.add("active");
@@ -4357,7 +4384,7 @@ async function addMergeSourceBlock(initial = null){
       setStatus("ERRORE: sorgente merge non trovata in configurazione.");
       return;
     }
-    openSourcesScreen();
+    openSourcesScreen({ return_to_module: "merge", keep_header: true });
     setSourceManagerTab("base");
     loadSourceIntoForm(src);
     setStatus("Modifica sorgente merge aperta: " + String(src.title || src.id || sourceId));
@@ -4377,6 +4404,32 @@ async function addMergeSourceBlock(initial = null){
     applyMappingToBlockSlots(block, initial.column_map);
   }
   suggestMergeSourceIdentity(false);
+}
+
+async function refreshMergeSourceBlocksAfterSourceUpdate(updatedSourceId = ""){
+  const wrap = document.getElementById("mergeSourceBlocks");
+  if (!wrap) return;
+  const wanted = String(updatedSourceId || "").trim();
+  const blocks = Array.from(wrap.querySelectorAll("div[id^='mergeBlock']"));
+  for (const block of blocks) {
+    const sourceSel = block.querySelector("[data-merge-source]");
+    if (!sourceSel) continue;
+    const currentValue = String(sourceSel.value || "").trim();
+    sourceSel.innerHTML = '<option value="">Seleziona sorgente...</option>';
+    (SOURCES || []).forEach(src => {
+      const o = document.createElement("option");
+      o.value = src.id;
+      o.textContent = src.title || src.id;
+      sourceSel.appendChild(o);
+    });
+    if (currentValue) sourceSel.value = currentValue;
+    if (wanted && currentValue !== wanted) continue;
+    const prevMap = extractMappingFromBlock(block);
+    const fields = await loadSourceFields(currentValue);
+    renderSourceFieldChipsForBlock(block, fields);
+    await renderTemplateSlotsForBlock(block, false);
+    applyMappingToBlockSlots(block, prevMap);
+  }
 }
 
 function buildMergeSourcesJsonFromBuilder(){
@@ -4783,9 +4836,22 @@ async function runApiSchedulerDueJobsFromUi(){
 }
 
 function closeSourcesScreen(){
+  const backToModule = String(SOURCE_SCREEN_CONTEXT?.return_to_module || "").trim();
   closeModuleScreens();
   document.getElementById("sourcesScreen").classList.remove("active");
-  document.getElementById("mainView").classList.remove("hidden");
+  if (backToModule === "merge") {
+    openDedicatedModuleScreen("merge");
+    mountModulePane("pluginToolMerge", "mergeModuleHost");
+    setPluginToolTab("merge");
+  } else if (backToModule === "api_scheduler") {
+    openDedicatedModuleScreen("api_scheduler");
+    mountModulePane("pluginToolApiScheduler", "apiSchedulerModuleHost");
+    setPluginToolTab("api_scheduler");
+  } else {
+    document.getElementById("mainView").classList.remove("hidden");
+    document.getElementById("mainView").classList.remove("module-header-only");
+  }
+  SOURCE_SCREEN_CONTEXT = { return_to_module: "", keep_header: false };
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
@@ -6129,6 +6195,7 @@ async function saveSourceFromForm(){
     loadSourceIntoForm(savedSource);
     await previewSourceFromForm(true).catch(() => {});
   }
+  await refreshMergeSourceBlocksAfterSourceUpdate(payload.id).catch(() => {});
   if (BUILDER_SOURCE) {
     await loadSourcePreview(BUILDER_SOURCE);
   }
