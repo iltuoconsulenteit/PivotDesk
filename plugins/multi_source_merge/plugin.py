@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import hashlib
 import json
 import re
 import shutil
@@ -27,6 +28,8 @@ class MultiMergeRequest(BaseModel):
     sources: list[MergeSourceConfig]
     output_columns: list[str] = Field(default_factory=list)
     include_source_tag: bool = True
+    deduplicate: bool = True
+    unique_key_field: str = "_merge_key"
     limit: int = Field(default=1000, ge=1, le=20000)
 
 
@@ -365,7 +368,10 @@ def _build_merge_result(plugin_api, payload: MultiMergeRequest) -> dict[str, Any
     if not payload.sources:
         raise HTTPException(status_code=400, detail="sources obbligatorio")
     merged_rows: list[dict[str, Any]] = []
+    seen_merge_keys: set[str] = set()
+    dropped_duplicates = 0
     discovered_targets: list[str] = []
+    unique_key_field = str(payload.unique_key_field or "_merge_key").strip() or "_merge_key"
 
     for src_cfg in payload.sources:
         try:
@@ -403,6 +409,21 @@ def _build_merge_result(plugin_api, payload: MultiMergeRequest) -> dict[str, Any
                 out["_source"] = _json_safe_value(src_cfg.source_tag or src_cfg.source_id)
                 if "_source" not in discovered_targets:
                     discovered_targets.append("_source")
+            key_payload = {
+                str(k): _json_safe_value(v)
+                for k, v in out.items()
+                if str(k) not in {"_source", unique_key_field}
+            }
+            merge_key = hashlib.sha1(
+                json.dumps(key_payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+            ).hexdigest()[:20]
+            if payload.deduplicate and merge_key in seen_merge_keys:
+                dropped_duplicates += 1
+                continue
+            seen_merge_keys.add(merge_key)
+            out[unique_key_field] = merge_key
+            if unique_key_field not in discovered_targets:
+                discovered_targets.append(unique_key_field)
             merged_rows.append(out)
             if len(merged_rows) >= payload.limit:
                 break
@@ -417,6 +438,9 @@ def _build_merge_result(plugin_api, payload: MultiMergeRequest) -> dict[str, Any
         "columns": output_columns,
         "rows": normalized_rows,
         "row_count": len(normalized_rows),
+        "duplicates_dropped": dropped_duplicates,
+        "deduplicate": bool(payload.deduplicate),
+        "unique_key_field": unique_key_field,
         "truncated": len(merged_rows) >= payload.limit,
     }
 

@@ -3606,7 +3606,10 @@ function renderMergePreview(payload){
       return title + " (righe: " + total + ", campione: " + previewCount + ")";
     }).join(" | ")
     : "";
-  meta.textContent = "Righe merge mostrate: " + shown.length + " / " + String(payload?.row_count ?? rows.length) + sourceSummary;
+  const dropped = Number(payload?.duplicates_dropped || 0);
+  const keyField = String(payload?.unique_key_field || "_merge_key");
+  const dedupeSummary = " · Duplicati rimossi: " + String(dropped) + " · Chiave univoca: " + keyField;
+  meta.textContent = "Righe merge mostrate: " + shown.length + " / " + String(payload?.row_count ?? rows.length) + dedupeSummary + sourceSummary;
   thead.innerHTML = "<tr>" + columns.map(c => "<th>" + escapeHtml(c) + "</th>").join("") + "</tr>";
   tbody.innerHTML = shown
     .map(row => "<tr>" + columns.map(c => "<td>" + escapeHtml(row?.[c]) + "</td>").join("") + "</tr>")
@@ -4495,9 +4498,11 @@ async function saveMultiSourceMergeAsSourceFromUi(){
   }
   await refreshAll().catch(() => {});
   const rows = Number(res?.merge?.row_count || 0);
+  const dropped = Number(res?.merge?.duplicates_dropped || 0);
   const usedDelimiter = String(res?.csv_delimiter || csv_delimiter || ";");
   const delimLabel = usedDelimiter === "\t" ? "TAB" : usedDelimiter;
-  const message = "Nuova sorgente merge salvata: " + source_id + " · righe: " + String(rows) + " · separatore CSV: " + delimLabel;
+  const keyField = String(res?.merge?.unique_key_field || "_merge_key");
+  const message = "Nuova sorgente merge salvata: " + source_id + " · righe: " + String(rows) + " · duplicati rimossi: " + String(dropped) + " · chiave: " + keyField + " · separatore CSV: " + delimLabel;
   setStatus(message);
   try { window.alert(message); } catch (_e) {}
   return { source_id, rows, delimiter: usedDelimiter };

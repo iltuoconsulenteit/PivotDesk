@@ -2592,6 +2592,16 @@ def _merge_json_safe(value: Any) -> Any:
     return str(value)
 
 
+def _merge_unique_key_from_row(row: dict[str, Any], unique_key_field: str) -> str:
+    payload = {
+        str(k): _merge_json_safe(v)
+        for k, v in (row or {}).items()
+        if str(k) not in {"_source", unique_key_field}
+    }
+    raw = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha1(raw.encode("utf-8")).hexdigest()[:20]
+
+
 def _load_merge_template_record(template_id: str) -> dict[str, Any] | None:
     wanted = str(template_id or "").strip()
     if not wanted:
@@ -2858,7 +2868,11 @@ def _build_merge_payload_result(payload: dict[str, Any]) -> dict[str, Any]:
     except Exception:
         limit = 1000
     output_columns = [str(c).strip() for c in (payload.get("output_columns", []) or []) if str(c).strip()]
+    deduplicate = bool(payload.get("deduplicate", True))
+    unique_key_field = str(payload.get("unique_key_field") or "_merge_key").strip() or "_merge_key"
     merged_rows: list[dict[str, Any]] = []
+    seen_merge_keys: set[str] = set()
+    dropped_duplicates = 0
     discovered: list[str] = []
     sources_preview: list[dict[str, Any]] = []
 
@@ -2894,6 +2908,14 @@ def _build_merge_payload_result(payload: dict[str, Any]) -> dict[str, Any]:
                 out["_source"] = _merge_json_safe(src_cfg.get("source_tag") or source_id)
                 if "_source" not in discovered:
                     discovered.append("_source")
+            merge_key = _merge_unique_key_from_row(out, unique_key_field)
+            if deduplicate and merge_key in seen_merge_keys:
+                dropped_duplicates += 1
+                continue
+            seen_merge_keys.add(merge_key)
+            out[unique_key_field] = merge_key
+            if unique_key_field not in discovered:
+                discovered.append(unique_key_field)
             merged_rows.append(out)
             if len(source_preview_rows) < 3:
                 source_preview_rows.append(dict(out))
@@ -2915,6 +2937,9 @@ def _build_merge_payload_result(payload: dict[str, Any]) -> dict[str, Any]:
         "columns": cols,
         "rows": rows,
         "row_count": len(rows),
+        "duplicates_dropped": dropped_duplicates,
+        "deduplicate": deduplicate,
+        "unique_key_field": unique_key_field,
         "truncated": len(merged_rows) >= limit,
         "sources_preview": sources_preview,
     }
