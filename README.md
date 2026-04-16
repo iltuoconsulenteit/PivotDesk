@@ -18,8 +18,16 @@ This repository is a working local-development baseline. Main components:
 - FastAPI server (`app.py`)
 - desktop/web launchers (`main.py`, `run_pivotdesk.py`, `tray.py`)
 - pivot/data services (`services/`)
+- module registry + manifests (`modules/`)
+- plugin registry + extensions (`plugins/`)
 - licensing modules (`licensing/`)
 - Jinja templates (`templates/`)
+
+### Modules vs Plugins (maintenance structure)
+
+- `modules/` contains **functional modules** (business pages/features) described by `module.json` manifests.
+- `plugins/` contains **technical extensions** that can enrich modules (providers/tools/endpoints).
+- Runtime module metadata is available via `GET /modules`; plugin metadata remains under `GET /plugins` and `GET /plugins/status`.
 
 ---
 

@@ -29,6 +29,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from services.pivot_engine import apply_filters, normalize_df, run_pivot, table_to_html
 from services.source_manager import load_dataframe_from_source
 from services.plugin_manager import PluginAPI, PluginManager
+from services.module_registry import ModuleRegistry
 from plugins.calculated_fields.backend import (
     apply_calculated_fields,
     build_calculated_definitions,
@@ -1755,6 +1756,23 @@ def get_plugin_roots() -> list[Path]:
     return out
 
 
+def get_module_roots() -> list[Path]:
+    roots = [
+        BASE_DIR / "modules",
+        APP_HOME_DIR / "modules",
+        resource_path("modules"),
+    ]
+    out: list[Path] = []
+    seen: set[str] = set()
+    for root in roots:
+        key = str(root.resolve()) if root.exists() else str(root)
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(root)
+    return out
+
+
 def load_plugins_enabled_map() -> dict[str, bool]:
     raw = read_json(PLUGINS_CONFIG_PATH, None)
     if not isinstance(raw, dict) and LEGACY_PLUGINS_CONFIG_PATH.exists():
@@ -3229,6 +3247,8 @@ plugin_api = PluginAPI(
 )
 
 plugin_manager.load_all(app, plugin_api)
+module_registry = ModuleRegistry(get_module_roots())
+module_registry.load_all()
 
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request):
@@ -3864,6 +3884,12 @@ def wiki_asset(asset_path: str):
 @app.get("/plugins")
 def plugins_registry():
     return plugin_manager.get_frontend_registry()
+
+
+@app.get("/modules")
+def modules_registry():
+    module_registry.load_all()
+    return module_registry.get_status()
 
 
 @app.get("/plugins/status")
