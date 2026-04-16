@@ -3103,6 +3103,7 @@ async function renderCatalogScreen(){
       "<div class='catalog-item'>" +
         "<div><strong>" + escapeHtml(String(src?.title || src?.id || "")) + "</strong></div>" +
         "<div class='small'>id: " + escapeHtml(String(src?.id || "")) + " · tipo: " + escapeHtml(String(src?.type || "n/a")) + "</div>" +
+        "<div style='margin-top:6px;'><button type='button' onclick='openSourceEditorFromCatalog(\"" + escapeHtml(String(src?.id || "")) + "\")'>Modifica sorgente</button></div>" +
       "</div>"
     )).join("") || "<div class='small'>Nessuna sorgente disponibile.</div>";
   }
@@ -3116,6 +3117,7 @@ async function renderCatalogScreen(){
         "<div class='catalog-item'>" +
           "<div><strong>" + escapeHtml(String(p?.title || p?.id || "")) + "</strong></div>" +
           "<div class='small'>id: " + escapeHtml(String(p?.id || "")) + " · source_id: " + escapeHtml(String(p?.source_id || "")) + "</div>" +
+          "<div style='margin-top:6px;'><button type='button' onclick='openPivotEditorFromCatalog(\"" + escapeHtml(String(p?.id || "")) + "\", \"" + escapeHtml(String(p?.source_id || "")) + "\")'>Modifica pivot</button></div>" +
         "</div>"
       )).join("") || "<div class='small'>Nessun preset pivot disponibile.</div>";
     }
@@ -3125,6 +3127,47 @@ async function renderCatalogScreen(){
     if (pivCount) pivCount.textContent = "Totale pivot/preset: n/d";
   }
 }
+
+function openSourceEditorFromCatalog(sourceId){
+  const wanted = String(sourceId || "").trim();
+  if (!wanted) return;
+  try { resetSourceForm(); } catch (_) {}
+  openSourcesScreen({ keep_header: true });
+  const src = (SOURCES || []).find(s => String(s?.id || "").trim() === wanted);
+  if (src) {
+    loadSourceIntoForm(src);
+    setSourceManagerTab("base");
+    setStatus("Modifica sorgente: " + String(src.title || src.id));
+  }
+}
+window.openSourceEditorFromCatalog = openSourceEditorFromCatalog;
+
+async function openPivotEditorFromCatalog(pivotId, sourceId){
+  const wantedPivot = String(pivotId || "").trim();
+  const wantedSource = String(sourceId || "").trim();
+  if (!wantedPivot || !wantedSource) return;
+  try {
+    CURRENT_SOURCE = wantedSource;
+    await loadSources();
+    if ((SOURCES || []).some(s => String(s?.id || "").trim() === wantedSource)) {
+      const sel = document.getElementById("sourceSelect");
+      if (sel) sel.value = wantedSource;
+    }
+    await loadFields();
+    await loadPresets();
+    const target = (PRESETS || []).find(p => String(p?.id || "").trim() === wantedPivot);
+    if (target) {
+      CURRENT = wantedPivot;
+      openBuilderForCurrentPreset();
+      setStatus("Modifica pivot: " + String(target.title || target.id));
+      return;
+    }
+    setStatus("Preset non trovato per la sorgente selezionata.");
+  } catch (e) {
+    setStatus("ERRORE apertura pivot: " + (e?.message || e));
+  }
+}
+window.openPivotEditorFromCatalog = openPivotEditorFromCatalog;
 
 async function openCatalogScreen(){
   closeModuleScreens();
@@ -6566,7 +6609,14 @@ async function api(url, options = {}){
 
 async function loadSources(){
   const j = await api("/sources");
-  SOURCES = Array.isArray(j.items) ? j.items : [];
+  const rawSources = Array.isArray(j.items) ? j.items : [];
+  const seenSourceIds = new Set();
+  SOURCES = rawSources.filter(src => {
+    const sid = String(src?.id || "").trim();
+    if (!sid || seenSourceIds.has(sid)) return false;
+    seenSourceIds.add(sid);
+    return true;
+  });
 
   const sel = document.getElementById("sourceSelect");
   if (!sel) {
@@ -6625,7 +6675,11 @@ async function loadSources(){
   };
 
   populateBuilderSourceSelect();
-  setStatus("Sorgenti caricate: " + SOURCES.length);
+  if (rawSources.length !== SOURCES.length) {
+    setStatus("Sorgenti caricate: " + SOURCES.length + " (rimossi duplicati: " + String(rawSources.length - SOURCES.length) + ")");
+  } else {
+    setStatus("Sorgenti caricate: " + SOURCES.length);
+  }
 }
 
 async function loadFields(){

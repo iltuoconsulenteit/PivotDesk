@@ -1583,17 +1583,43 @@ def load_sources_data() -> dict[str, Any]:
         default_source = normalized_items[0]["id"] if normalized_items else ""
 
     known_source_ids = {x["id"] for x in normalized_items}
+    known_legacy_ids = {
+        str((x.get("config") or {}).get("legacy_source_id", "")).strip()
+        for x in normalized_items
+        if isinstance(x, dict)
+    }
     inferred_items = infer_sources_from_pivots_dirs()
     inferred_added = False
     for item in inferred_items:
         sid = item.get("id")
-        if not sid or sid in known_source_ids:
+        if not sid or sid in known_source_ids or sid in known_legacy_ids:
             continue
         known_source_ids.add(sid)
         normalized_items.append(item)
         inferred_added = True
 
     normalized_items, import_data_added = _auto_import_data_sources(normalized_items, used_numeric)
+
+    # Rimuovi eventuali duplicati residui dopo infer/migrazione/auto-import.
+    deduped_items: list[dict[str, Any]] = []
+    seen_ids: set[str] = set()
+    seen_legacy: set[str] = set()
+    for row in normalized_items:
+        if not isinstance(row, dict):
+            continue
+        sid = str(row.get("id", "")).strip()
+        legacy_sid = str((row.get("config") or {}).get("legacy_source_id", "")).strip()
+        if not sid:
+            continue
+        if sid in seen_ids:
+            continue
+        if legacy_sid and legacy_sid in seen_legacy:
+            continue
+        seen_ids.add(sid)
+        if legacy_sid:
+            seen_legacy.add(legacy_sid)
+        deduped_items.append(row)
+    normalized_items = deduped_items
 
     if not default_source and normalized_items:
         default_source = normalized_items[0]["id"]
@@ -4518,8 +4544,28 @@ def fields(request: Request, source_id: str = Query(...), pivot_id: str | None =
 @app.get("/pivots")
 def pivots(source_id: str = Query(...)):
     try:
-        items = load_pivot_files(source_id)
-        return {"items": items}
+        wanted = normalize_source_id(source_id)
+        source = get_source_by_id(wanted)
+        candidates = [wanted] if wanted else []
+        legacy = str((source.get("config") or {}).get("legacy_source_id", "")).strip() if isinstance(source, dict) else ""
+        if legacy and legacy not in candidates:
+            candidates.append(legacy)
+
+        merged: list[dict[str, Any]] = []
+        seen_keys: set[tuple[str, str]] = set()
+        for sid in candidates:
+            for row in load_pivot_files(sid):
+                if not isinstance(row, dict):
+                    continue
+                key = (
+                    str(row.get("id", "")).strip(),
+                    str(row.get("_filename", "")).strip(),
+                )
+                if key in seen_keys:
+                    continue
+                seen_keys.add(key)
+                merged.append(row)
+        return {"items": merged}
     except Exception as exc:
         return JSONResponse({"error": str(exc)}, status_code=500)
 
