@@ -1116,6 +1116,30 @@
       padding:8px 10px;
       background:#fff;
     }
+    .catalog-actions{
+      margin-top:6px;
+      display:flex;
+      flex-wrap:wrap;
+      gap:6px;
+    }
+    .btn-mini{
+      border:1px solid #d0d5dd;
+      border-radius:8px;
+      padding:5px 8px;
+      font-size:12px;
+      background:#fff;
+      cursor:pointer;
+    }
+    .btn-mini.edit{
+      border-color:#b2ddff;
+      color:#175cd3;
+      background:#eff8ff;
+    }
+    .btn-mini.delete{
+      border-color:#fecdca;
+      color:#b42318;
+      background:#fef3f2;
+    }
     @media (max-width: 980px){
       .catalog-grid{ grid-template-columns:1fr; }
     }
@@ -3103,7 +3127,10 @@ async function renderCatalogScreen(){
       "<div class='catalog-item'>" +
         "<div><strong>" + escapeHtml(String(src?.title || src?.id || "")) + "</strong></div>" +
         "<div class='small'>id: " + escapeHtml(String(src?.id || "")) + " · tipo: " + escapeHtml(String(src?.type || "n/a")) + "</div>" +
-        "<div style='margin-top:6px;'><button type='button' onclick='openSourceEditorFromCatalog(\"" + escapeHtml(String(src?.id || "")) + "\")'>Modifica sorgente</button></div>" +
+        "<div class='catalog-actions'>" +
+          "<button type='button' class='btn-mini edit' onclick='openSourceEditorFromCatalog(" + JSON.stringify(String(src?.id || "")) + ")'>✏️ Modifica</button>" +
+          "<button type='button' class='btn-mini delete' onclick='deleteSourceFromCatalog(" + JSON.stringify(String(src?.id || "")) + ")'>🗑️ Elimina</button>" +
+        "</div>" +
       "</div>"
     )).join("") || "<div class='small'>Nessuna sorgente disponibile.</div>";
   }
@@ -3117,7 +3144,10 @@ async function renderCatalogScreen(){
         "<div class='catalog-item'>" +
           "<div><strong>" + escapeHtml(String(p?.title || p?.id || "")) + "</strong></div>" +
           "<div class='small'>id: " + escapeHtml(String(p?.id || "")) + " · source_id: " + escapeHtml(String(p?.source_id || "")) + "</div>" +
-          "<div style='margin-top:6px;'><button type='button' onclick='openPivotEditorFromCatalog(\"" + escapeHtml(String(p?.id || "")) + "\", \"" + escapeHtml(String(p?.source_id || "")) + "\")'>Modifica pivot</button></div>" +
+          "<div class='catalog-actions'>" +
+            "<button type='button' class='btn-mini edit' onclick='openPivotEditorFromCatalog(" + JSON.stringify(String(p?.id || "")) + ", " + JSON.stringify(String(p?.source_id || "")) + ")'>🧩 Modifica</button>" +
+            "<button type='button' class='btn-mini delete' onclick='deletePivotFromCatalog(" + JSON.stringify(String(p?.id || "")) + ", " + JSON.stringify(String(p?.source_id || "")) + ", " + JSON.stringify(String(p?.filename || "")) + ")'>🗑️ Elimina</button>" +
+          "</div>" +
         "</div>"
       )).join("") || "<div class='small'>Nessun preset pivot disponibile.</div>";
     }
@@ -3141,6 +3171,27 @@ function openSourceEditorFromCatalog(sourceId){
   }
 }
 window.openSourceEditorFromCatalog = openSourceEditorFromCatalog;
+
+async function deleteSourceFromCatalog(sourceId){
+  const wanted = String(sourceId || "").trim();
+  if (!wanted) return;
+  const ok = window.confirm('Confermi eliminazione sorgente "' + wanted + '"?\nI preset non vengono eliminati automaticamente.');
+  if (!ok) return;
+  try {
+    await api("/sources/delete", {
+      method: "POST",
+      body: JSON.stringify({ source_id: wanted })
+    });
+    await loadSources();
+    await loadFields();
+    await loadPresets();
+    await renderCatalogScreen();
+    setStatus("Sorgente eliminata: " + wanted);
+  } catch (e) {
+    setStatus("ERRORE eliminazione sorgente: " + (e?.message || e));
+  }
+}
+window.deleteSourceFromCatalog = deleteSourceFromCatalog;
 
 async function openPivotEditorFromCatalog(pivotId, sourceId){
   const wantedPivot = String(pivotId || "").trim();
@@ -3168,6 +3219,32 @@ async function openPivotEditorFromCatalog(pivotId, sourceId){
   }
 }
 window.openPivotEditorFromCatalog = openPivotEditorFromCatalog;
+
+async function deletePivotFromCatalog(pivotId, sourceId, filename){
+  const wantedPivot = String(pivotId || "").trim();
+  const wantedSource = String(sourceId || "").trim();
+  if (!wantedPivot || !wantedSource) return;
+  const ok = window.confirm('Confermi eliminazione pivot "' + wantedPivot + '"?');
+  if (!ok) return;
+  try {
+    await api("/preset-editor/delete", {
+      method: "POST",
+      body: JSON.stringify({
+        source_id: wantedSource,
+        preset_id: wantedPivot,
+        filename: String(filename || "").trim()
+      })
+    });
+    if (CURRENT_SOURCE === wantedSource) {
+      await loadPresets();
+    }
+    await renderCatalogScreen();
+    setStatus("Pivot eliminata: " + wantedPivot);
+  } catch (e) {
+    setStatus("ERRORE eliminazione pivot: " + (e?.message || e));
+  }
+}
+window.deletePivotFromCatalog = deletePivotFromCatalog;
 
 async function openCatalogScreen(){
   closeModuleScreens();

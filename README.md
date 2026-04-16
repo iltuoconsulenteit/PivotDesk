@@ -133,6 +133,7 @@ Change this password immediately in shared environments.
 - Settings screen with accordion sections and dedicated visibility for both module registry (`/modules`) and plugin runtime status.
 - Catalog module for unified listing of all data sources and pivot presets (uses `GET /pivots/all` for cross-source preset inventory).
 - Source loading now applies a runtime duplicate guard on source IDs in UI, and pivot listing supports legacy source mapping fallback to preserve older source/preset associations.
+- Catalog actions include quick edit/delete buttons (with visual icon/color cues) for both sources and pivot presets.
 - UI localization (English/Italian).
 
 ## UI structure previews
