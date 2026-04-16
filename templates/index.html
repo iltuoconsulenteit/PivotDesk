@@ -3213,17 +3213,21 @@ async function openPivotEditorFromCatalog(pivotId, sourceId){
   const wantedSource = String(sourceId || "").trim();
   if (!wantedPivot || !wantedSource) return;
   try {
+    await loadSources();
     const resolvedSource = (SOURCES || []).find(s => String(s?.id || "").trim() === wantedSource)
       || (SOURCES || []).find(s => String(s?.config?.legacy_source_id || "").trim() === wantedSource);
-    CURRENT_SOURCE = String(resolvedSource?.id || wantedSource).trim();
-    await loadSources();
+    if (!resolvedSource || !String(resolvedSource?.id || "").trim()) {
+      setStatus(translateText("catalog_status_source_not_found"));
+      return;
+    }
+    CURRENT_SOURCE = String(resolvedSource.id || "").trim();
     const sel = document.getElementById("sourceSelect");
     if (sel && (SOURCES || []).some(s => String(s?.id || "").trim() === CURRENT_SOURCE)) {
       sel.value = CURRENT_SOURCE;
     }
     await loadFields();
     await loadPresets();
-    const target = (PRESETS || []).find(p => String(p?.id || "").trim() === wantedPivot);
+    const target = (PRESETS || []).find(p => String(p?.id || "").trim().toLowerCase() === wantedPivot.toLowerCase());
     if (target) {
       CURRENT = wantedPivot;
       openBuilderForCurrentPreset();
@@ -6758,7 +6762,16 @@ async function loadSources(){
   }
 
   const defaultSource = String(j.default_source || "").trim();
-  CURRENT_SOURCE = SOURCES.some(s => s.id === defaultSource) ? defaultSource : SOURCES[0].id;
+  const preferred = String(CURRENT_SOURCE || "").trim();
+  const preferredMatch = (SOURCES || []).find(s =>
+    String(s?.id || "").trim() === preferred ||
+    String(s?.config?.legacy_source_id || "").trim() === preferred
+  );
+  if (preferredMatch) {
+    CURRENT_SOURCE = String(preferredMatch.id || "").trim();
+  } else {
+    CURRENT_SOURCE = SOURCES.some(s => s.id === defaultSource) ? defaultSource : SOURCES[0].id;
+  }
 
   for (const src of SOURCES) {
     const o = document.createElement("option");

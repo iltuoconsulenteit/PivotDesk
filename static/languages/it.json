@@ -90,6 +90,7 @@
   "catalog_status_deleted_source": "Sorgente eliminata",
   "catalog_error_delete_source": "Errore eliminazione sorgente",
   "catalog_status_edit_pivot": "Modifica pivot",
+  "catalog_status_source_not_found": "Sorgente collegata a questo preset non trovata.",
   "catalog_status_pivot_not_found": "Preset non trovato per la sorgente selezionata.",
   "catalog_error_open_pivot": "Errore apertura pivot",
   "catalog_confirm_delete_pivot_prefix": "Confermi eliminazione pivot",
