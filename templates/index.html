@@ -249,6 +249,47 @@
     #sourcesScreen.active{
       background:linear-gradient(180deg,#f4f7fb 0%, #eef3f7 100%);
     }
+    #sourcesScreen .module-shell{
+      border:1px solid #d4def0;
+      box-shadow:0 14px 32px rgba(15,23,42,.10);
+      background:linear-gradient(180deg,#ffffff 0%, #f8fbff 100%);
+    }
+    .module-kicker{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      font-size:12px;
+      font-weight:600;
+      color:#175cd3;
+      background:#eff8ff;
+      border:1px solid #b2ddff;
+      border-radius:999px;
+      padding:4px 10px;
+      margin-bottom:8px;
+    }
+    .source-module-tabs{
+      position:sticky;
+      top:8px;
+      z-index:3;
+      background:#f8fbff;
+      border:1px solid #d4def0;
+      border-radius:12px;
+      padding:8px;
+      margin-bottom:14px;
+    }
+    .source-module-tabs .quick-toggle{
+      border-radius:10px;
+    }
+    .source-module-actions{
+      position:sticky;
+      bottom:0;
+      z-index:4;
+      border:1px solid #d4def0;
+      border-radius:12px;
+      background:#ffffff;
+      padding:10px;
+      box-shadow:0 -6px 18px rgba(15,23,42,.06);
+    }
     .wiki-drawer{
       position:fixed;
       top:0;
@@ -1613,22 +1654,23 @@ window.LICENSE_CONTEXT = {
 </div>
 
 <div id="sourcesScreen" class="builder-screen">
-  <div class="card">
+  <div class="card module-shell">
     <div class="builder-head">
       <div class="builder-head-left">
+        <div class="module-kicker">🧩 Modulo</div>
         <div class="section-title">Gestione sorgenti dati</div>
         <div class="small">Sono supportate sorgenti CSV e Excel XLSX. Per i CSV puoi impostare delimitatore ed encoding; per Excel puoi indicare il nome del foglio.</div>
       </div>
       <div>
-        <button id="btnCloseSources" type="button">Chiudi gestione sorgenti</button>
+        <button id="btnCloseSources" type="button">Chiudi modulo</button>
       </div>
     </div>
 
-    <div class="plugin-tools-tabs" style="margin-bottom:10px;">
+    <div class="plugin-tools-tabs source-module-tabs">
       <button type="button" class="quick-toggle active" id="btnSourceTabBase">Configurazione base</button>
       <button type="button" class="quick-toggle" id="btnSourceTabCatalog">Sorgenti disponibili</button>
       <button type="button" class="quick-toggle" id="btnSourceTabCalc">Campi calcolati</button>
-      <button type="button" class="quick-toggle" id="btnSourceTabPlugins">Plugin</button>
+      <button type="button" class="quick-toggle" id="btnSourceTabPlugins">Strumenti</button>
     </div>
 
     <div class="source-tab-panel" data-source-tab="base">
@@ -1816,11 +1858,11 @@ window.LICENSE_CONTEXT = {
       <div id="sourceCalcRows" style="display:grid; gap:8px; margin-top:8px;"></div>
     </div>
 
-    <div class="builder-actions" style="position:sticky; bottom:0; background:#fff; padding-top:8px; z-index:4;">
+    <div class="builder-actions source-module-actions">
       <button id="btnSourceNew" type="button">➕ Nuova sorgente</button>
       <button id="btnSourceSave" type="button" class="primary">💾 Salva sorgente</button>
       <button id="btnSourceDelete" type="button" class="danger">🗑️ Elimina sorgente</button>
-      <button id="btnCloseSourcesBottom" type="button">Chiudi</button>
+      <button id="btnCloseSourcesBottom" type="button">Chiudi modulo</button>
     </div>
     <div id="sourceActionStatus" class="small" style="margin-top:8px; color:#175cd3;"></div>
 
