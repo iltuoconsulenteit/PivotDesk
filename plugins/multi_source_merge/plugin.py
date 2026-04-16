@@ -370,6 +370,8 @@ def _build_merge_result(plugin_api, payload: MultiMergeRequest) -> dict[str, Any
     merged_rows: list[dict[str, Any]] = []
     seen_merge_keys: set[str] = set()
     dropped_duplicates = 0
+    dropped_preview: list[dict[str, Any]] = []
+    dropped_preview_limit = 100
     discovered_targets: list[str] = []
     unique_key_field = str(payload.unique_key_field or "_merge_key").strip() or "_merge_key"
 
@@ -419,6 +421,12 @@ def _build_merge_result(plugin_api, payload: MultiMergeRequest) -> dict[str, Any
             ).hexdigest()[:20]
             if payload.deduplicate and merge_key in seen_merge_keys:
                 dropped_duplicates += 1
+                if len(dropped_preview) < dropped_preview_limit:
+                    dropped_preview.append({
+                        "merge_key": merge_key,
+                        "source_id": src_cfg.source_id,
+                        "row": dict(out),
+                    })
                 continue
             seen_merge_keys.add(merge_key)
             out[unique_key_field] = merge_key
@@ -439,6 +447,8 @@ def _build_merge_result(plugin_api, payload: MultiMergeRequest) -> dict[str, Any
         "rows": normalized_rows,
         "row_count": len(normalized_rows),
         "duplicates_dropped": dropped_duplicates,
+        "duplicates_preview": dropped_preview,
+        "duplicates_preview_total": dropped_duplicates,
         "deduplicate": bool(payload.deduplicate),
         "unique_key_field": unique_key_field,
         "truncated": len(merged_rows) >= payload.limit,

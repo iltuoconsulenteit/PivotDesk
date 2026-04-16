@@ -2873,6 +2873,8 @@ def _build_merge_payload_result(payload: dict[str, Any]) -> dict[str, Any]:
     merged_rows: list[dict[str, Any]] = []
     seen_merge_keys: set[str] = set()
     dropped_duplicates = 0
+    dropped_preview: list[dict[str, Any]] = []
+    dropped_preview_limit = 100
     discovered: list[str] = []
     sources_preview: list[dict[str, Any]] = []
 
@@ -2911,6 +2913,12 @@ def _build_merge_payload_result(payload: dict[str, Any]) -> dict[str, Any]:
             merge_key = _merge_unique_key_from_row(out, unique_key_field)
             if deduplicate and merge_key in seen_merge_keys:
                 dropped_duplicates += 1
+                if len(dropped_preview) < dropped_preview_limit:
+                    dropped_preview.append({
+                        "merge_key": merge_key,
+                        "source_id": source_id,
+                        "row": dict(out),
+                    })
                 continue
             seen_merge_keys.add(merge_key)
             out[unique_key_field] = merge_key
@@ -2938,6 +2946,8 @@ def _build_merge_payload_result(payload: dict[str, Any]) -> dict[str, Any]:
         "rows": rows,
         "row_count": len(rows),
         "duplicates_dropped": dropped_duplicates,
+        "duplicates_preview": dropped_preview,
+        "duplicates_preview_total": dropped_duplicates,
         "deduplicate": deduplicate,
         "unique_key_field": unique_key_field,
         "truncated": len(merged_rows) >= limit,
