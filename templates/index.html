@@ -249,10 +249,10 @@
     #sourcesScreen.active{
       background:linear-gradient(180deg,#f4f7fb 0%, #eef3f7 100%);
     }
-    .source-module-header{
+    .module-screen-header{
       margin-bottom:10px;
     }
-    .source-module-header .section-title{
+    .module-screen-header .section-title{
       margin-bottom:2px;
     }
     .source-module-actions{
@@ -1445,17 +1445,16 @@ window.LICENSE_CONTEXT = {
 </aside>
 
 <div id="builderScreen" class="builder-screen">
-  <div class="card">
-    <div class="builder-head">
-      <div class="builder-head-left">
-        <div class="section-title">Costruttore pivot stile Excel</div>
-        <div class="small">Modalità dedicata: il resto della dashboard è nascosto per evitare confusione visiva.</div>
-        <div id="builderModeInfo" class="small"></div>
-      </div>
-      <div>
-        <button id="btnCloseBuilder" type="button">Chiudi costruttore</button>
-      </div>
+  <div class="builder-head module-screen-header">
+    <div class="builder-head-left">
+      <div class="section-title">Costruttore pivot stile Excel</div>
+      <div class="small">Vista modulo: costruisci e modifica preset pivot mantenendo header/licenza sempre visibili.</div>
+      <div id="builderModeInfo" class="small"></div>
     </div>
+    <div><button id="btnCloseBuilder" type="button">Chiudi modulo</button></div>
+  </div>
+
+  <div class="card">
 
     <div class="builder-top">
       <div class="field">
@@ -1629,7 +1628,7 @@ window.LICENSE_CONTEXT = {
 </div>
 
 <div id="sourcesScreen" class="builder-screen">
-  <div class="builder-head source-module-header">
+  <div class="builder-head module-screen-header">
     <div class="builder-head-left">
       <div class="section-title">Gestione sorgenti dati</div>
       <div class="small">Vista modulo: crea, modifica e organizza le sorgenti dati usate in PivotDesk.</div>
@@ -3432,7 +3431,8 @@ function setBuilderMode(mode, preset = null){
 
 function openBuilderScreen(){
   closeModuleScreens();
-  document.getElementById("mainView").classList.add("hidden");
+  document.getElementById("mainView").classList.remove("hidden");
+  document.getElementById("mainView").classList.add("module-header-only");
   document.getElementById("sourcesScreen").classList.remove("active");
   document.getElementById("settingsScreen").classList.remove("active");
   document.getElementById("builderScreen").classList.add("active");
