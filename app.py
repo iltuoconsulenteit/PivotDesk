@@ -131,6 +131,7 @@ DEFAULT_CONFIG = {
     "host": "127.0.0.1",
     "port": 8091,
 }
+APP_VERSION = os.getenv("PIVOTDESK_VERSION", "0.2.1").strip() or "0.2.1"
 
 DEFAULT_SETTINGS = {
     "print_show_logos": True,
@@ -3236,6 +3237,7 @@ def index(request: Request):
         "request": request,
         "current_user": get_current_user_from_session(request),
         "customer_logo_url": customer_logo_url,
+        "app_version": APP_VERSION,
         **get_license_context(),
     }
     return templates.TemplateResponse("index.html", ctx)
@@ -3828,6 +3830,7 @@ def health():
     return {
         "ok": True,
         "app_name": cfg.get("app_name", "PivotDesk"),
+        "app_version": APP_VERSION,
         "host": cfg.get("host", "127.0.0.1"),
         "port": cfg.get("port", 8091),
     }
@@ -3885,6 +3888,7 @@ def plugins_status():
             item["effective_enabled"] = bool(configured_enabled and license_allowed)
 
     if isinstance(status_payload, dict):
+        status_payload["app_version"] = APP_VERSION
         status_payload["plugins"] = plugins
         status_payload["license_plugins_allowed"] = license_allows_plugins
         status_payload["configured_enabled_map"] = enabled_map

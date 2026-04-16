@@ -1406,7 +1406,7 @@ window.LICENSE_CONTEXT = {
   <div id="status" class="card"></div>
   <div id="report" class="card report-card"></div>
 
-  <div class="footer">PivotDesk v0.2.1 · powered by IlTuoConsulenteIT</div>
+  <div class="footer">PivotDesk v{{ app_version or "0.2.1" }} · powered by IlTuoConsulenteIT</div>
 </div>
 
 <aside id="wikiDrawer" class="wiki-drawer" aria-hidden="true">
@@ -3009,17 +3009,20 @@ function renderPluginsSettingsList(){
   if (!list || !status) return;
   const items = Array.isArray(PLUGINS_STATUS?.plugins) ? PLUGINS_STATUS.plugins : [];
   const licenseAllowed = !!(PLUGINS_STATUS && PLUGINS_STATUS.license_plugins_allowed);
+  const appVersion = String(PLUGINS_STATUS?.app_version || "{{ app_version or '0.2.1' }}");
   if (!items.length) {
     list.innerHTML = "<div class='small'>Nessun plugin disponibile.</div>";
-    status.textContent = "Nessun plugin rilevato.";
+    status.textContent = "App v" + appVersion + " · Nessun plugin rilevato.";
     return;
   }
-  status.textContent = licenseAllowed
+  const licenseMsg = licenseAllowed
     ? "Licenza: plugin consentiti. Puoi gestire l'abilitazione."
     : "Licenza: plugin non consentiti. Visualizzazione disponibile, esecuzione limitata.";
+  status.textContent = "App v" + appVersion + " · " + licenseMsg;
 
   list.innerHTML = items.map(p => {
     const pid = String(p.id || "");
+    const pluginVersion = String(p.version || "n/a");
     const enabled = !!p.configured_enabled;
     const runtimeEnabled = !!p.runtime_enabled;
     const effectiveEnabled = !!p.effective_enabled;
@@ -3033,6 +3036,7 @@ function renderPluginsSettingsList(){
         "</span>" +
         "<span class='small' style='color:#475467;'>" + escapeHtml(desc || "Nessuna descrizione") + "</span>" +
         "<span class='small' style='display:flex; gap:10px; color:#667085;'>" +
+          "<span>versione: " + escapeHtml(pluginVersion) + "</span>" +
           "<span>runtime: " + (runtimeEnabled ? "on" : "off") + "</span>" +
           "<span>licenza: " + (licenseAllowed ? "ok" : "no") + "</span>" +
         "</span>" +
