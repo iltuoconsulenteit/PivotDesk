@@ -95,7 +95,17 @@
   "catalog_error_open_pivot": "Pivot open error",
   "catalog_confirm_delete_pivot_prefix": "Confirm pivot deletion",
   "catalog_status_deleted_pivot": "Pivot deleted",
-  "catalog_error_delete_pivot": "Pivot deletion error"
+  "catalog_error_delete_pivot": "Pivot deletion error",
+  "xml_import_title": "XML Structured Import",
+  "xml_import_subtitle": "Import structured XML files (e.g. electronic invoices) and generate CSV in import_data for source auto-detection.",
+  "xml_import_source_title": "Suggested source title",
+  "xml_import_files_label": "XML files",
+  "xml_import_button": "Import XML",
+  "xml_import_idle": "No import executed yet.",
+  "xml_import_error_no_files": "Select at least one XML file.",
+  "xml_import_done_rows": "XML import completed. Rows",
+  "xml_import_bad_files": "invalid files",
+  "xml_import_done_status": "XML import completed. You can manage the new source from the catalog."
   ,"users_management": "User management"
   ,"users_management_subtitle": "Manage access and multi-user profiles in PivotDesk LAN environments."
   ,"open_pivotdesk": "Open PivotDesk"

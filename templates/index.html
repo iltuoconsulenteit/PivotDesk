@@ -1954,6 +1954,16 @@ window.LICENSE_CONTEXT = {
           <div id="lkPickFieldsSelected" style="display:flex; flex-wrap:wrap; gap:6px; min-height:40px; padding:8px; border:1px solid #98a2b3; border-radius:8px; background:#f8fafc;"></div>
           <div class="builder-actions"><button id="btnRunCrossLookup" type="button">Esegui lookup</button></div>
         </div>
+        <div class="plugin-tool-card">
+          <div style="font-weight:600; margin-bottom:6px;" data-i18n="xml_import_title">XML Structured Import</div>
+          <div class="small" style="margin-bottom:8px;" data-i18n="xml_import_subtitle">Importa XML strutturati (es. fatture elettroniche) e genera CSV in import_data per auto-rilevamento sorgenti.</div>
+          <div class="field"><label for="xmlImportTitle" data-i18n="xml_import_source_title">Titolo sorgente suggerito</label><input id="xmlImportTitle" placeholder="es. Fatture elettroniche"></div>
+          <div class="field"><label for="xmlImportFiles" data-i18n="xml_import_files_label">File XML</label><input id="xmlImportFiles" type="file" accept=".xml,text/xml,application/xml" multiple></div>
+          <div class="builder-actions">
+            <button id="btnRunXmlStructuredImport" type="button">📥 <span data-i18n="xml_import_button">Importa XML</span></button>
+          </div>
+          <div id="xmlImportStatus" class="small" style="margin-top:8px; color:#475467;" data-i18n="xml_import_idle">Nessun import eseguito.</div>
+        </div>
       </div>
       <div id="pluginToolMerge" class="plugin-tool-pane hidden">
         <div class="plugin-tool-card">
@@ -4933,6 +4943,32 @@ async function runCrossSourceLookupFromUi(){
   });
   setSourcePluginOutput(res);
   setStatus("Lookup cross-source completato.");
+}
+
+async function runXmlStructuredImportFromUi(){
+  const input = document.getElementById("xmlImportFiles");
+  const status = document.getElementById("xmlImportStatus");
+  const title = String(document.getElementById("xmlImportTitle")?.value || "").trim();
+  const files = input && input.files ? Array.from(input.files) : [];
+  if (!files.length) throw new Error(translateText("xml_import_error_no_files"));
+
+  const form = new FormData();
+  for (const f of files) form.append("files", f);
+  form.append("source_title", title || "XML import");
+
+  const res = await api("/plugin/xml-structured-import/upload", {
+    method: "POST",
+    body: form
+  });
+  if (status) {
+    status.textContent =
+      translateText("xml_import_done_rows") + ": " + String(res?.rows || 0) +
+      " · CSV: " + String(res?.csv_path || "") +
+      (Array.isArray(res?.bad_files) && res.bad_files.length ? (" · " + translateText("xml_import_bad_files") + ": " + String(res.bad_files.length)) : "");
+  }
+  await loadSources();
+  await renderCatalogScreen().catch(() => {});
+  setStatus(translateText("xml_import_done_status"));
 }
 
 async function runMultiSourceMergeFromUi(){
@@ -8931,6 +8967,13 @@ bindClick("btnRunCrossLookup", async () => {
     await runCrossSourceLookupFromUi();
   } catch (e) {
     setStatus("ERRORE plugin lookup: " + e.message);
+  }
+});
+bindClick("btnRunXmlStructuredImport", async () => {
+  try {
+    await runXmlStructuredImportFromUi();
+  } catch (e) {
+    setStatus("ERRORE import XML: " + e.message);
   }
 });
 bindClick("btnRunMultiMergeFromTemplate", async () => {

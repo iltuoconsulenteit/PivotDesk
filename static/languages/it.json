@@ -95,7 +95,17 @@
   "catalog_error_open_pivot": "Errore apertura pivot",
   "catalog_confirm_delete_pivot_prefix": "Confermi eliminazione pivot",
   "catalog_status_deleted_pivot": "Pivot eliminata",
-  "catalog_error_delete_pivot": "Errore eliminazione pivot"
+  "catalog_error_delete_pivot": "Errore eliminazione pivot",
+  "xml_import_title": "Import XML strutturato",
+  "xml_import_subtitle": "Importa XML strutturati (es. fatture elettroniche) e genera CSV in import_data per auto-rilevamento sorgenti.",
+  "xml_import_source_title": "Titolo sorgente suggerito",
+  "xml_import_files_label": "File XML",
+  "xml_import_button": "Importa XML",
+  "xml_import_idle": "Nessun import eseguito.",
+  "xml_import_error_no_files": "Seleziona almeno un file XML.",
+  "xml_import_done_rows": "Import XML completato. Righe",
+  "xml_import_bad_files": "file non validi",
+  "xml_import_done_status": "Import XML completato. Puoi gestire la nuova sorgente dal catalogo."
   ,"users_management": "Gestione utenti"
   ,"users_management_subtitle": "Amministrazione accessi e profili multiutente di PivotDesk in ambiente LAN."
   ,"open_pivotdesk": "Apri PivotDesk"
