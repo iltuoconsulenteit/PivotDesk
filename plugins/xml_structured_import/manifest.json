@@ -2,7 +2,7 @@
   "id": "xml_structured_import",
   "name": "XML Structured Import",
   "version": "0.1.0",
-  "description": "Importa XML strutturati (es. fatture elettroniche) e genera sorgenti CSV collegate.",
+  "description": "Quick import di un singolo XML strutturato con output CSV in import_data.",
   "enabled": true,
   "frontend": {
     "tool_tab": "plugins",

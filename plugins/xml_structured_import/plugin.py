@@ -75,30 +75,22 @@ def _next_numeric_source_id(items: list[dict[str, Any]]) -> str:
 def register(app, plugin_api, manifest):
     @app.post("/plugin/xml-structured-import/upload")
     async def xml_structured_import_upload(
-        files: list[UploadFile] = File(...),
+        file: UploadFile = File(...),
         source_title: str = Form("XML import"),
     ):
-        if not files:
+        if not file:
             return JSONResponse({"error": "Nessun file XML ricevuto."}, status_code=400)
 
-        rows: list[dict[str, str]] = []
-        bad_files: list[dict[str, str]] = []
-        for f in files:
-            name = str(f.filename or "file.xml")
-            raw = await f.read()
-            if not raw:
-                continue
-            try:
-                row = _extract_row_from_xml(raw, name)
-                rows.append(row)
-            except Exception as exc:
-                bad_files.append({"file": name, "error": str(exc)})
+        name = str(file.filename or "file.xml")
+        raw = await file.read()
+        if not raw:
+            return JSONResponse({"error": "Il file XML è vuoto."}, status_code=400)
+        try:
+            row = _extract_row_from_xml(raw, name)
+        except Exception as exc:
+            return JSONResponse({"error": f"Impossibile leggere XML: {exc}"}, status_code=400)
 
-        if not rows:
-            return JSONResponse(
-                {"error": "Impossibile leggere file XML validi.", "bad_files": bad_files},
-                status_code=400,
-            )
+        rows: list[dict[str, str]] = [row]
 
         all_cols = sorted({k for r in rows for k in r.keys()})
         stamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
@@ -127,7 +119,6 @@ def register(app, plugin_api, manifest):
             "csv_path": str(out_csv),
             "suggested_source_id": source_id,
             "suggested_source_title": f"{source_title.strip() or 'XML import'} {stamp}",
-            "bad_files": bad_files,
             "note": "File CSV generato in import_data. La sorgente viene auto-rilevata al prossimo refresh sorgenti.",
         }
 

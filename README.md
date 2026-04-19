@@ -134,7 +134,8 @@ Change this password immediately in shared environments.
 - Catalog module for unified listing of all data sources and pivot presets (uses `GET /pivots/all` for cross-source preset inventory).
 - Source loading now applies a runtime duplicate guard on source IDs in UI, and pivot listing supports legacy source mapping fallback to preserve older source/preset associations.
 - Catalog actions include quick edit/delete buttons (with visual icon/color cues) for both sources and pivot presets.
-- XML Structured Import plugin (`/plugin/xml-structured-import/upload`) accepts structured XML files (e.g. electronic invoices), flattens them to CSV in `import_data`, and makes them available for source auto-detection.
+- XML Structured Import plugin (`/plugin/xml-structured-import/upload`) is a quick tool for **single-file** structured XML import, flattening data to CSV in `import_data`.
+- XML Batch Import module (`/module/xml-batch-import/upload`) handles **multi-file** XML ingestion with optional unique-key deduplication (`rows_in`, `rows_out`, `duplicates_dropped`) and writes the generated CSV in `import_data` for source auto-detection.
 - UI localization (English/Italian).
 
 ## UI structure previews

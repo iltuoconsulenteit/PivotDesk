@@ -18,6 +18,7 @@ from collections import OrderedDict
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+from xml.etree import ElementTree as ET
 
 import pandas as pd
 from fastapi import FastAPI, Query, Request, Form, UploadFile, File
@@ -1081,6 +1082,50 @@ def sanitize_filename(value: str | None) -> str:
         name += ".json"
 
     return name
+
+
+def _xml_strip_ns(tag: str) -> str:
+    if "}" in tag:
+        return tag.rsplit("}", 1)[-1]
+    return tag
+
+
+def _xml_safe_cell(value: Any) -> str:
+    if value is None:
+        return ""
+    return re.sub(r"\s+", " ", str(value)).strip()
+
+
+def _xml_flatten_element(el: ET.Element, prefix: str = "") -> dict[str, str]:
+    row: dict[str, str] = {}
+    tag = _xml_strip_ns(el.tag)
+    node_prefix = f"{prefix}.{tag}" if prefix else tag
+
+    text = _xml_safe_cell(el.text)
+    children = list(el)
+    if text and not children:
+        row[node_prefix] = text
+
+    grouped: dict[str, list[ET.Element]] = {}
+    for child in children:
+        grouped.setdefault(_xml_strip_ns(child.tag), []).append(child)
+
+    for child_tag, nodes in grouped.items():
+        if len(nodes) == 1:
+            row.update(_xml_flatten_element(nodes[0], node_prefix))
+        else:
+            for i, node in enumerate(nodes, start=1):
+                indexed = f"{node_prefix}.{child_tag}[{i}]"
+                row.update(_xml_flatten_element(node, indexed))
+    return row
+
+
+def _extract_row_from_xml_content(content: bytes, filename: str) -> dict[str, str]:
+    root = ET.fromstring(content)
+    row = _xml_flatten_element(root)
+    row["_xml_filename"] = _xml_safe_cell(filename)
+    row["_xml_root"] = _xml_strip_ns(root.tag)
+    return row
 
 
 def source_folder(source_id: str | None) -> Path:
@@ -4054,6 +4099,78 @@ async def sources_scan_import_data(request: Request):
         return {"ok": True, "import_data_dir": str(IMPORT_DATA_DIR), "imported_count": len(imported), "items": imported}
     except Exception as exc:
         return JSONResponse({"error": f"Errore scansione import_data: {exc}"}, status_code=500)
+
+
+@app.post("/module/xml-batch-import/upload")
+async def module_xml_batch_import_upload(
+    files: list[UploadFile] = File(...),
+    source_title: str = Form("XML batch import"),
+    unique_keys: str = Form(""),
+):
+    try:
+        if not files:
+            return JSONResponse({"error": "Nessun file XML ricevuto."}, status_code=400)
+
+        rows: list[dict[str, str]] = []
+        bad_files: list[dict[str, str]] = []
+        for f in files:
+            name = str(f.filename or "file.xml")
+            raw = await f.read()
+            if not raw:
+                bad_files.append({"file": name, "error": "File vuoto."})
+                continue
+            try:
+                rows.append(_extract_row_from_xml_content(raw, name))
+            except Exception as exc:
+                bad_files.append({"file": name, "error": str(exc)})
+
+        if not rows:
+            return JSONResponse(
+                {"error": "Impossibile leggere file XML validi.", "bad_files": bad_files},
+                status_code=400,
+            )
+
+        key_fields = [str(x).strip() for x in str(unique_keys or "").split(",") if str(x).strip()]
+        rows_in = len(rows)
+        deduped_rows = rows
+        duplicates_dropped = 0
+        if key_fields:
+            seen: set[tuple[str, ...]] = set()
+            deduped_rows = []
+            for row in rows:
+                row_key = tuple(str(row.get(k, "")).strip() for k in key_fields)
+                if row_key in seen:
+                    duplicates_dropped += 1
+                    continue
+                seen.add(row_key)
+                deduped_rows.append(row)
+
+        all_cols = sorted({k for r in deduped_rows for k in r.keys()})
+        stamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        csv_name = f"xml_batch_{stamp}.csv"
+        IMPORT_DATA_DIR.mkdir(parents=True, exist_ok=True)
+        out_csv = IMPORT_DATA_DIR / csv_name
+
+        with out_csv.open("w", encoding="utf-8-sig", newline="") as fp:
+            writer = csv.DictWriter(fp, fieldnames=all_cols, delimiter=";")
+            writer.writeheader()
+            for row in deduped_rows:
+                writer.writerow({c: row.get(c, "") for c in all_cols})
+
+        return {
+            "ok": True,
+            "rows_in": rows_in,
+            "rows_out": len(deduped_rows),
+            "duplicates_dropped": duplicates_dropped,
+            "keys_used": key_fields,
+            "columns": all_cols,
+            "csv_path": str(out_csv),
+            "suggested_source_title": f"{str(source_title or '').strip() or 'XML batch import'} {stamp}",
+            "bad_files": bad_files,
+            "note": "File CSV generato in import_data. La sorgente viene auto-rilevata al prossimo refresh sorgenti.",
+        }
+    except Exception as exc:
+        return JSONResponse({"error": f"Errore import XML batch: {exc}"}, status_code=500)
 
 
 @app.post("/sources/save")

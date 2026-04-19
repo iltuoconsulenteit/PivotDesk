@@ -1,0 +1,12 @@
+{
+  "id": "xml_batch_import",
+  "name": "XML Batch Import",
+  "description": "Modulo import multiplo XML con deduplica per chiavi univoche.",
+  "kind": "core",
+  "enabled": true,
+  "version": "1.0.0",
+  "ui": {
+    "screen_id": "xmlBatchImportModuleScreen",
+    "menu_entry": "Moduli"
+  }
+}

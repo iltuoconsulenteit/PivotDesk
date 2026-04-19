@@ -141,6 +141,10 @@
     bind("menuOpenApiSchedulerModule", async function () {
       await safeCall("openApiSchedulerModuleFromMenu");
     });
+
+    bind("menuOpenXmlBatchModule", async function () {
+      await safeCall("openXmlBatchImportModuleFromMenu");
+    });
   };
 
   document.addEventListener("DOMContentLoaded", function () {
