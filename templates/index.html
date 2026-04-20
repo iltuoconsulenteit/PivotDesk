@@ -1361,6 +1361,7 @@ window.LICENSE_CONTEXT = {
             <button type="button" id="menuOpenMergeModule">Merge sorgenti</button>
             <button type="button" id="menuOpenApiSchedulerModule">Scheduler API</button>
             <button type="button" id="menuOpenXmlBatchModule" data-i18n="menu_open_xml_batch_module">Import XML multiplo</button>
+            <button type="button" id="menuOpenVotingAnalyticsModule">Voting Analytics</button>
           </div>
         </div>
       </div>
@@ -2215,6 +2216,84 @@ window.LICENSE_CONTEXT = {
   </div>
 </div>
 
+<div id="votingAnalyticsModuleScreen" class="builder-screen">
+  <div class="card">
+    <div class="builder-head">
+      <div class="builder-head-left">
+        <div class="section-title">Modulo: Voting Analytics</div>
+        <div class="small">Classifica, soglie eletti/riserva/esclusi, vista multi-colonna, pivot e grafici.</div>
+      </div>
+      <div><button type="button" id="btnCloseVotingAnalyticsModuleScreen">Chiudi modulo</button></div>
+    </div>
+    <div class="plugin-tool-card">
+      <div class="builder-top">
+        <div class="field">
+          <label for="votingSourceSelect">Sorgente</label>
+          <select id="votingSourceSelect"></select>
+        </div>
+        <div class="field">
+          <label for="votingNameColumn">Colonna nome</label>
+          <select id="votingNameColumn"></select>
+        </div>
+        <div class="field">
+          <label for="votingVotesColumn">Colonna voti</label>
+          <select id="votingVotesColumn"></select>
+        </div>
+      </div>
+      <div class="builder-top">
+        <div class="field">
+          <label for="votingDimsColumns">Dimensioni aggiuntive (separate da virgola)</label>
+          <input id="votingDimsColumns" placeholder="es. categoria,gruppo,lista">
+        </div>
+        <div class="field">
+          <label for="votingThresholdMain">Soglia principale (eletti)</label>
+          <input id="votingThresholdMain" type="number" step="0.01" value="0">
+        </div>
+        <div class="field">
+          <label for="votingThresholdMin">Soglia minima (riserva)</label>
+          <input id="votingThresholdMin" type="number" step="0.01" value="0">
+        </div>
+      </div>
+      <div class="builder-actions" style="justify-content:flex-start;">
+        <label style="display:flex; align-items:center; gap:8px;">
+          <input id="votingThresholdPercent" type="checkbox">
+          <span>Soglie percentuali sul totale voti</span>
+        </label>
+        <button id="btnRunVotingAnalytics" type="button">Esegui analisi</button>
+        <button id="btnSaveVotingPresetConfig" type="button">Salva config nel preset attivo</button>
+      </div>
+      <div class="plugin-tools-tabs" style="margin-top:10px;">
+        <button type="button" class="quick-toggle active" id="btnVotingViewRanking">Classifica</button>
+        <button type="button" class="quick-toggle" id="btnVotingViewColumns">Colonne</button>
+        <button type="button" class="quick-toggle" id="btnVotingViewPivot">Pivot</button>
+        <button type="button" class="quick-toggle" id="btnVotingViewChart">Grafico</button>
+      </div>
+      <div id="votingViewRankingPane">
+        <div id="votingRankingMeta" class="small" style="margin:8px 0;"></div>
+        <div style="max-height:360px; overflow:auto;">
+          <table class="preview-table" id="votingRankingTable"><thead></thead><tbody></tbody></table>
+        </div>
+      </div>
+      <div id="votingViewColumnsPane" class="hidden">
+        <div style="max-height:360px; overflow:auto;">
+          <table class="preview-table" id="votingColumnsTable"><thead></thead><tbody></tbody></table>
+        </div>
+      </div>
+      <div id="votingViewPivotPane" class="hidden">
+        <div style="max-height:360px; overflow:auto;">
+          <table class="preview-table" id="votingPivotTable"><thead></thead><tbody></tbody></table>
+        </div>
+      </div>
+      <div id="votingViewChartPane" class="hidden">
+        <div class="small" style="margin-bottom:8px;">Bar ranking (top 20)</div>
+        <div id="votingChartRanking" style="display:grid; gap:6px; margin-bottom:12px;"></div>
+        <div class="small" style="margin-bottom:8px;">Distribuzione soglie</div>
+        <div id="votingChartStatus" style="display:grid; gap:6px;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="settingsScreen" class="builder-screen">
   <div class="card">
     <div class="builder-head">
@@ -2691,6 +2770,7 @@ let MODULES_STATUS = null;
 let API_SCHEDULER_JOBS = [];
 let SOURCE_SCREEN_CONTEXT = { return_to_module: "", keep_header: true };
 let CATALOG_SCREEN_CONTEXT = { return_to_screen: "main" };
+let VOTING_ANALYTICS_RESULT = null;
 const MODULE_PANE_HOSTS = {
   pluginToolMerge: null,
   pluginToolApiScheduler: null
@@ -4017,6 +4097,7 @@ function closeModuleScreens(){
   document.getElementById("mergeModuleScreen")?.classList.remove("active");
   document.getElementById("apiSchedulerModuleScreen")?.classList.remove("active");
   document.getElementById("xmlBatchImportModuleScreen")?.classList.remove("active");
+  document.getElementById("votingAnalyticsModuleScreen")?.classList.remove("active");
   document.getElementById("catalogScreen")?.classList.remove("active");
   document.getElementById("mainView")?.classList.remove("module-header-only");
 }
@@ -4060,6 +4141,7 @@ function openDedicatedModuleScreen(moduleKey){
   const mergeModuleScreen = document.getElementById("mergeModuleScreen");
   const apiModuleScreen = document.getElementById("apiSchedulerModuleScreen");
   const xmlBatchModuleScreen = document.getElementById("xmlBatchImportModuleScreen");
+  const votingAnalyticsModuleScreen = document.getElementById("votingAnalyticsModuleScreen");
   if (mainView) {
     mainView.classList.remove("hidden");
     mainView.classList.add("module-header-only");
@@ -4071,6 +4153,7 @@ function openDedicatedModuleScreen(moduleKey){
   if (mergeModuleScreen) mergeModuleScreen.classList.toggle("active", moduleKey === "merge");
   if (apiModuleScreen) apiModuleScreen.classList.toggle("active", moduleKey === "api_scheduler");
   if (xmlBatchModuleScreen) xmlBatchModuleScreen.classList.toggle("active", moduleKey === "xml_batch_import");
+  if (votingAnalyticsModuleScreen) votingAnalyticsModuleScreen.classList.toggle("active", moduleKey === "voting_analytics");
 }
 
 function mountModulePane(paneId, hostId){
@@ -4125,6 +4208,12 @@ async function openApiSchedulerModuleFromMenu(){
 async function openXmlBatchImportModuleFromMenu(){
   openDedicatedModuleScreen("xml_batch_import");
   setStatus(translateText("xml_batch_opened_status"));
+}
+
+async function openVotingAnalyticsModuleFromMenu(){
+  openDedicatedModuleScreen("voting_analytics");
+  await initVotingAnalyticsModule().catch(() => {});
+  setStatus("Modulo Voting Analytics aperto.");
 }
 
 function startNewSourceFlow(){
@@ -5131,6 +5220,188 @@ async function runXmlBatchImportFromUi(){
   await loadSources();
   await renderCatalogScreen().catch(() => {});
   setStatus(translateText("xml_batch_done_status"));
+}
+
+function setVotingViewPane(viewKey){
+  const active = ["ranking", "columns", "pivot", "chart"].includes(String(viewKey || "")) ? String(viewKey) : "ranking";
+  const map = {
+    ranking: document.getElementById("votingViewRankingPane"),
+    columns: document.getElementById("votingViewColumnsPane"),
+    pivot: document.getElementById("votingViewPivotPane"),
+    chart: document.getElementById("votingViewChartPane"),
+  };
+  Object.keys(map).forEach(k => {
+    const pane = map[k];
+    if (!pane) return;
+    pane.classList.toggle("hidden", k !== active);
+  });
+  const btnMap = {
+    ranking: document.getElementById("btnVotingViewRanking"),
+    columns: document.getElementById("btnVotingViewColumns"),
+    pivot: document.getElementById("btnVotingViewPivot"),
+    chart: document.getElementById("btnVotingViewChart"),
+  };
+  Object.keys(btnMap).forEach(k => {
+    const btn = btnMap[k];
+    if (!btn) return;
+    btn.classList.toggle("active", k === active);
+  });
+}
+
+function renderSimpleTable(tableId, rows){
+  const table = document.getElementById(tableId);
+  if (!table) return;
+  const thead = table.querySelector("thead");
+  const tbody = table.querySelector("tbody");
+  if (!thead || !tbody) return;
+  const data = Array.isArray(rows) ? rows : [];
+  const columns = data.length ? Object.keys(data[0]) : [];
+  if (!columns.length) {
+    thead.innerHTML = "<tr><th>Nessun dato</th></tr>";
+    tbody.innerHTML = "<tr><td>Nessun record</td></tr>";
+    return;
+  }
+  thead.innerHTML = "<tr>" + columns.map(c => "<th>" + escapeHtml(String(c)) + "</th>").join("") + "</tr>";
+  tbody.innerHTML = data.map(row => {
+    return "<tr>" + columns.map(c => "<td>" + escapeHtml(String(row[c] ?? "")) + "</td>").join("") + "</tr>";
+  }).join("");
+}
+
+function renderVotingCharts(payload){
+  const rankingHost = document.getElementById("votingChartRanking");
+  const statusHost = document.getElementById("votingChartStatus");
+  if (!rankingHost || !statusHost) return;
+  rankingHost.innerHTML = "";
+  statusHost.innerHTML = "";
+
+  const rankLabels = Array.isArray(payload?.chart?.ranking?.labels) ? payload.chart.ranking.labels.slice(0, 20) : [];
+  const rankValues = Array.isArray(payload?.chart?.ranking?.values) ? payload.chart.ranking.values.slice(0, 20) : [];
+  const maxRank = rankValues.length ? Math.max(...rankValues, 1) : 1;
+  rankLabels.forEach((label, idx) => {
+    const value = Number(rankValues[idx] || 0);
+    const pct = Math.max(2, Math.round((value / maxRank) * 100));
+    rankingHost.innerHTML +=
+      "<div style='display:grid; grid-template-columns:220px 1fr 70px; gap:8px; align-items:center;'>" +
+      "<div class='small'>" + escapeHtml(String(label)) + "</div>" +
+      "<div style='height:12px; background:#e4e7ec; border-radius:999px; overflow:hidden;'><div style='height:12px; width:" + String(pct) + "%; background:#175cd3;'></div></div>" +
+      "<div class='small' style='text-align:right;'>" + escapeHtml(String(value)) + "</div>" +
+      "</div>";
+  });
+
+  const statusLabels = Array.isArray(payload?.chart?.status_distribution?.labels) ? payload.chart.status_distribution.labels : [];
+  const statusValues = Array.isArray(payload?.chart?.status_distribution?.values) ? payload.chart.status_distribution.values : [];
+  const total = statusValues.reduce((acc, x) => acc + Number(x || 0), 0) || 1;
+  statusLabels.forEach((label, idx) => {
+    const value = Number(statusValues[idx] || 0);
+    const pct = Math.round((value / total) * 100);
+    const color = label === "Eletto" ? "#12b76a" : (label === "Riserva" ? "#f79009" : "#f04438");
+    statusHost.innerHTML +=
+      "<div style='display:grid; grid-template-columns:130px 1fr 70px; gap:8px; align-items:center;'>" +
+      "<div class='small'>" + escapeHtml(String(label)) + "</div>" +
+      "<div style='height:12px; background:#e4e7ec; border-radius:999px; overflow:hidden;'><div style='height:12px; width:" + String(pct) + "%; background:" + color + ";'></div></div>" +
+      "<div class='small' style='text-align:right;'>" + escapeHtml(String(value)) + " (" + String(pct) + "%)</div>" +
+      "</div>";
+  });
+}
+
+function renderVotingRankingTable(rows){
+  const ranked = (Array.isArray(rows) ? rows : []).map(r => {
+    const status = String(r?.status || "");
+    const badge = status === "Eletto" ? "✅ Eletto" : (status === "Riserva" ? "🟡 Riserva" : "❌ Escluso");
+    return Object.assign({}, r, { status: badge });
+  });
+  renderSimpleTable("votingRankingTable", ranked);
+}
+
+function renderVotingResult(payload){
+  VOTING_ANALYTICS_RESULT = payload || null;
+  renderVotingRankingTable(payload?.ranking || []);
+  renderSimpleTable("votingColumnsTable", payload?.multi_column?.rows || []);
+  renderSimpleTable("votingPivotTable", payload?.pivot_status || []);
+  renderVotingCharts(payload || {});
+  const meta = document.getElementById("votingRankingMeta");
+  if (meta) {
+    const s = payload?.summary || {};
+    meta.textContent = "Totale record: " + String(s.total_rows || 0) + " · Totale voti: " + String(Number(s.total_votes || 0).toFixed(2)) + " · Soglia eletti: " + String(Number(s.threshold_main || 0).toFixed(2)) + " · Soglia riserva: " + String(Number(s.threshold_min || 0).toFixed(2));
+  }
+}
+
+async function loadVotingSourceFields(){
+  const sourceSel = document.getElementById("votingSourceSelect");
+  if (!sourceSel) return [];
+  const sourceId = String(sourceSel.value || "").trim();
+  const source = (SOURCES || []).find(s => String(s?.id || "").trim() === sourceId);
+  let cols = [];
+  if (Array.isArray(source?.config?.detected_columns) && source.config.detected_columns.length) cols = source.config.detected_columns;
+  if (!cols.length && sourceId) {
+    try {
+      const r = await api("/source/preview?source_id=" + encodeURIComponent(sourceId));
+      cols = Array.isArray(r?.columns) ? r.columns : [];
+    } catch (_e) {
+      cols = [];
+    }
+  }
+  const nameSel = document.getElementById("votingNameColumn");
+  const votesSel = document.getElementById("votingVotesColumn");
+  if (nameSel) nameSel.innerHTML = cols.map(c => "<option value='" + escapeHtml(String(c)) + "'>" + escapeHtml(String(c)) + "</option>").join("");
+  if (votesSel) votesSel.innerHTML = cols.map(c => "<option value='" + escapeHtml(String(c)) + "'>" + escapeHtml(String(c)) + "</option>").join("");
+  const nameGuess = cols.find(c => String(c).toLowerCase().includes("nome")) || cols.find(c => String(c).toLowerCase().includes("name")) || cols[0];
+  const votesGuess = cols.find(c => String(c).toLowerCase().includes("vot")) || cols.find(c => String(c).toLowerCase().includes("score")) || cols[1] || cols[0];
+  if (nameSel && nameGuess) nameSel.value = String(nameGuess);
+  if (votesSel && votesGuess) votesSel.value = String(votesGuess);
+  return cols;
+}
+
+async function initVotingAnalyticsModule(){
+  const sourceSel = document.getElementById("votingSourceSelect");
+  if (!sourceSel) return;
+  await loadSources();
+  sourceSel.innerHTML = (SOURCES || []).map(s => "<option value='" + escapeHtml(String(s?.id || "")) + "'>" + escapeHtml(String(s?.title || s?.id || "")) + "</option>").join("");
+  if (CURRENT_SOURCE && (SOURCES || []).some(s => String(s?.id || "").trim() === String(CURRENT_SOURCE).trim())) {
+    sourceSel.value = String(CURRENT_SOURCE);
+  }
+  await loadVotingSourceFields();
+  setVotingViewPane("ranking");
+}
+
+async function runVotingAnalyticsFromUi(){
+  const sourceId = String(document.getElementById("votingSourceSelect")?.value || "").trim();
+  const nameColumn = String(document.getElementById("votingNameColumn")?.value || "").trim();
+  const votesColumn = String(document.getElementById("votingVotesColumn")?.value || "").trim();
+  const extraDimensions = String(document.getElementById("votingDimsColumns")?.value || "").split(",").map(x => x.trim()).filter(Boolean);
+  const thresholdMain = Number(document.getElementById("votingThresholdMain")?.value || 0);
+  const thresholdMin = Number(document.getElementById("votingThresholdMin")?.value || 0);
+  const thresholdsAsPercent = !!document.getElementById("votingThresholdPercent")?.checked;
+  if (!sourceId || !nameColumn || !votesColumn) throw new Error("Compila sorgente, colonna nome e colonna voti.");
+
+  const payload = {
+    source_id: sourceId,
+    name_column: nameColumn,
+    votes_column: votesColumn,
+    extra_dimensions: extraDimensions,
+    threshold_main: thresholdMain,
+    threshold_min: thresholdMin,
+    thresholds_as_percent: thresholdsAsPercent,
+    top_n: 500
+  };
+  const res = await api("/plugin/voting-analytics/process", { method: "POST", body: JSON.stringify(payload) });
+  renderVotingResult(res);
+  setStatus("Voting analytics completato.");
+}
+
+function saveVotingAnalyticsConfigIntoPreset(){
+  const cfg = {
+    source_id: String(document.getElementById("votingSourceSelect")?.value || "").trim(),
+    name_column: String(document.getElementById("votingNameColumn")?.value || "").trim(),
+    votes_column: String(document.getElementById("votingVotesColumn")?.value || "").trim(),
+    extra_dimensions: String(document.getElementById("votingDimsColumns")?.value || "").split(",").map(x => x.trim()).filter(Boolean),
+    threshold_main: Number(document.getElementById("votingThresholdMain")?.value || 0),
+    threshold_min: Number(document.getElementById("votingThresholdMin")?.value || 0),
+    thresholds_as_percent: !!document.getElementById("votingThresholdPercent")?.checked,
+    active_view: ["ranking", "columns", "pivot", "chart"].find(v => !document.getElementById("votingView" + v.charAt(0).toUpperCase() + v.slice(1) + "Pane")?.classList.contains("hidden")) || "ranking",
+  };
+  setCurrentViewOptions({ voting_analytics: cfg });
+  setStatus("Configurazione Voting salvata nelle opzioni del preset. Salva il preset per persisterla.");
 }
 
 async function runMultiSourceMergeFromUi(){
@@ -9055,6 +9326,7 @@ bindClick("btnCloseSourcesBottom", () => closeSourcesScreen());
 bindClick("btnCloseMergeModuleScreen", () => closeDedicatedModuleScreen());
 bindClick("btnCloseApiSchedulerModuleScreen", () => closeDedicatedModuleScreen());
 bindClick("btnCloseXmlBatchImportModuleScreen", () => closeDedicatedModuleScreen());
+bindClick("btnCloseVotingAnalyticsModuleScreen", () => closeDedicatedModuleScreen());
 bindClick("btnCloseInlineModulePanel", () => closeInlineModulePanel());
 bindClick("btnSourceTabBase", () => setSourceManagerTab("base"));
 bindClick("btnSourceTabCatalog", () => setSourceManagerTab("catalog"));
@@ -9155,6 +9427,23 @@ bindClick("btnRunXmlBatchImport", async () => {
   } catch (e) {
     setStatus("ERRORE import XML batch: " + e.message);
   }
+});
+bindClick("btnRunVotingAnalytics", async () => {
+  try {
+    await runVotingAnalyticsFromUi();
+  } catch (e) {
+    setStatus("ERRORE voting analytics: " + e.message);
+  }
+});
+bindClick("btnSaveVotingPresetConfig", () => saveVotingAnalyticsConfigIntoPreset());
+bindClick("btnVotingViewRanking", () => setVotingViewPane("ranking"));
+bindClick("btnVotingViewColumns", () => setVotingViewPane("columns"));
+bindClick("btnVotingViewPivot", () => setVotingViewPane("pivot"));
+bindClick("btnVotingViewChart", () => setVotingViewPane("chart"));
+bindInput("votingSourceSelect", "change", async () => {
+  try {
+    await loadVotingSourceFields();
+  } catch (_e) {}
 });
 bindClick("btnRunMultiMergeFromTemplate", async () => {
   try {

@@ -145,6 +145,10 @@
     bind("menuOpenXmlBatchModule", async function () {
       await safeCall("openXmlBatchImportModuleFromMenu");
     });
+
+    bind("menuOpenVotingAnalyticsModule", async function () {
+      await safeCall("openVotingAnalyticsModuleFromMenu");
+    });
   };
 
   document.addEventListener("DOMContentLoaded", function () {
