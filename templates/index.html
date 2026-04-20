@@ -2118,6 +2118,7 @@ window.LICENSE_CONTEXT = {
               <button id="btnReloadApiSchedulerJobs" type="button">Ricarica job</button>
             </div>
           </div>
+          <form id="apiSchedulerForm" onsubmit="return false;">
           <input id="apiSchedulerJobId" type="hidden">
           <div class="builder-top">
             <div class="field"><label for="apiSchedulerTitle">Titolo job</label><input id="apiSchedulerTitle" placeholder="Es. Anagrafica clienti API"></div>
@@ -2162,6 +2163,7 @@ window.LICENSE_CONTEXT = {
             <button id="btnApiSchedulerRunDue" type="button">Esegui schedulati</button>
           </div>
           <div id="apiSchedulerStatus" class="small" style="margin-top:8px; color:#175cd3;"></div>
+          </form>
         </div>
       </div>
       <div style="margin-top:10px;">
@@ -5571,21 +5573,44 @@ async function previewVotingSourceFromModule(){
   }
 }
 
+async function discoverVotingEligibleSources(){
+  const eligible = [];
+  for (const src of (SOURCES || [])) {
+    if (!isVotingSourceConfigured(src)) continue;
+    const sid = String(src?.id || "").trim();
+    if (!sid) continue;
+    try {
+      const r = await api("/fields?source_id=" + encodeURIComponent(sid));
+      const cols = Array.isArray(r?.fields) ? r.fields.map(x => String(x)) : [];
+      if (cols.length < 2) continue;
+      const hasName = cols.some(c => /candidat|nome|name/i.test(c));
+      const hasVotes = cols.some(c => /vot|vote|score|punt/i.test(c));
+      if (hasName && hasVotes) eligible.push(src);
+    } catch (_e) {}
+  }
+  return eligible;
+}
+
 async function initVotingAnalyticsModule(){
   const sourceSel = document.getElementById("votingSourceSelect");
   if (!sourceSel) return;
   await loadSources();
-  sourceSel.innerHTML = (SOURCES || []).map(s => {
+  const eligible = await discoverVotingEligibleSources();
+  const pool = eligible.length ? eligible : (SOURCES || []);
+  sourceSel.innerHTML = pool.map(s => {
     const configured = isVotingSourceConfigured(s);
     const suffix = configured ? "" : " (da configurare)";
     return "<option value='" + escapeHtml(String(s?.id || "")) + "'>" + escapeHtml(String(s?.title || s?.id || "") + suffix) + "</option>";
   }).join("");
-  if (CURRENT_SOURCE && (SOURCES || []).some(s => String(s?.id || "").trim() === String(CURRENT_SOURCE).trim())) {
+  if (CURRENT_SOURCE && pool.some(s => String(s?.id || "").trim() === String(CURRENT_SOURCE).trim())) {
     sourceSel.value = String(CURRENT_SOURCE);
-  } else if ((SOURCES || []).some(s => String(s?.id || "").trim() === "demo_voting")) {
+  } else if (pool.some(s => String(s?.id || "").trim() === "demo_voting")) {
     sourceSel.value = "demo_voting";
+  } else if (pool.length) {
+    sourceSel.value = String(pool[0]?.id || "");
   }
   await ensureVotingSourceWithColumns();
+  if (eligible.length) setStatus("Sorgenti Voting filtrate: mostrate solo quelle compatibili (nome+voti).");
   refreshVotingBrandingUi();
   setVotingViewPane("ranking");
 }
