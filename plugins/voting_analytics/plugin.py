@@ -52,6 +52,8 @@ def _build_voting_result(plugin_api: Any, payload: VotingAnalyticsRequest) -> di
         df = plugin_api.load_dataframe_from_source(source).copy()
     except FileNotFoundError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except (ValueError, RuntimeError, OSError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     except PermissionError as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
     except Exception as exc:

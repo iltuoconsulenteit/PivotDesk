@@ -2269,12 +2269,17 @@ window.LICENSE_CONTEXT = {
           <div id="votingDimsSelected" style="display:flex; flex-wrap:wrap; gap:6px; min-height:36px; padding:8px; border:1px solid #98a2b3; border-radius:8px; background:#f8fafc;"></div>
         </div>
         <div class="field">
-          <label for="votingThresholdMain">Soglia principale (eletti)</label>
-          <input id="votingThresholdMain" type="number" step="1" min="0" value="0">
-        </div>
-        <div class="field">
-          <label for="votingThresholdMin">Soglia minima (riserva)</label>
-          <input id="votingThresholdMin" type="number" step="1" min="0" value="0">
+          <label>Soglie (intere)</label>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+            <div>
+              <label for="votingThresholdMain" class="small">Principale (eletti)</label>
+              <input id="votingThresholdMain" type="number" step="1" min="0" value="0">
+            </div>
+            <div>
+              <label for="votingThresholdMin" class="small">Minima (riserva)</label>
+              <input id="votingThresholdMin" type="number" step="1" min="0" value="0">
+            </div>
+          </div>
         </div>
       </div>
       <div class="small" style="margin-bottom:8px; color:#475467;">
