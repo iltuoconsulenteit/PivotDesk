@@ -83,9 +83,10 @@ Runtime resources (templates/static/licenses) are resolved with a frozen-safe `_
 
 ### Built-in demo content (first-time onboarding)
 
-- Demo CSV dataset: `demo/demo_sales.csv`
-- Demo source seed: `sources.json` (`id: demo_sales`)
-- Demo pivot preset: `pivots/demo_sales/demo_sales_overview.json`
+- Demo CSV datasets: `demo/demo_sales.csv`, `demo/demo_voting_results.csv`
+- Demo source seed: `sources.json` (`default_source: demo_voting`, includes `demo_sales` and `demo_voting`)
+- Demo pivot presets: `pivots/demo_sales/demo_sales_overview.json`, `pivots/demo_voting/demo_voting_overview.json`
+- Voting Analytics quick demo thresholds (saved in `demo_voting_overview` options): `120` (Eletto) / `80` (Riserva)
 
 On first startup in source mode, `sources.json` is used as the legacy seed and migrated to the user runtime source bundle, so new users can immediately run a working pivot demo.
 

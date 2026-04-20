@@ -1,11 +1,20 @@
 {
-  "default_source": "demo_sales",
+  "default_source": "demo_voting",
   "sources": [
     {
       "id": "demo_sales",
       "title": "Demo Sales CSV",
       "type": "csv",
       "path": "demo/demo_sales.csv",
+      "delimiter": ",",
+      "encoding": "utf-8",
+      "options": {}
+    },
+    {
+      "id": "demo_voting",
+      "title": "Demo Voting Results CSV",
+      "type": "csv",
+      "path": "demo/demo_voting_results.csv",
       "delimiter": ",",
       "encoding": "utf-8",
       "options": {}

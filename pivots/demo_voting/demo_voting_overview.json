@@ -1,0 +1,54 @@
+{
+  "id": "demo_voting_overview",
+  "title": "Demo Voting Overview",
+  "source_id": "demo_voting",
+  "filters": [
+    "Circoscrizione",
+    "Lista"
+  ],
+  "numeric_fields": [
+    "Voti"
+  ],
+  "date_fields": [],
+  "rows": [
+    "Lista"
+  ],
+  "cols": [
+    "Genere"
+  ],
+  "values": [
+    {
+      "field": "Voti",
+      "agg": "sum",
+      "label": "Totale Voti"
+    },
+    {
+      "field": "Candidato",
+      "agg": "count",
+      "label": "Numero Candidati"
+    }
+  ],
+  "options": {
+    "measures_layout": "horizontal",
+    "show_row_totals": true,
+    "show_col_totals": true,
+    "show_subtotals": true,
+    "sort_enabled": false,
+    "sort_field": "",
+    "sort_direction": "asc",
+    "sort_by": "label",
+    "voting_analytics": {
+      "source_id": "demo_voting",
+      "name_column": "Candidato",
+      "votes_column": "Voti",
+      "extra_dimensions": [
+        "Lista",
+        "Circoscrizione"
+      ],
+      "threshold_main": 120,
+      "threshold_min": 80,
+      "thresholds_as_percent": false,
+      "active_view": "ranking"
+    }
+  }
+}
