@@ -1401,6 +1401,7 @@ window.LICENSE_CONTEXT = {
         <div class="compact-panel-head-actions">
           <button id="btnNewSourceInline" type="button" class="compact-head-btn icon" title="Nuova sorgente" aria-label="Nuova sorgente">＋</button>
           <button id="btnEditCurrentSourceInline" type="button" class="compact-head-btn icon" title="Modifica sorgente attiva" aria-label="Modifica sorgente attiva">✎</button>
+          <button id="btnDeleteCurrentSourceInline" type="button" class="compact-head-btn icon" title="Elimina sorgente attiva" aria-label="Elimina sorgente attiva">🗑</button>
           <button type="button" class="compact-toggle" data-target="sourcePanel" data-i18n="hide">Nascondi</button>
         </div>
       </div>
@@ -2574,6 +2575,31 @@ window.LICENSE_CONTEXT = {
   </div>
 </div>
 
+<div id="deleteSourceModal" class="license-modal-overlay">
+  <div class="license-modal">
+    <div class="license-modal-head">
+      <div>
+        <div class="section-title" style="margin:0;" data-i18n="delete_source_modal_title">Elimina sorgente</div>
+        <div class="small" id="deleteSourceModalSubtitle">Conferma eliminazione sorgente selezionata.</div>
+      </div>
+      <button id="btnCloseDeleteSourceModal" type="button" data-i18n="cancel">Annulla</button>
+    </div>
+    <div class="license-modal-body">
+      <div style="padding:0 18px 8px;">
+        <div id="deleteSourceModalMessage" class="small" style="color:#344054;"></div>
+        <label class="small" style="display:flex; align-items:center; gap:8px; margin-top:10px;">
+          <input id="deleteSourceModalDeletePresets" type="checkbox">
+          <span data-i18n="delete_source_modal_delete_presets">Elimina anche i preset collegati esclusivamente a questa sorgente</span>
+        </label>
+      </div>
+      <div style="padding: 0 18px 18px; display:flex; justify-content:flex-end; gap:10px;">
+        <button id="btnCancelDeleteSourceModal" type="button" data-i18n="cancel">Annulla</button>
+        <button id="btnConfirmDeleteSourceModal" type="button" class="danger" data-i18n="delete_source_modal_confirm">Elimina sorgente</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="licenseDetailsModal" class="license-modal-overlay">
   <div class="license-modal">
     <div class="license-modal-head">
@@ -3219,26 +3245,93 @@ window.openSourceEditorFromCatalog = openSourceEditorFromCatalog;
 async function deleteSourceFromCatalog(sourceId){
   const wanted = String(sourceId || "").trim();
   if (!wanted) return;
-  const ok = window.confirm(
-    translateText("catalog_confirm_delete_source_prefix") + ' "' + wanted + '"?\n' +
-    translateText("catalog_confirm_delete_source_note")
-  );
-  if (!ok) return;
+  const confirmRes = await confirmDeleteSourceModal(wanted);
+  if (!confirmRes?.confirmed) return;
   try {
-    await api("/sources/delete", {
+    const res = await api("/sources/delete", {
       method: "POST",
-      body: JSON.stringify({ source_id: wanted })
+      body: JSON.stringify({ source_id: wanted, delete_linked_presets: !!confirmRes.delete_linked_presets })
     });
     await loadSources();
     await loadFields();
     await loadPresets();
     await renderCatalogScreen();
-    setStatus(translateText("catalog_status_deleted_source") + ": " + wanted);
+    const deletedPresets = Number(res?.deleted_presets || 0);
+    if (deletedPresets > 0) {
+      setStatus(translateText("catalog_status_deleted_source") + ": " + wanted + " · " + translateText("delete_source_modal_deleted_presets") + ": " + String(deletedPresets));
+    } else {
+      setStatus(translateText("catalog_status_deleted_source") + ": " + wanted);
+    }
   } catch (e) {
     setStatus(translateText("catalog_error_delete_source") + ": " + (e?.message || e));
   }
 }
 window.deleteSourceFromCatalog = deleteSourceFromCatalog;
+
+async function listLinkedPresetsForSource(sourceId){
+  const wanted = String(sourceId || "").trim();
+  if (!wanted) return [];
+  const data = await api("/pivots/all");
+  const pivots = Array.isArray(data?.items) ? data.items : [];
+  return pivots.filter(p => String(p?.source_id || "").trim() === wanted);
+}
+
+async function confirmDeleteSourceModal(sourceId){
+  const wanted = String(sourceId || "").trim();
+  if (!wanted) return { confirmed: false, delete_linked_presets: false };
+
+  const modal = document.getElementById("deleteSourceModal");
+  const subtitle = document.getElementById("deleteSourceModalSubtitle");
+  const message = document.getElementById("deleteSourceModalMessage");
+  const chk = document.getElementById("deleteSourceModalDeletePresets");
+  const btnConfirm = document.getElementById("btnConfirmDeleteSourceModal");
+  if (!modal || !subtitle || !message || !chk || !btnConfirm) {
+    const ok = window.confirm(
+      translateText("catalog_confirm_delete_source_prefix") + ' "' + wanted + '"?\n' +
+      translateText("catalog_confirm_delete_source_note")
+    );
+    return { confirmed: !!ok, delete_linked_presets: false };
+  }
+
+  let linkedCount = 0;
+  try {
+    linkedCount = (await listLinkedPresetsForSource(wanted)).length;
+  } catch (_e) {
+    linkedCount = 0;
+  }
+
+  subtitle.textContent = translateText("delete_source_modal_subtitle");
+  message.textContent =
+    translateText("delete_source_modal_message_prefix") + ' "' + wanted + '". ' +
+    translateText("delete_source_modal_message_presets") + ": " + String(linkedCount) + ".";
+  chk.checked = false;
+  chk.disabled = linkedCount <= 0;
+  btnConfirm.disabled = false;
+  btnConfirm.textContent = translateText("delete_source_modal_confirm");
+
+  modal.classList.add("active");
+
+  return await new Promise(resolve => {
+    let done = false;
+    const finish = (confirmed) => {
+      if (done) return;
+      done = true;
+      modal.classList.remove("active");
+      resolve({ confirmed: !!confirmed, delete_linked_presets: !!(confirmed && chk.checked && !chk.disabled) });
+    };
+    const onConfirm = () => finish(true);
+    const onCancel = () => finish(false);
+    const onOverlay = (ev) => {
+      if (ev && ev.target && ev.target.id === "deleteSourceModal") finish(false);
+    };
+    const btnCancelA = document.getElementById("btnCancelDeleteSourceModal");
+    const btnCancelB = document.getElementById("btnCloseDeleteSourceModal");
+    btnConfirm.addEventListener("click", onConfirm, { once: true });
+    btnCancelA && btnCancelA.addEventListener("click", onCancel, { once: true });
+    btnCancelB && btnCancelB.addEventListener("click", onCancel, { once: true });
+    modal.addEventListener("click", onOverlay, { once: true });
+  });
+}
 
 async function openPivotEditorFromCatalog(pivotId, sourceId){
   const wantedPivot = String(pivotId || "").trim();
@@ -4057,6 +4150,16 @@ function openSourceEditorForCurrentSource(){
   }
   loadSourceIntoForm(src);
   setStatus("Modifica sorgente: " + (src.title || src.id));
+}
+
+async function deleteCurrentSourceInline(){
+  const sourceSelect = document.getElementById("sourceSelect");
+  const selectedId = String(sourceSelect && sourceSelect.value ? sourceSelect.value : CURRENT_SOURCE || "").trim();
+  if (!selectedId) {
+    setStatus("Nessuna sorgente selezionata da eliminare.");
+    return;
+  }
+  await deleteSourceFromCatalog(selectedId);
 }
 
 function setSourcePluginOutput(payload){
@@ -6713,14 +6816,12 @@ async function deleteSourceFromForm(){
   const sourceId = document.getElementById("srcId").value.trim();
   if (!sourceId) throw new Error("Seleziona o inserisci una sorgente da eliminare");
 
-  const ok = window.confirm(
-    'Confermi l\'eliminazione della sorgente dati "' + sourceId + '"?\n\nI preset JSON non vengono cancellati automaticamente.'
-  );
-  if (!ok) return;
+  const confirmRes = await confirmDeleteSourceModal(sourceId);
+  if (!confirmRes?.confirmed) return;
 
   const res = await api("/sources/delete", {
     method: "POST",
-    body: JSON.stringify({ source_id: sourceId })
+    body: JSON.stringify({ source_id: sourceId, delete_linked_presets: !!confirmRes.delete_linked_presets })
   });
 
   SOURCES = res.items || [];
@@ -6744,7 +6845,12 @@ async function deleteSourceFromForm(){
   renderSourcesManager();
   populateBuilderSourceSelect();
   refreshBuilderSourceInfo();
-  setStatus("Sorgente dati eliminata correttamente.");
+  const deletedPresets = Number(res?.deleted_presets || 0);
+  if (deletedPresets > 0) {
+    setStatus("Sorgente dati eliminata correttamente. Preset eliminati: " + String(deletedPresets) + ".");
+  } else {
+    setStatus("Sorgente dati eliminata correttamente.");
+  }
   setScreenActionStatus("source", "✅ Sorgente eliminata correttamente.");
 }
 
@@ -8957,6 +9063,13 @@ bindClick("btnSourceTabPlugins", () => setSourceManagerTab("plugins"));
 bindClick("btnSourceNew", () => startNewSourceFlow());
 bindClick("btnNewSourceInline", () => startNewSourceFlow());
 bindClick("btnEditCurrentSourceInline", () => openSourceEditorForCurrentSource());
+bindClick("btnDeleteCurrentSourceInline", async () => {
+  try {
+    await deleteCurrentSourceInline();
+  } catch (e) {
+    setStatus("ERRORE eliminazione sorgente: " + e.message);
+  }
+});
 bindClick("btnShowSourcePreview", () => showCurrentSourcePreview());
 bindClick("btnCloseSourcePreviewModal", () => closeSourcePreviewModal());
 bindClick("btnGsheetQuickConnect", async () => {

@@ -120,7 +120,15 @@
   "xml_batch_done_rows_out": "Righe in uscita",
   "xml_batch_done_duplicates": "Duplicati scartati",
   "xml_batch_done_status": "Import XML multiplo completato. Puoi gestire la nuova sorgente dal catalogo.",
-  "xml_batch_opened_status": "Modulo Import XML multiplo aperto."
+  "xml_batch_opened_status": "Modulo Import XML multiplo aperto.",
+  "cancel": "Annulla",
+  "delete_source_modal_title": "Elimina sorgente",
+  "delete_source_modal_subtitle": "Conferma eliminazione sorgente selezionata.",
+  "delete_source_modal_message_prefix": "Stai per eliminare la sorgente",
+  "delete_source_modal_message_presets": "Preset collegati esclusivamente a questa sorgente",
+  "delete_source_modal_delete_presets": "Elimina anche i preset collegati esclusivamente a questa sorgente",
+  "delete_source_modal_confirm": "Elimina sorgente",
+  "delete_source_modal_deleted_presets": "Preset eliminati"
   ,"users_management": "Gestione utenti"
   ,"users_management_subtitle": "Amministrazione accessi e profili multiutente di PivotDesk in ambiente LAN."
   ,"open_pivotdesk": "Apri PivotDesk"

@@ -120,7 +120,15 @@
   "xml_batch_done_rows_out": "Output rows",
   "xml_batch_done_duplicates": "Dropped duplicates",
   "xml_batch_done_status": "Batch XML import completed. You can manage the new source from the catalog.",
-  "xml_batch_opened_status": "Batch XML import module opened."
+  "xml_batch_opened_status": "Batch XML import module opened.",
+  "cancel": "Cancel",
+  "delete_source_modal_title": "Delete source",
+  "delete_source_modal_subtitle": "Confirm deletion of the selected source.",
+  "delete_source_modal_message_prefix": "You are about to delete source",
+  "delete_source_modal_message_presets": "Presets linked exclusively to this source",
+  "delete_source_modal_delete_presets": "Also delete presets linked exclusively to this source",
+  "delete_source_modal_confirm": "Delete source",
+  "delete_source_modal_deleted_presets": "Deleted presets"
   ,"users_management": "User management"
   ,"users_management_subtitle": "Manage access and multi-user profiles in PivotDesk LAN environments."
   ,"open_pivotdesk": "Open PivotDesk"

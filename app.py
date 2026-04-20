@@ -4279,6 +4279,7 @@ async def sources_delete(request: Request):
     try:
         payload = await request.json()
         source_id = normalize_source_id(payload.get("source_id"))
+        delete_linked_presets = bool(payload.get("delete_linked_presets"))
 
         if not source_id:
             return JSONResponse({"error": "source_id obbligatorio"}, status_code=400)
@@ -4292,11 +4293,22 @@ async def sources_delete(request: Request):
 
         saved = save_sources_data(data)
         clear_source_dataframe_cache(source_id)
+        deleted_presets = 0
+        if delete_linked_presets:
+            pivots_folder = PIVOTS_DIR / source_id
+            if pivots_folder.exists() and pivots_folder.is_dir():
+                for preset_file in pivots_folder.glob("*.json"):
+                    try:
+                        preset_file.unlink(missing_ok=True)
+                        deleted_presets += 1
+                    except Exception:
+                        continue
 
         return {
             "ok": True,
             "items": saved.get("items", []),
             "default_source": saved.get("default_source", ""),
+            "deleted_presets": deleted_presets,
         }
 
     except Exception as exc:

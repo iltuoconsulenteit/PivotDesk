@@ -136,6 +136,7 @@ Change this password immediately in shared environments.
 - Catalog actions include quick edit/delete buttons (with visual icon/color cues) for both sources and pivot presets.
 - XML Structured Import plugin (`/plugin/xml-structured-import/upload`) is a quick tool for **single-file** structured XML import, flattening data to CSV in `import_data`.
 - XML Batch Import module (`/module/xml-batch-import/upload`) handles **multi-file** XML ingestion with optional unique-key deduplication (`rows_in`, `rows_out`, `duplicates_dropped`) and writes the generated CSV in `import_data` for source auto-detection.
+- Source delete endpoint (`POST /sources/delete`) supports optional `delete_linked_presets=true` to remove JSON presets belonging only to that source in the same confirmation workflow.
 - UI localization (English/Italian).
 
 ## UI structure previews
