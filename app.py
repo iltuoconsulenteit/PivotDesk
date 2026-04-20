@@ -4630,6 +4630,10 @@ def source_preview(
         elif pivot_id:
             df = apply_preset_calculated_fields(df, pivot_id=pivot_id, source_id=source_id)
         return build_dataframe_preview_payload(src, df, limit=limit)
+    except (FileNotFoundError, ValueError, RuntimeError) as exc:
+        return JSONResponse({"error": str(exc)}, status_code=400)
+    except PermissionError as exc:
+        return JSONResponse({"error": str(exc)}, status_code=403)
     except Exception as exc:
         return JSONResponse({"error": str(exc)}, status_code=500)
 
@@ -4730,6 +4734,10 @@ def fields(request: Request, source_id: str = Query(...), pivot_id: str | None =
         _, df = load_source_df(source_id)
         df = apply_preset_calculated_fields(df, pivot_id=pivot_id, source_id=source_id)
         return {"fields": [str(c).strip() for c in df.columns]}
+    except (FileNotFoundError, ValueError, RuntimeError) as exc:
+        return JSONResponse({"error": str(exc)}, status_code=400)
+    except PermissionError as exc:
+        return JSONResponse({"error": str(exc)}, status_code=403)
     except Exception as exc:
         return JSONResponse({"error": str(exc)}, status_code=500)
 

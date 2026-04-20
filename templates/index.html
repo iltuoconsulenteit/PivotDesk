@@ -5584,6 +5584,7 @@ async function initVotingAnalyticsModule(){
 }
 
 async function runVotingAnalyticsFromUi(){
+  await ensureVotingSourceWithColumns();
   const sourceId = String(document.getElementById("votingSourceSelect")?.value || "").trim();
   const nameColumn = String(document.getElementById("votingNameColumn")?.value || "").trim();
   const votesColumn = String(document.getElementById("votingVotesColumn")?.value || "").trim();
@@ -5653,6 +5654,7 @@ function buildVotingAnalyticsPayload(){
 }
 
 async function exportVotingAnalyticsReport(fmt){
+  await ensureVotingSourceWithColumns();
   const payload = buildVotingAnalyticsPayload();
   const canCustomize = canCustomizeVotingBranding();
   payload.fmt = String(fmt || "html").toLowerCase();
