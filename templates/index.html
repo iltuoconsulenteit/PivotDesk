@@ -7517,6 +7517,18 @@ async function api(url, options = {}){
   return data;
 }
 
+function sourceNeedsPathByType(srcType){
+  return ["csv", "xlsx", "excel", "xls", "xlsm", "ods"].includes(String(srcType || "").toLowerCase());
+}
+
+function isSourceLikelyConfigured(source){
+  if (!source || typeof source !== "object") return false;
+  const srcType = String(source.type || "").toLowerCase();
+  if (!sourceNeedsPathByType(srcType)) return true;
+  const srcPath = String(source.path || source?.config?.path || "").trim();
+  return !!srcPath;
+}
+
 async function loadSources(){
   const j = await api("/sources");
   const rawSources = Array.isArray(j.items) ? j.items : [];
@@ -7563,7 +7575,13 @@ async function loadSources(){
   if (preferredMatch) {
     CURRENT_SOURCE = String(preferredMatch.id || "").trim();
   } else {
-    CURRENT_SOURCE = SOURCES.some(s => s.id === defaultSource) ? defaultSource : SOURCES[0].id;
+    const fromDefault = SOURCES.find(s => String(s?.id || "").trim() === defaultSource);
+    if (fromDefault && isSourceLikelyConfigured(fromDefault)) {
+      CURRENT_SOURCE = String(fromDefault.id || "").trim();
+    } else {
+      const firstConfigured = SOURCES.find(s => isSourceLikelyConfigured(s));
+      CURRENT_SOURCE = firstConfigured ? String(firstConfigured.id || "").trim() : SOURCES[0].id;
+    }
   }
 
   for (const src of SOURCES) {
@@ -7610,11 +7628,43 @@ async function loadFields(){
     return;
   }
 
-  const j = await api("/fields?source_id=" + encodeURIComponent(CURRENT_SOURCE));
-  CURRENT_FIELDS = j.fields || [];
+  const sourceSelect = document.getElementById("sourceSelect");
+  const candidateIds = [];
+  const pushCandidate = (sid) => {
+    const x = String(sid || "").trim();
+    if (x && !candidateIds.includes(x)) candidateIds.push(x);
+  };
+  pushCandidate(CURRENT_SOURCE);
+  (SOURCES || []).forEach(s => {
+    if (isSourceLikelyConfigured(s)) pushCandidate(s.id);
+  });
+  (SOURCES || []).forEach(s => pushCandidate(s.id));
+
+  let lastErr = null;
+  for (const sid of candidateIds) {
+    try {
+      const j = await api("/fields?source_id=" + encodeURIComponent(sid));
+      CURRENT_SOURCE = sid;
+      if (sourceSelect) sourceSelect.value = sid;
+      CURRENT_FIELDS = j.fields || [];
+      renderFieldsSidebar();
+      renderColumnsPanel();
+      fillSortFieldOptions();
+      if (sid !== candidateIds[0]) {
+        setStatus("Sorgente corrente aggiornata automaticamente a '" + sid + "' perché la precedente non era valida.");
+      }
+      return;
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+
+  CURRENT_FIELDS = [];
   renderFieldsSidebar();
   renderColumnsPanel();
   fillSortFieldOptions();
+  setStatus("ATTENZIONE: nessuna sorgente valida disponibile per caricare i campi. " + String(lastErr?.message || "Configura una sorgente valida da Gestione sorgenti."));
+  return;
 }
 
 async function loadPresets(){
