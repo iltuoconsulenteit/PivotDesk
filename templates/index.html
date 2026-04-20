@@ -9282,7 +9282,10 @@ bindClick("btnSaveCalculatedField", () => {
 bindClick("btnDeleteCalculatedField", () => deleteCalculatedFieldFromModal());
 bindClick("menuOpenCharts", () => openChartsModal());
 bindClick("btnOpenChartsNear", () => openChartsModal());
-bindClick("btnOpenWikiHelp", () => openWikiDrawer());
+bindClick("btnOpenWikiHelp", async () => {
+  openWikiDrawer();
+  await setWikiLocale(SETTINGS.language || "en").catch(() => {});
+});
 bindClick("btnCloseWikiDrawer", () => closeWikiDrawer());
 bindClick("btnWikiIt", () => setWikiLocale("it"));
 bindClick("btnWikiEn", () => setWikiLocale("en"));
@@ -9714,7 +9717,7 @@ initQuickbar();
 initCompactPanels();
 setWikiWidth(document.getElementById("wikiWidthRange")?.value || 420);
 initWikiResizer();
-setWikiLocale("it");
+setWikiLocale(SETTINGS.language || "en");
 renderSourceCalcRows([]);
 
 
@@ -10364,6 +10367,7 @@ Promise.resolve()
 
     try {
       await loadSettings();
+      await setWikiLocale(SETTINGS.language || "en");
     } catch (e) {
       console.warn("SETTINGS ERROR:", e);
     }
