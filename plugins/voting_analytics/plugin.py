@@ -44,7 +44,14 @@ def _build_voting_result(plugin_api: Any, payload: VotingAnalyticsRequest) -> di
     if not source:
         raise HTTPException(status_code=404, detail="Sorgente non trovata")
 
-    df = plugin_api.load_dataframe_from_source(source).copy()
+    try:
+        df = plugin_api.load_dataframe_from_source(source).copy()
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Errore caricamento sorgente: {exc}") from exc
     if payload.name_column not in df.columns:
         raise HTTPException(status_code=400, detail=f"Colonna nome mancante: {payload.name_column}")
     if payload.votes_column not in df.columns:

@@ -1717,7 +1717,9 @@ def _enrich_sources_with_legacy_seed(items: list[dict[str, Any]]) -> tuple[list[
             continue
 
         src_type = str(src.get("type") or "").strip().lower()
-        needs_path = src_type in {"csv", "xlsx", "excel", "xls", "xlsm", "ods"}
+        seed_type = str(seed.get("type") or "").strip().lower()
+        effective_type = src_type or seed_type
+        needs_path = effective_type in {"csv", "xlsx", "excel", "xls", "xlsm", "ods"}
         src_path = str(src.get("path") or src.get("config", {}).get("path") or "").strip()
         seed_path = str(seed.get("path") or seed.get("config", {}).get("path") or "").strip()
 
