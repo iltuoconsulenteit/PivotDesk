@@ -1941,6 +1941,9 @@ window.LICENSE_CONTEXT = {
     <div class="card source-tab-panel hidden" data-source-tab="plugins" style="margin-top:16px;">
       <div class="section-title">Plugin sorgenti (lookup)</div>
       <div class="small" style="margin-bottom:10px; color:#475467;">Il tab plugin ospita utility lookup. I moduli Merge/API Scheduler sono disponibili nelle rispettive pagine dedicate dal menu Moduli.</div>
+      <div class="builder-actions" style="justify-content:flex-start; margin-bottom:10px;">
+        <button type="button" id="btnOpenPluginsHelp">❓ Guida moduli/plugin</button>
+      </div>
       <div class="plugin-tools-tabs">
         <button type="button" class="quick-toggle active" id="btnPluginTabLookup">Lookup guidato</button>
         <button type="button" class="quick-toggle" id="btnPluginTabMerge">Merge guidato</button>
@@ -2255,7 +2258,7 @@ window.LICENSE_CONTEXT = {
       </div>
       <div class="builder-top">
         <div class="field">
-          <label for="votingDimsColumns">Dimensioni aggiuntive (separate da virgola)</label>
+          <label for="votingDimsColumns">Dimensioni aggiuntive opzionali (separate da virgola)</label>
           <input id="votingDimsColumns" placeholder="es. categoria,gruppo,lista">
         </div>
         <div class="field">
@@ -2267,6 +2270,9 @@ window.LICENSE_CONTEXT = {
           <input id="votingThresholdMin" type="number" step="0.01" value="0">
         </div>
       </div>
+      <div class="small" style="margin-bottom:8px; color:#475467;">
+        Campi obbligatori: <strong>Sorgente</strong>, <strong>Colonna nome</strong>, <strong>Colonna voti</strong>. Le dimensioni aggiuntive sono facoltative.
+      </div>
       <div class="builder-actions" style="justify-content:flex-start;">
         <label style="display:flex; align-items:center; gap:8px;">
           <input id="votingThresholdPercent" type="checkbox">
@@ -2274,6 +2280,7 @@ window.LICENSE_CONTEXT = {
         </label>
         <button id="btnRunVotingAnalytics" type="button">Esegui analisi</button>
         <button id="btnSaveVotingPresetConfig" type="button">Salva config nel preset attivo</button>
+        <button id="btnHelpVotingAnalyticsUsage" type="button">❓ Help utilizzo</button>
       </div>
       <div class="plugin-tools-tabs" style="margin-top:10px;">
         <button type="button" class="quick-toggle active" id="btnVotingViewRanking">Classifica</button>
@@ -9289,6 +9296,7 @@ bindClick("btnOpenWikiHelp", async () => {
 bindClick("btnCloseWikiDrawer", () => closeWikiDrawer());
 bindClick("btnWikiIt", () => setWikiLocale("it"));
 bindClick("btnWikiEn", () => setWikiLocale("en"));
+bindClick("btnOpenPluginsHelp", () => openWikiGuideSection("plugin"));
 bindInput("wikiWidthRange", "input", ev => setWikiWidth(ev && ev.target ? ev.target.value : ""));
 bindClick("btnCloseChartsModal", () => closeChartsModal());
 bindClick("chartsModal", ev => { if (ev && ev.target && ev.target.id === "chartsModal") closeChartsModal(); });
@@ -9479,6 +9487,7 @@ bindClick("btnRunVotingAnalytics", async () => {
   }
 });
 bindClick("btnSaveVotingPresetConfig", () => saveVotingAnalyticsConfigIntoPreset());
+bindClick("btnHelpVotingAnalyticsUsage", () => openWikiGuideSection("voting analytics"));
 bindClick("btnVotingViewRanking", () => setVotingViewPane("ranking"));
 bindClick("btnVotingViewColumns", () => setVotingViewPane("columns"));
 bindClick("btnVotingViewPivot", () => setVotingViewPane("pivot"));
