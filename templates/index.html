@@ -2244,7 +2244,10 @@ window.LICENSE_CONTEXT = {
       <div class="builder-top">
         <div class="field">
           <label for="votingSourceSelect">Sorgente</label>
-          <select id="votingSourceSelect"></select>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <select id="votingSourceSelect" style="flex:1;"></select>
+            <button id="btnPreviewVotingSource" type="button" class="compact-head-btn" title="Anteprima sorgente voting">👁️ Anteprima</button>
+          </div>
         </div>
         <div class="field">
           <label for="votingNameColumn">Colonna nome</label>
@@ -2283,6 +2286,12 @@ window.LICENSE_CONTEXT = {
         <button id="btnRunVotingAnalytics" type="button">Esegui analisi</button>
         <button id="btnSaveVotingPresetConfig" type="button">Salva config nel preset attivo</button>
       </div>
+      <div class="plugin-tools-tabs" style="margin-top:10px;">
+        <button type="button" class="quick-toggle active" id="btnVotingViewRanking">Classifica</button>
+        <button type="button" class="quick-toggle" id="btnVotingViewColumns">Colonne</button>
+        <button type="button" class="quick-toggle" id="btnVotingViewPivot">Pivot</button>
+        <button type="button" class="quick-toggle" id="btnVotingViewChart">Grafico</button>
+      </div>
       <div class="builder-actions" style="justify-content:flex-start; flex-wrap:wrap; margin-top:8px;">
         <div class="small" style="display:flex; align-items:center; gap:10px;">
           <strong>Branding report:</strong>
@@ -2294,12 +2303,6 @@ window.LICENSE_CONTEXT = {
         <button id="btnExportVotingXlsx" type="button">Export Excel</button>
       </div>
       <div id="votingExportLicenseHint" class="small" style="margin-bottom:8px; color:#475467;"></div>
-      <div class="plugin-tools-tabs" style="margin-top:10px;">
-        <button type="button" class="quick-toggle active" id="btnVotingViewRanking">Classifica</button>
-        <button type="button" class="quick-toggle" id="btnVotingViewColumns">Colonne</button>
-        <button type="button" class="quick-toggle" id="btnVotingViewPivot">Pivot</button>
-        <button type="button" class="quick-toggle" id="btnVotingViewChart">Grafico</button>
-      </div>
       <div id="votingViewRankingPane">
         <div id="votingRankingMeta" class="small" style="margin:8px 0;"></div>
         <div style="max-height:360px; overflow:auto;">
@@ -5432,15 +5435,30 @@ async function loadVotingSourceFields(){
   const sourceId = String(sourceSel.value || "").trim();
   const source = (SOURCES || []).find(s => String(s?.id || "").trim() === sourceId);
   let cols = [];
-  if (Array.isArray(source?.config?.detected_columns) && source.config.detected_columns.length) cols = source.config.detected_columns;
+
+  if (Array.isArray(source?.config?.detected_columns) && source.config.detected_columns.length) {
+    cols = source.config.detected_columns;
+  }
+
   if (!cols.length && sourceId) {
     try {
-      const r = await api("/source-preview?source_id=" + encodeURIComponent(sourceId));
-      cols = Array.isArray(r?.columns) ? r.columns : [];
+      const f = await api("/fields?source_id=" + encodeURIComponent(sourceId));
+      cols = Array.isArray(f?.fields) ? f.fields : [];
     } catch (_e) {
       cols = [];
     }
   }
+
+  if (!cols.length && sourceId) {
+    try {
+      const r = await api("/source-preview?source_id=" + encodeURIComponent(sourceId) + "&limit=5");
+      cols = Array.isArray(r?.columns) ? r.columns : [];
+    } catch (e) {
+      cols = [];
+      setStatus("ATTENZIONE: impossibile caricare automaticamente le colonne Voting per la sorgente selezionata.");
+    }
+  }
+
   const nameSel = document.getElementById("votingNameColumn");
   const votesSel = document.getElementById("votingVotesColumn");
   if (nameSel) {
@@ -5461,12 +5479,31 @@ async function loadVotingSourceFields(){
       votesSel.appendChild(opt);
     });
   }
-  const nameGuess = cols.find(c => String(c).toLowerCase().includes("nome")) || cols.find(c => String(c).toLowerCase().includes("name")) || cols[0];
-  const votesGuess = cols.find(c => String(c).toLowerCase().includes("vot")) || cols.find(c => String(c).toLowerCase().includes("score")) || cols[1] || cols[0];
+
+  const lower = cols.map(c => String(c));
+  const nameGuess = lower.find(c => /candidat|nome|name/i.test(c)) || lower[0];
+  const votesGuess = lower.find(c => /vot|vote|voti|score|punt/i.test(c)) || lower[1] || lower[0];
   if (nameSel && nameGuess) nameSel.value = String(nameGuess);
   if (votesSel && votesGuess) votesSel.value = String(votesGuess);
   renderVotingDimensionsPicker(cols);
   return cols;
+}
+
+async function previewVotingSourceFromModule(){
+  const sourceId = String(document.getElementById("votingSourceSelect")?.value || "").trim();
+  if (!sourceId) {
+    setStatus("Seleziona prima una sorgente Voting.");
+    return;
+  }
+  try {
+    const data = await api("/source-preview?source_id=" + encodeURIComponent(sourceId) + "&limit=20");
+    renderPreviewTableInto(data, "sourcePreviewModalMeta", "sourcePreviewModalTable", "Nessuna colonna disponibile per l'anteprima.");
+    const modal = document.getElementById("sourcePreviewModal");
+    if (modal) modal.style.display = "flex";
+    setStatus("Anteprima sorgente Voting caricata.");
+  } catch (e) {
+    setStatus("ERRORE anteprima sorgente Voting: " + (e?.message || e));
+  }
 }
 
 async function initVotingAnalyticsModule(){
@@ -9665,6 +9702,9 @@ bindClick("btnRunXmlBatchImport", async () => {
   } catch (e) {
     setStatus("ERRORE import XML batch: " + e.message);
   }
+});
+bindClick("btnPreviewVotingSource", async () => {
+  await previewVotingSourceFromModule();
 });
 bindClick("btnRunVotingAnalytics", async () => {
   try {
