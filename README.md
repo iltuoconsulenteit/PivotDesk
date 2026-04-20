@@ -83,10 +83,11 @@ Runtime resources (templates/static/licenses) are resolved with a frozen-safe `_
 
 ### Built-in demo content (first-time onboarding)
 
-- Demo CSV datasets: `demo/demo_sales.csv`, `demo/demo_voting_results.csv`
-- Demo source seed: `sources.json` (`default_source: demo_voting`, includes `demo_sales` and `demo_voting`)
-- Demo pivot presets: `pivots/demo_sales/demo_sales_overview.json`, `pivots/demo_voting/demo_voting_overview.json`
-- Voting Analytics quick demo thresholds (saved in `demo_voting_overview` options): `120` (Eletto) / `80` (Riserva)
+- Demo CSV datasets: `demo/demo_sales.csv`, `demo/demo_voting_results.csv`, `demo/demo_voting_scrutatori_a.csv`, `demo/demo_voting_scrutatori_b.csv`, `demo/demo_voting_scrutatori_combined.csv`
+- Demo source seed: `sources.json` (`default_source: demo_voting_scrutatori`, includes split voting files `demo_voting_scrutatori_a` + `demo_voting_scrutatori_b` and a combined source)
+- Demo pivot presets: `pivots/demo_sales/demo_sales_overview.json`, `pivots/demo_voting/demo_voting_overview.json`, `pivots/demo_voting_scrutatori/demo_voting_scrutatori_overview.json`
+- Voting Analytics quick demo thresholds: aggregated demo `120/80`; scrutatori demo `70/50` (saved in respective preset options)
+- Scrutatori demo is intentionally non-aggregated by candidate: the same candidate appears multiple times across different scrutatori/sezioni and files, to support realistic Multi-Source Merge + Voting workflows.
 
 On first startup in source mode, `sources.json` is used as the legacy seed and migrated to the user runtime source bundle, so new users can immediately run a working pivot demo.
 

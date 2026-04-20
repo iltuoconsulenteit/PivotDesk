@@ -1,5 +1,5 @@
 {
-  "default_source": "demo_voting",
+  "default_source": "demo_voting_scrutatori",
   "sources": [
     {
       "id": "demo_sales",
@@ -12,9 +12,36 @@
     },
     {
       "id": "demo_voting",
-      "title": "Demo Voting Results CSV",
+      "title": "Demo Voting Results CSV (Aggregato)",
       "type": "csv",
       "path": "demo/demo_voting_results.csv",
+      "delimiter": ",",
+      "encoding": "utf-8",
+      "options": {}
+    },
+    {
+      "id": "demo_voting_scrutatori_a",
+      "title": "Demo Voting Scrutatori - File A",
+      "type": "csv",
+      "path": "demo/demo_voting_scrutatori_a.csv",
+      "delimiter": ",",
+      "encoding": "utf-8",
+      "options": {}
+    },
+    {
+      "id": "demo_voting_scrutatori_b",
+      "title": "Demo Voting Scrutatori - File B",
+      "type": "csv",
+      "path": "demo/demo_voting_scrutatori_b.csv",
+      "delimiter": ",",
+      "encoding": "utf-8",
+      "options": {}
+    },
+    {
+      "id": "demo_voting_scrutatori",
+      "title": "Demo Voting Scrutatori (Combined)",
+      "type": "csv",
+      "path": "demo/demo_voting_scrutatori_combined.csv",
       "delimiter": ",",
       "encoding": "utf-8",
       "options": {}

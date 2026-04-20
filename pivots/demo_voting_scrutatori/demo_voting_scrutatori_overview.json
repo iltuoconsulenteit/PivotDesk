@@ -1,0 +1,57 @@
+{
+  "id": "demo_voting_scrutatori_overview",
+  "title": "Demo Voting Scrutatori Overview",
+  "source_id": "demo_voting_scrutatori",
+  "filters": [
+    "Sezione",
+    "Lista",
+    "FileOrigine"
+  ],
+  "numeric_fields": [
+    "Voti"
+  ],
+  "date_fields": [],
+  "rows": [
+    "Candidato"
+  ],
+  "cols": [
+    "FileOrigine"
+  ],
+  "values": [
+    {
+      "field": "Voti",
+      "agg": "sum",
+      "label": "Totale Voti"
+    },
+    {
+      "field": "Scrutatore",
+      "agg": "count",
+      "label": "Rilevazioni"
+    }
+  ],
+  "options": {
+    "measures_layout": "horizontal",
+    "show_row_totals": true,
+    "show_col_totals": true,
+    "show_subtotals": true,
+    "sort_enabled": false,
+    "sort_field": "",
+    "sort_direction": "asc",
+    "sort_by": "label",
+    "voting_analytics": {
+      "source_id": "demo_voting_scrutatori",
+      "name_column": "Candidato",
+      "votes_column": "Voti",
+      "extra_dimensions": [
+        "Scrutatore",
+        "Sezione",
+        "Lista",
+        "FileOrigine"
+      ],
+      "threshold_main": 70,
+      "threshold_min": 50,
+      "thresholds_as_percent": false,
+      "active_view": "ranking"
+    }
+  }
+}
