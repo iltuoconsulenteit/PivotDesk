@@ -1644,6 +1644,7 @@ def load_sources_data() -> dict[str, Any]:
         inferred_added = True
 
     normalized_items, import_data_added = _auto_import_data_sources(normalized_items, used_numeric)
+    normalized_items, legacy_seed_repaired = _enrich_sources_with_legacy_seed(normalized_items)
 
     # Rimuovi eventuali duplicati residui dopo infer/migrazione/auto-import.
     deduped_items: list[dict[str, Any]] = []
@@ -1676,10 +1677,71 @@ def load_sources_data() -> dict[str, Any]:
 
     pivots_remapped = remap_pivot_source_ids(id_remap) if changed_ids else False
 
-    if inferred_added or changed_ids or pivots_remapped or import_data_added:
+    if inferred_added or changed_ids or pivots_remapped or import_data_added or legacy_seed_repaired:
         write_json(SOURCES_PATH, merged)
 
     return merged
+
+
+def _enrich_sources_with_legacy_seed(items: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], bool]:
+    if not LEGACY_SOURCES_PATH.exists():
+        return items, False
+
+    legacy_raw = read_json(LEGACY_SOURCES_PATH, {}) or {}
+    legacy_items = legacy_raw.get("items")
+    if legacy_items is None:
+        legacy_items = legacy_raw.get("sources", [])
+
+    seed_map: dict[str, dict[str, Any]] = {}
+    for row in legacy_items or []:
+        normalized = normalize_source_item(row)
+        sid = str((normalized or {}).get("id", "")).strip() if isinstance(normalized, dict) else ""
+        if sid:
+            seed_map[sid] = normalized
+
+    if not seed_map:
+        return items, False
+
+    changed = False
+    out: list[dict[str, Any]] = []
+    for src in items:
+        if not isinstance(src, dict):
+            out.append(src)
+            continue
+
+        sid = str(src.get("id", "")).strip()
+        legacy_sid = str((src.get("config") or {}).get("legacy_source_id", "")).strip()
+        seed = seed_map.get(sid) or seed_map.get(legacy_sid)
+        if not seed:
+            out.append(src)
+            continue
+
+        src_type = str(src.get("type") or "").strip().lower()
+        needs_path = src_type in {"csv", "xlsx", "excel", "xls", "xlsm", "ods"}
+        src_path = str(src.get("path") or src.get("config", {}).get("path") or "").strip()
+        seed_path = str(seed.get("path") or seed.get("config", {}).get("path") or "").strip()
+
+        merged = dict(src)
+        if not str(merged.get("title") or "").strip() and str(seed.get("title") or "").strip():
+            merged["title"] = seed.get("title")
+            changed = True
+        if not str(merged.get("type") or "").strip() and str(seed.get("type") or "").strip():
+            merged["type"] = seed.get("type")
+            changed = True
+        if needs_path and not src_path and seed_path:
+            merged["path"] = seed_path
+            if str(seed.get("delimiter") or "").strip() and not str(merged.get("delimiter") or "").strip():
+                merged["delimiter"] = seed.get("delimiter")
+            if str(seed.get("encoding") or "").strip() and not str(merged.get("encoding") or "").strip():
+                merged["encoding"] = seed.get("encoding")
+            changed = True
+
+        if merged is not src:
+            out.append(merged)
+        else:
+            out.append(src)
+
+    return out, changed
 
 
 def save_sources_data(data: dict[str, Any]) -> dict[str, Any]:
