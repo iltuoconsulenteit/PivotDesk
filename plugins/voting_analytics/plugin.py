@@ -26,6 +26,7 @@ class VotingAnalyticsExportRequest(VotingAnalyticsRequest):
     include_app_logo: bool = True
     include_dev_logo: bool = True
     title: str = Field(default="Voting Analytics Report")
+    view_mode: str = Field(default="ranking")
 
 
 def _normalize_status(votes: float, threshold_main: float, threshold_min: float) -> str:
@@ -184,7 +185,7 @@ def _render_html_table(rows: list[dict[str, Any]], ordered_columns: list[str]) -
     return f"<table><thead><tr>{head}</tr></thead><tbody>{''.join(body_chunks)}</tbody></table>"
 
 
-def _build_voting_report_html(result: dict[str, Any], title: str, include_app_logo: bool, include_dev_logo: bool, include_customer_logo: bool, customer_logo_url: str, auto_print: bool = False) -> str:
+def _build_voting_report_html(result: dict[str, Any], title: str, include_app_logo: bool, include_dev_logo: bool, include_customer_logo: bool, customer_logo_url: str, view_mode: str = "ranking", auto_print: bool = False) -> str:
     ranking_rows = result.get("ranking") if isinstance(result.get("ranking"), list) else []
     ranking_cols = ["rank", "name", "votes", "status"]
     if ranking_rows:
@@ -237,6 +238,20 @@ def _build_voting_report_html(result: dict[str, Any], title: str, include_app_lo
         )
     chart_html = "".join(chart_rows) if chart_rows else "<div class='muted'>Nessun dato grafico disponibile.</div>"
 
+    section_mode = str(view_mode or "ranking").strip().lower()
+    if section_mode not in {"ranking", "columns", "pivot", "chart", "all"}:
+        section_mode = "ranking"
+
+    body_sections: list[str] = []
+    if section_mode in {"ranking", "all"}:
+        body_sections.append("<div class='section'><h2>Classifica</h2>" + _render_html_table(ranking_rows, ranking_cols) + "</div>")
+    if section_mode in {"columns", "all"}:
+        body_sections.append("<div class='section'><h2>Colonne (Eletti / Riserva / Esclusi)</h2>" + _render_html_table(multi_rows, multi_cols) + "</div>")
+    if section_mode in {"pivot", "all"}:
+        body_sections.append("<div class='section'><h2>Distribuzione (vista pivot)</h2>" + _render_html_table(pivot_rows, pivot_cols) + "</div>")
+    if section_mode in {"chart", "all"}:
+        body_sections.append("<div class='section'><h2>Grafico ranking (Top 20)</h2>" + chart_html + "</div>")
+
     auto_print_script = "<script>window.addEventListener('load',()=>window.print());</script>" if auto_print else ""
 
     return (
@@ -277,18 +292,7 @@ def _build_voting_report_html(result: dict[str, Any], title: str, include_app_lo
         f"<div><strong>Soglia eletti:</strong> {_escape_html(f'{threshold_main:.2f}')}</div>"
         f"<div><strong>Soglia riserva:</strong> {_escape_html(f'{threshold_min:.2f}')}</div>"
         "</div></div>"
-        "<div class='section'><h2>Classifica</h2>"
-        f"{_render_html_table(ranking_rows, ranking_cols)}"
-        "</div>"
-        "<div class='section'><h2>Colonne (Eletti / Riserva / Esclusi)</h2>"
-        f"{_render_html_table(multi_rows, multi_cols)}"
-        "</div>"
-        "<div class='section'><h2>Distribuzione (vista pivot)</h2>"
-        f"{_render_html_table(pivot_rows, pivot_cols)}"
-        "</div>"
-        "<div class='section'><h2>Grafico ranking (Top 20)</h2>"
-        f"{chart_html}"
-        "</div>"
+        f"{''.join(body_sections)}"
         f"{footer_html}"
         "</div></body></html>"
     )
@@ -328,13 +332,25 @@ def register(app, plugin_api, manifest):
             multi_df = pd.DataFrame((result.get("multi_column") or {}).get("rows") or [])
             pivot_df = pd.DataFrame(result.get("pivot_status") or [])
             summary_df = pd.DataFrame([result.get("summary") or {}])
+            chart_df = pd.DataFrame({
+                "label": ((result.get("chart") or {}).get("ranking") or {}).get("labels") or [],
+                "value": ((result.get("chart") or {}).get("ranking") or {}).get("values") or [],
+            })
+            view_mode = str(payload.view_mode or "ranking").strip().lower()
+            if view_mode not in {"ranking", "columns", "pivot", "chart", "all"}:
+                view_mode = "ranking"
 
             output = io.BytesIO()
             with pd.ExcelWriter(output, engine="openpyxl") as writer:
-                ranking_df.to_excel(writer, sheet_name="Classifica", index=False)
-                multi_df.to_excel(writer, sheet_name="Colonne", index=False)
-                pivot_df.to_excel(writer, sheet_name="Pivot", index=False)
                 summary_df.to_excel(writer, sheet_name="Riepilogo", index=False)
+                if view_mode in {"ranking", "all"}:
+                    ranking_df.to_excel(writer, sheet_name="Classifica", index=False)
+                if view_mode in {"columns", "all"}:
+                    multi_df.to_excel(writer, sheet_name="Colonne", index=False)
+                if view_mode in {"pivot", "all"}:
+                    pivot_df.to_excel(writer, sheet_name="Pivot", index=False)
+                if view_mode in {"chart", "all"}:
+                    chart_df.to_excel(writer, sheet_name="Grafico", index=False)
             output.seek(0)
             headers = {"Content-Disposition": f'attachment; filename="{filename_base}.xlsx"'}
             return StreamingResponse(
@@ -351,6 +367,7 @@ def register(app, plugin_api, manifest):
                 include_dev_logo=include_dev_logo,
                 include_customer_logo=include_customer_logo,
                 customer_logo_url=customer_logo_url,
+                view_mode=payload.view_mode,
                 auto_print=fmt == "pdf",
             )
             if fmt == "html":

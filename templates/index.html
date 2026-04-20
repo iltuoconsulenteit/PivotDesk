@@ -5655,14 +5655,25 @@ function buildVotingAnalyticsPayload(){
   };
 }
 
+function getActiveVotingViewMode(){
+  const modes = ["ranking", "columns", "pivot", "chart"];
+  for (const m of modes) {
+    const paneId = "votingView" + m.charAt(0).toUpperCase() + m.slice(1) + "Pane";
+    const pane = document.getElementById(paneId);
+    if (pane && !pane.classList.contains("hidden")) return m;
+  }
+  return "ranking";
+}
+
 async function exportVotingAnalyticsReport(fmt){
   await ensureVotingSourceWithColumns();
   const payload = buildVotingAnalyticsPayload();
   const canCustomize = canCustomizeVotingBranding();
   payload.fmt = String(fmt || "html").toLowerCase();
+  payload.view_mode = getActiveVotingViewMode();
   payload.include_app_logo = canCustomize ? !!document.getElementById("votingIncludeAppLogo")?.checked : true;
   payload.include_dev_logo = canCustomize ? !!document.getElementById("votingIncludeDevLogo")?.checked : true;
-  payload.title = "Voting Analytics - Report";
+  payload.title = "Voting Analytics - " + payload.view_mode.charAt(0).toUpperCase() + payload.view_mode.slice(1);
 
   if (payload.fmt === "xlsx") {
     const r = await fetch("/plugin/voting-analytics/export", {
