@@ -1422,6 +1422,7 @@ window.LICENSE_CONTEXT = {
         <div class="compact-panel-head-actions">
           <button type="button" id="btnNewPivotInline" class="compact-head-btn icon" title="Nuovo preset pivot" aria-label="Nuovo preset pivot">＋</button>
           <button type="button" id="btnEditCurrentPresetInline" class="compact-head-btn icon" title="Modifica preset attivo" aria-label="Modifica preset attivo">✎</button>
+          <button type="button" id="btnDeleteCurrentPresetInline" class="compact-head-btn icon" title="Elimina preset attivo" aria-label="Elimina preset attivo">🗑</button>
           <button type="button" class="compact-toggle" data-target="presetPanel" data-i18n="hide">Nascondi</button>
         </div>
       </div>
@@ -7162,7 +7163,7 @@ async function deleteCurrentPreset(){
   }
 
   const ok = window.confirm(
-    'Confermi l\'eliminazione del preset "' + (p.title || p.id) + '"?\n\nL\'operazione non è annullabile.'
+    'Confermi l\'eliminazione del preset "' + (p.title || p.id) + '"?\n\nL\'operazione non è annullabile.\nLa sorgente dati NON viene eliminata.'
   );
   if (!ok) return;
 
@@ -9239,6 +9240,13 @@ bindClick("btnCloseBuilder", () => closeBuilderScreen());
 bindClick("btnCloseBuilderBottom", () => closeBuilderScreen());
 bindClick("btnNewPivotInline", () => openBuilderForNew());
 bindClick("btnEditCurrentPresetInline", () => openBuilderForCurrentPreset());
+bindClick("btnDeleteCurrentPresetInline", async () => {
+  try {
+    await deleteCurrentPreset();
+  } catch (e) {
+    setStatus("ERRORE eliminazione preset: " + e.message);
+  }
+});
 bindClick("btnBuilderSwapRowsCols", () => {
   const rows = [].concat(BUILDER.rows || []);
   BUILDER.rows = [].concat(BUILDER.cols || []);
