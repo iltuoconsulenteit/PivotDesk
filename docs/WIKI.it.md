@@ -238,6 +238,31 @@ Lingua selezionabile da UI impostazioni.
 
 ## 16) Usabilità layout home
 
+---
+
+## 17) Moduli e plugin operativi
+
+### Multi Source Merge
+- Apri da **Moduli > Merge sorgenti**.
+- Flusso consigliato: crea template colonne, mappa le sorgenti, genera anteprima, poi esporta/salva.
+- Usa deduplica con chiavi univoche quando devi evitare record duplicati.
+
+### API Data Scheduler
+- Apri da **Moduli > Scheduler API**.
+- Crea job con endpoint + schedule (manuale, giornaliero, settimanale, intervalli).
+- I risultati vengono salvati in CSV dentro `import_data`.
+
+### Import XML (quick + batch)
+- **Quick import**: tab plugin sorgenti, import singolo XML.
+- **Batch import**: da modulo dedicato, più XML con deduplica opzionale per chiavi.
+- Entrambi i flussi generano CSV in `import_data` per auto-rilevamento sorgenti.
+
+### Voting Analytics
+- Apri da **Moduli > Voting Analytics**.
+- Campi obbligatori: sorgente, colonna nome, colonna voti.
+- Dimensioni aggiuntive sono opzionali e servono per aggregazioni pivot.
+- Le soglie classificano in: **Eletto**, **Riserva**, **Escluso**.
+
 Nella dashboard principale (`templates/index.html`) i controlli sono stati concentrati in una griglia compatta:
 
 - Sorgente dati

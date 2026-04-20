@@ -55,6 +55,8 @@
   "export_chart_html": "Esporta grafico HTML",
   "help_button": "❓ Aiuto",
   "help_open_title": "Apri guida",
+  "help_modules_plugins": "❓ Guida moduli/plugin",
+  "help_usage": "❓ Help utilizzo",
   "hide": "Nascondi",
   "show_data_preview": "Mostra anteprima dati",
   "layout_options": "Layout & opzioni",

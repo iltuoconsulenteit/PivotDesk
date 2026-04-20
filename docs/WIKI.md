@@ -235,6 +235,31 @@ Language can be switched from settings UI.
 
 ## 16) Home layout usability
 
+---
+
+## 17) Operational modules and plugins
+
+### Multi Source Merge
+- Open from **Modules > Merge sources**.
+- Recommended flow: define template columns, map source fields, preview output, then export/save.
+- Use unique-key deduplication when duplicate rows must be dropped.
+
+### API Data Scheduler
+- Open from **Modules > API Scheduler**.
+- Create jobs with endpoint + schedule (manual/daily/weekly/interval).
+- Output CSV files are written into `import_data`.
+
+### XML import (quick + batch)
+- **Quick import**: source plugin tab, single XML import.
+- **Batch import**: dedicated module for multi-file XML with optional deduplication keys.
+- Both flows generate CSVs in `import_data` for source auto-detection.
+
+### Voting Analytics
+- Open from **Modules > Voting Analytics**.
+- Required fields: source, name column, votes column.
+- Extra dimensions are optional and used for grouped/pivot views.
+- Thresholds classify rows into: **Elected**, **Reserve**, **Excluded**.
+
 The main dashboard (`templates/index.html`) now groups controls in a compact grid:
 
 - Source

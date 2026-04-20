@@ -1942,7 +1942,7 @@ window.LICENSE_CONTEXT = {
       <div class="section-title">Plugin sorgenti (lookup)</div>
       <div class="small" style="margin-bottom:10px; color:#475467;">Il tab plugin ospita utility lookup. I moduli Merge/API Scheduler sono disponibili nelle rispettive pagine dedicate dal menu Moduli.</div>
       <div class="builder-actions" style="justify-content:flex-start; margin-bottom:10px;">
-        <button type="button" id="btnOpenPluginsHelp">❓ Guida moduli/plugin</button>
+        <button type="button" id="btnOpenPluginsHelp" class="ghost-btn" data-i18n="help_modules_plugins" data-i18n-title="help_open_title">❓ Guida moduli/plugin</button>
       </div>
       <div class="plugin-tools-tabs">
         <button type="button" class="quick-toggle active" id="btnPluginTabLookup">Lookup guidato</button>
@@ -2181,7 +2181,7 @@ window.LICENSE_CONTEXT = {
         <div class="small">Pagina dedicata del modulo aggiuntivo per creare sorgenti unite ed esportarle.</div>
       </div>
       <div style="display:flex; gap:8px;">
-        <button type="button" id="btnGuideMergeModuleScreen">Guida</button>
+        <button type="button" id="btnGuideMergeModuleScreen" class="ghost-btn" data-i18n="help_button" data-i18n-title="help_open_title">❓ Aiuto</button>
         <button type="button" id="btnCloseMergeModuleScreen">Chiudi modulo</button>
       </div>
     </div>
@@ -2197,7 +2197,7 @@ window.LICENSE_CONTEXT = {
         <div class="small">Pagina dedicata per configurare endpoint multipli e scarico manuale/schedulato.</div>
       </div>
       <div style="display:flex; gap:8px;">
-        <button type="button" id="btnGuideApiSchedulerModuleScreen">Guida</button>
+        <button type="button" id="btnGuideApiSchedulerModuleScreen" class="ghost-btn" data-i18n="help_button" data-i18n-title="help_open_title">❓ Aiuto</button>
         <button type="button" id="btnCloseApiSchedulerModuleScreen">Chiudi modulo</button>
       </div>
     </div>
@@ -2213,7 +2213,7 @@ window.LICENSE_CONTEXT = {
         <div class="small" data-i18n="xml_batch_module_subtitle">Carica più XML, applica deduplica per chiavi e genera CSV in import_data.</div>
       </div>
       <div style="display:flex; gap:8px;">
-        <button type="button" id="btnGuideXmlBatchImportModuleScreen">Guida</button>
+        <button type="button" id="btnGuideXmlBatchImportModuleScreen" class="ghost-btn" data-i18n="help_button" data-i18n-title="help_open_title">❓ Aiuto</button>
         <button type="button" id="btnCloseXmlBatchImportModuleScreen" data-i18n="close_module">Chiudi modulo</button>
       </div>
     </div>
@@ -2237,7 +2237,7 @@ window.LICENSE_CONTEXT = {
         <div class="small">Classifica, soglie eletti/riserva/esclusi, vista multi-colonna, pivot e grafici.</div>
       </div>
       <div style="display:flex; gap:8px;">
-        <button type="button" id="btnGuideVotingAnalyticsModuleScreen">Guida</button>
+        <button type="button" id="btnGuideVotingAnalyticsModuleScreen" class="ghost-btn" data-i18n="help_button" data-i18n-title="help_open_title">❓ Aiuto</button>
         <button type="button" id="btnCloseVotingAnalyticsModuleScreen">Chiudi modulo</button>
       </div>
     </div>
@@ -2280,7 +2280,7 @@ window.LICENSE_CONTEXT = {
         </label>
         <button id="btnRunVotingAnalytics" type="button">Esegui analisi</button>
         <button id="btnSaveVotingPresetConfig" type="button">Salva config nel preset attivo</button>
-        <button id="btnHelpVotingAnalyticsUsage" type="button">❓ Help utilizzo</button>
+        <button id="btnHelpVotingAnalyticsUsage" type="button" class="ghost-btn" data-i18n="help_usage" data-i18n-title="help_open_title">❓ Help utilizzo</button>
       </div>
       <div class="plugin-tools-tabs" style="margin-top:10px;">
         <button type="button" class="quick-toggle active" id="btnVotingViewRanking">Classifica</button>
@@ -9296,7 +9296,7 @@ bindClick("btnOpenWikiHelp", async () => {
 bindClick("btnCloseWikiDrawer", () => closeWikiDrawer());
 bindClick("btnWikiIt", () => setWikiLocale("it"));
 bindClick("btnWikiEn", () => setWikiLocale("en"));
-bindClick("btnOpenPluginsHelp", () => openWikiGuideSection("plugin"));
+bindClick("btnOpenPluginsHelp", () => openWikiGuideSection("plugins"));
 bindInput("wikiWidthRange", "input", ev => setWikiWidth(ev && ev.target ? ev.target.value : ""));
 bindClick("btnCloseChartsModal", () => closeChartsModal());
 bindClick("chartsModal", ev => { if (ev && ev.target && ev.target.id === "chartsModal") closeChartsModal(); });
@@ -9375,7 +9375,7 @@ bindClick("btnCloseApiSchedulerModuleScreen", () => closeDedicatedModuleScreen()
 bindClick("btnCloseXmlBatchImportModuleScreen", () => closeDedicatedModuleScreen());
 bindClick("btnCloseVotingAnalyticsModuleScreen", () => closeDedicatedModuleScreen());
 bindClick("btnGuideMergeModuleScreen", () => openWikiGuideSection("merge"));
-bindClick("btnGuideApiSchedulerModuleScreen", () => openWikiGuideSection("scheduler api"));
+bindClick("btnGuideApiSchedulerModuleScreen", () => openWikiGuideSection("api_scheduler"));
 bindClick("btnGuideXmlBatchImportModuleScreen", () => openWikiGuideSection("xml"));
 bindClick("btnGuideVotingAnalyticsModuleScreen", () => openWikiGuideSection("voting"));
 bindClick("btnCloseInlineModulePanel", () => closeInlineModulePanel());
@@ -9487,7 +9487,7 @@ bindClick("btnRunVotingAnalytics", async () => {
   }
 });
 bindClick("btnSaveVotingPresetConfig", () => saveVotingAnalyticsConfigIntoPreset());
-bindClick("btnHelpVotingAnalyticsUsage", () => openWikiGuideSection("voting analytics"));
+bindClick("btnHelpVotingAnalyticsUsage", () => openWikiGuideSection("voting_usage"));
 bindClick("btnVotingViewRanking", () => setVotingViewPane("ranking"));
 bindClick("btnVotingViewColumns", () => setVotingViewPane("columns"));
 bindClick("btnVotingViewPivot", () => setVotingViewPane("pivot"));
@@ -10216,15 +10216,38 @@ function openWikiDrawer(){
   document.body.classList.add("wiki-open");
 }
 
-async function openWikiGuideSection(searchTerm){
+async function openWikiGuideSection(sectionKey){
   openWikiDrawer();
-  await setWikiLocale(SETTINGS.language || "it").catch(() => {});
-  const wanted = String(searchTerm || "").trim().toLowerCase();
-  if (!wanted) return;
+  const lang = String(SETTINGS.language || "en").toLowerCase() === "it" ? "it" : "en";
+  await setWikiLocale(lang).catch(() => {});
+  const key = String(sectionKey || "").trim().toLowerCase();
+  if (!key) return;
+  const termMap = {
+    it: {
+      merge: ["moduli e plugin operativi", "multi source merge", "merge"],
+      api_scheduler: ["moduli e plugin operativi", "api data scheduler", "scheduler"],
+      xml: ["moduli e plugin operativi", "import xml", "importa xml"],
+      voting: ["moduli e plugin operativi", "voting analytics", "votazioni"],
+      plugins: ["moduli e plugin operativi", "moduli", "plugin"],
+      voting_usage: ["voting analytics", "classifica", "votazioni"],
+    },
+    en: {
+      merge: ["operational modules and plugins", "multi source merge", "merge"],
+      api_scheduler: ["operational modules and plugins", "api data scheduler", "scheduler"],
+      xml: ["operational modules and plugins", "xml import", "xml"],
+      voting: ["operational modules and plugins", "voting analytics", "voting"],
+      plugins: ["operational modules and plugins", "modules", "plugins"],
+      voting_usage: ["voting analytics", "ranking", "voting"],
+    }
+  };
+  const candidatesTerms = (termMap[lang] && termMap[lang][key]) ? termMap[lang][key] : [key];
   const box = document.getElementById("wikiContent");
   if (!box) return;
   const candidates = Array.from(box.querySelectorAll("h1, h2, h3, p, li"));
-  const hit = candidates.find(el => String(el?.textContent || "").toLowerCase().includes(wanted));
+  const hit = candidates.find(el => {
+    const txt = String(el?.textContent || "").toLowerCase();
+    return candidatesTerms.some(term => txt.includes(String(term).toLowerCase()));
+  });
   if (hit && typeof hit.scrollIntoView === "function") {
     hit.scrollIntoView({ behavior: "smooth", block: "start" });
   }
