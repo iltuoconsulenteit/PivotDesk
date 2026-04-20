@@ -1400,6 +1400,7 @@ window.LICENSE_CONTEXT = {
       <div class="compact-panel-head">
         <label for="sourceSelect" class="section-title"><strong data-i18n="source_data">Sorgente dati</strong></label>
         <div class="compact-panel-head-actions">
+          <button id="btnHelpSourcePanel" type="button" class="compact-head-btn icon" title="Aiuto sorgenti" aria-label="Aiuto sorgenti">❓</button>
           <button id="btnNewSourceInline" type="button" class="compact-head-btn icon" title="Nuova sorgente" aria-label="Nuova sorgente">＋</button>
           <button id="btnEditCurrentSourceInline" type="button" class="compact-head-btn icon" title="Modifica sorgente attiva" aria-label="Modifica sorgente attiva">✎</button>
           <button id="btnDeleteCurrentSourceInline" type="button" class="compact-head-btn icon" title="Elimina sorgente attiva" aria-label="Elimina sorgente attiva">🗑</button>
@@ -1420,6 +1421,7 @@ window.LICENSE_CONTEXT = {
       <div class="compact-panel-head">
         <div class="section-title" data-i18n="preset">Preset</div>
         <div class="compact-panel-head-actions">
+          <button id="btnHelpPresetPanel" type="button" class="compact-head-btn icon" title="Aiuto preset" aria-label="Aiuto preset">❓</button>
           <button type="button" id="btnNewPivotInline" class="compact-head-btn icon" title="Nuovo preset pivot" aria-label="Nuovo preset pivot">＋</button>
           <button type="button" id="btnEditCurrentPresetInline" class="compact-head-btn icon" title="Modifica preset attivo" aria-label="Modifica preset attivo">✎</button>
           <button type="button" id="btnDeleteCurrentPresetInline" class="compact-head-btn icon" title="Elimina preset attivo" aria-label="Elimina preset attivo">🗑</button>
@@ -1526,7 +1528,7 @@ window.LICENSE_CONTEXT = {
       <div class="small">Vista modulo: costruisci e modifica preset pivot mantenendo header/licenza sempre visibili.</div>
       <div id="builderModeInfo" class="small"></div>
     </div>
-    <div><button id="btnCloseBuilder" type="button">Chiudi modulo</button></div>
+    <div style="display:flex; gap:8px;"><button id="btnHelpBuilderScreen" type="button" class="compact-head-btn icon" title="Aiuto">❓</button><button id="btnCloseBuilder" type="button">Chiudi modulo</button></div>
   </div>
 
   <div class="card">
@@ -1708,7 +1710,7 @@ window.LICENSE_CONTEXT = {
       <div class="section-title">Gestione sorgenti dati</div>
       <div class="small">Vista modulo: crea, modifica e organizza le sorgenti dati usate in PivotDesk.</div>
     </div>
-    <div><button id="btnCloseSources" type="button">Chiudi modulo</button></div>
+    <div style="display:flex; gap:8px;"><button id="btnHelpSourcesScreen" type="button" class="compact-head-btn icon" title="Aiuto">❓</button><button id="btnCloseSources" type="button">Chiudi modulo</button></div>
   </div>
 
   <div class="card">
@@ -2178,6 +2180,7 @@ window.LICENSE_CONTEXT = {
         <div class="small">Pagina dedicata del modulo aggiuntivo per creare sorgenti unite ed esportarle.</div>
       </div>
       <div style="display:flex; gap:8px;">
+        <button type="button" id="btnHelpMergeModuleScreen" class="compact-head-btn icon" title="Aiuto">❓</button>
         <button type="button" id="btnCloseMergeModuleScreen">Chiudi modulo</button>
       </div>
     </div>
@@ -2193,6 +2196,7 @@ window.LICENSE_CONTEXT = {
         <div class="small">Pagina dedicata per configurare endpoint multipli e scarico manuale/schedulato.</div>
       </div>
       <div style="display:flex; gap:8px;">
+        <button type="button" id="btnHelpApiSchedulerModuleScreen" class="compact-head-btn icon" title="Aiuto">❓</button>
         <button type="button" id="btnCloseApiSchedulerModuleScreen">Chiudi modulo</button>
       </div>
     </div>
@@ -2208,6 +2212,7 @@ window.LICENSE_CONTEXT = {
         <div class="small" data-i18n="xml_batch_module_subtitle">Carica più XML, applica deduplica per chiavi e genera CSV in import_data.</div>
       </div>
       <div style="display:flex; gap:8px;">
+        <button type="button" id="btnHelpXmlBatchImportModuleScreen" class="compact-head-btn icon" title="Aiuto">❓</button>
         <button type="button" id="btnCloseXmlBatchImportModuleScreen" data-i18n="close_module">Chiudi modulo</button>
       </div>
     </div>
@@ -2231,6 +2236,7 @@ window.LICENSE_CONTEXT = {
         <div class="small">Classifica, soglie eletti/riserva/esclusi, vista multi-colonna, pivot e grafici.</div>
       </div>
       <div style="display:flex; gap:8px;">
+        <button type="button" id="btnHelpVotingAnalyticsModuleScreen" class="compact-head-btn icon" title="Aiuto">❓</button>
         <button type="button" id="btnCloseVotingAnalyticsModuleScreen">Chiudi modulo</button>
       </div>
     </div>
@@ -2253,6 +2259,9 @@ window.LICENSE_CONTEXT = {
         <div class="field">
           <label for="votingDimsColumns">Dimensioni aggiuntive opzionali (separate da virgola)</label>
           <input id="votingDimsColumns" placeholder="es. categoria,gruppo,lista">
+          <div class="small" style="margin:6px 0 4px;">Selezione guidata (drag/click):</div>
+          <div id="votingDimsAvailable" style="display:flex; flex-wrap:wrap; gap:6px; min-height:36px; padding:8px; border:1px dashed #c7d7fe; border-radius:8px; margin-bottom:6px;"></div>
+          <div id="votingDimsSelected" style="display:flex; flex-wrap:wrap; gap:6px; min-height:36px; padding:8px; border:1px solid #98a2b3; border-radius:8px; background:#f8fafc;"></div>
         </div>
         <div class="field">
           <label for="votingThresholdMain">Soglia principale (eletti)</label>
@@ -2313,7 +2322,8 @@ window.LICENSE_CONTEXT = {
         <div class="section-title" data-i18n="settings_title">Impostazioni</div>
         <div class="small" data-i18n="settings_subtitle">Configurazioni generali dell'applicazione e della stampa.</div>
       </div>
-      <div>
+      <div style="display:flex; gap:8px;">
+        <button id="btnHelpSettingsScreen" type="button" class="compact-head-btn icon" title="Aiuto">❓</button>
         <button id="btnCloseSettings" type="button" data-i18n="settings_close">Chiudi impostazioni</button>
       </div>
     </div>
@@ -2399,7 +2409,7 @@ window.LICENSE_CONTEXT = {
       <div class="section-title" data-i18n="catalog_title">Catalogo sorgenti e pivot</div>
       <div class="small" data-i18n="catalog_subtitle">Elenco centralizzato per consultare e gestire tutte le sorgenti e tutti i preset pivot.</div>
     </div>
-    <div><button id="btnCloseCatalog" type="button" data-i18n="catalog_close_module">Chiudi modulo</button></div>
+    <div style="display:flex; gap:8px;"><button id="btnHelpCatalogScreen" type="button" class="compact-head-btn icon" title="Aiuto">❓</button><button id="btnCloseCatalog" type="button" data-i18n="catalog_close_module">Chiudi modulo</button></div>
   </div>
   <div class="card">
     <div class="settings-backup-actions" style="margin-top:0;">
@@ -5339,6 +5349,72 @@ function renderVotingResult(payload){
   }
 }
 
+function getVotingSelectedDimensions(){
+  return String(document.getElementById("votingDimsColumns")?.value || "").split(",").map(x => x.trim()).filter(Boolean);
+}
+
+function setVotingSelectedDimensions(items){
+  const clean = Array.from(new Set((Array.isArray(items) ? items : []).map(x => String(x || "").trim()).filter(Boolean)));
+  const input = document.getElementById("votingDimsColumns");
+  if (input) input.value = clean.join(",");
+  return clean;
+}
+
+function renderVotingDimensionsPicker(allColumns){
+  const availableHost = document.getElementById("votingDimsAvailable");
+  const selectedHost = document.getElementById("votingDimsSelected");
+  if (!availableHost || !selectedHost) return;
+  const nameColumn = String(document.getElementById("votingNameColumn")?.value || "").trim();
+  const votesColumn = String(document.getElementById("votingVotesColumn")?.value || "").trim();
+  const selected = setVotingSelectedDimensions(getVotingSelectedDimensions().filter(x => x !== nameColumn && x !== votesColumn));
+  const candidates = (Array.isArray(allColumns) ? allColumns : []).map(x => String(x || "").trim()).filter(Boolean);
+  const available = candidates.filter(x => x !== nameColumn && x !== votesColumn && !selected.includes(x));
+
+  function buildChip(label, mode){
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.textContent = (mode === "selected" ? "✓ " : "+ ") + label;
+    chip.style.padding = "4px 8px";
+    chip.style.borderRadius = "999px";
+    chip.style.border = mode === "selected" ? "1px solid #175cd3" : "1px solid #98a2b3";
+    chip.style.background = mode === "selected" ? "#e8f1ff" : "#fff";
+    chip.draggable = true;
+    chip.addEventListener("click", () => {
+      if (mode === "selected") setVotingSelectedDimensions(selected.filter(x => x !== label));
+      else setVotingSelectedDimensions(selected.concat([label]));
+      renderVotingDimensionsPicker(candidates);
+    });
+    chip.addEventListener("dragstart", ev => {
+      if (ev?.dataTransfer) ev.dataTransfer.setData("text/plain", label);
+    });
+    return chip;
+  }
+
+  availableHost.innerHTML = "";
+  selectedHost.innerHTML = "";
+  available.forEach(col => availableHost.appendChild(buildChip(col, "available")));
+  selected.forEach(col => selectedHost.appendChild(buildChip(col, "selected")));
+
+  selectedHost.ondragover = ev => ev && ev.preventDefault();
+  selectedHost.ondrop = ev => {
+    ev && ev.preventDefault();
+    const val = ev?.dataTransfer?.getData("text/plain");
+    if (val && !selected.includes(val) && val !== nameColumn && val !== votesColumn) {
+      setVotingSelectedDimensions(selected.concat([val]));
+      renderVotingDimensionsPicker(candidates);
+    }
+  };
+  availableHost.ondragover = ev => ev && ev.preventDefault();
+  availableHost.ondrop = ev => {
+    ev && ev.preventDefault();
+    const val = ev?.dataTransfer?.getData("text/plain");
+    if (val && selected.includes(val)) {
+      setVotingSelectedDimensions(selected.filter(x => x !== val));
+      renderVotingDimensionsPicker(candidates);
+    }
+  };
+}
+
 async function loadVotingSourceFields(){
   const sourceSel = document.getElementById("votingSourceSelect");
   if (!sourceSel) return [];
@@ -5378,6 +5454,7 @@ async function loadVotingSourceFields(){
   const votesGuess = cols.find(c => String(c).toLowerCase().includes("vot")) || cols.find(c => String(c).toLowerCase().includes("score")) || cols[1] || cols[0];
   if (nameSel && nameGuess) nameSel.value = String(nameGuess);
   if (votesSel && votesGuess) votesSel.value = String(votesGuess);
+  renderVotingDimensionsPicker(cols);
   return cols;
 }
 
@@ -9238,6 +9315,7 @@ bindInput("appLanguageSelect", "change", () => {
 
 bindClick("btnCloseBuilder", () => closeBuilderScreen());
 bindClick("btnCloseBuilderBottom", () => closeBuilderScreen());
+bindClick("btnHelpBuilderScreen", () => openWikiGuideSection("presets"));
 bindClick("btnNewPivotInline", () => openBuilderForNew());
 bindClick("btnEditCurrentPresetInline", () => openBuilderForCurrentPreset());
 bindClick("btnDeleteCurrentPresetInline", async () => {
@@ -9362,11 +9440,18 @@ bindClick("btnLicenseActivateNow", async () => {
 
 bindClick("btnCloseSources", () => closeSourcesScreen());
 bindClick("btnCloseSourcesBottom", () => closeSourcesScreen());
+bindClick("btnHelpSourcesScreen", () => openWikiGuideSection("data_sources"));
 bindClick("btnCloseMergeModuleScreen", () => closeDedicatedModuleScreen());
+bindClick("btnHelpMergeModuleScreen", () => openWikiGuideSection("merge"));
 bindClick("btnCloseApiSchedulerModuleScreen", () => closeDedicatedModuleScreen());
+bindClick("btnHelpApiSchedulerModuleScreen", () => openWikiGuideSection("api_scheduler"));
 bindClick("btnCloseXmlBatchImportModuleScreen", () => closeDedicatedModuleScreen());
+bindClick("btnHelpXmlBatchImportModuleScreen", () => openWikiGuideSection("xml"));
 bindClick("btnCloseVotingAnalyticsModuleScreen", () => closeDedicatedModuleScreen());
+bindClick("btnHelpVotingAnalyticsModuleScreen", () => openWikiGuideSection("voting"));
 bindClick("btnCloseInlineModulePanel", () => closeInlineModulePanel());
+bindClick("btnHelpSourcePanel", () => openWikiGuideSection("data_sources"));
+bindClick("btnHelpPresetPanel", () => openWikiGuideSection("presets"));
 bindClick("btnSourceTabBase", () => setSourceManagerTab("base"));
 bindClick("btnSourceTabCatalog", () => setSourceManagerTab("catalog"));
 bindClick("btnSourceTabCalc", () => setSourceManagerTab("calc"));
@@ -9483,6 +9568,21 @@ bindInput("votingSourceSelect", "change", async () => {
   try {
     await loadVotingSourceFields();
   } catch (_e) {}
+});
+bindInput("votingNameColumn", "change", () => {
+  const source = (SOURCES || []).find(s => String(s?.id || "").trim() === String(document.getElementById("votingSourceSelect")?.value || "").trim());
+  const cols = Array.isArray(source?.config?.detected_columns) ? source.config.detected_columns : [];
+  renderVotingDimensionsPicker(cols);
+});
+bindInput("votingVotesColumn", "change", () => {
+  const source = (SOURCES || []).find(s => String(s?.id || "").trim() === String(document.getElementById("votingSourceSelect")?.value || "").trim());
+  const cols = Array.isArray(source?.config?.detected_columns) ? source.config.detected_columns : [];
+  renderVotingDimensionsPicker(cols);
+});
+bindInput("votingDimsColumns", "input", () => {
+  const source = (SOURCES || []).find(s => String(s?.id || "").trim() === String(document.getElementById("votingSourceSelect")?.value || "").trim());
+  const cols = Array.isArray(source?.config?.detected_columns) ? source.config.detected_columns : [];
+  renderVotingDimensionsPicker(cols);
 });
 bindClick("btnRunMultiMergeFromTemplate", async () => {
   try {
@@ -9610,6 +9710,7 @@ bindInput("srcColumnAliasesJson", "input", () => {
 });
 
 bindClick("btnCloseSettings", () => closeSettingsScreen());
+bindClick("btnHelpSettingsScreen", () => openWikiGuideSection("plugins"));
 bindClick("menuExportPivotCsv", () => exportPivotResult("csv"));
 bindClick("menuExportPivotXlsx", () => exportPivotResult("xlsx"));
 bindClick("menuExportPivotOds", () => exportPivotResult("ods"));
@@ -9627,6 +9728,7 @@ bindClick("menuOpenCatalog", async () => {
   }
 });
 bindClick("btnCloseCatalog", () => closeCatalogScreen());
+bindClick("btnHelpCatalogScreen", () => openWikiGuideSection("plugins"));
 bindClick("btnRefreshCatalog", async () => {
   try {
     await renderCatalogScreen();
@@ -10204,68 +10306,7 @@ function openWikiDrawer(){
 }
 
 function ensureContextHelpButtons(){
-  const targets = [
-    { selector: "#mergeModuleScreen .builder-head", key: "merge", slot: "head-right" },
-    { selector: "#apiSchedulerModuleScreen .builder-head", key: "api_scheduler", slot: "head-right" },
-    { selector: "#xmlBatchImportModuleScreen .builder-head", key: "xml", slot: "head-right" },
-    { selector: "#votingAnalyticsModuleScreen .builder-head", key: "voting", slot: "head-right" },
-    { selector: "#sourcesScreen .builder-head", key: "data_sources", slot: "head-right" },
-    { selector: "#builderScreen .builder-head", key: "presets", slot: "head-right" },
-    { selector: "#catalogScreen .builder-head", key: "plugins", slot: "head-right" },
-    { selector: "#settingsScreen .builder-head", key: "plugins", slot: "head-right" },
-    { selector: ".compact-col.source .compact-panel-head-actions", key: "data_sources", slot: "compact-actions" },
-    { selector: ".compact-col.preset .compact-panel-head-actions", key: "presets", slot: "compact-actions" },
-    { selector: ".filters-col .compact-panel-head", key: "filters", slot: "compact-header" },
-    { selector: "#pivotQuickbarPanel .compact-panel-head", key: "layout", slot: "compact-header" },
-    { selector: "[data-source-tab='plugins']", key: "plugins", slot: "panel-top-right" },
-    { selector: "#pluginToolLookup", key: "plugins", slot: "panel-top-right" },
-    { selector: "#pluginToolMerge", key: "merge", slot: "panel-top-right" },
-    { selector: "#pluginToolApiScheduler", key: "api_scheduler", slot: "panel-top-right" },
-  ];
-
-  targets.forEach(item => {
-    document.querySelectorAll(item.selector).forEach(node => {
-      if (!node) return;
-      let btn = node.querySelector("button[data-context-help='" + item.key + "']");
-      if (!btn) {
-        btn = document.createElement("button");
-        btn.type = "button";
-        btn.className = "ghost-btn";
-        btn.setAttribute("data-context-help", item.key);
-        btn.style.marginLeft = "8px";
-        btn.addEventListener("click", ev => {
-          if (ev) ev.preventDefault();
-          openWikiGuideSection(item.key);
-        });
-        if (item.slot === "head-right") {
-          const right = node.querySelector("div:last-child");
-          if (right) right.prepend(btn);
-          else node.appendChild(btn);
-        } else if (item.slot === "compact-actions") {
-          node.prepend(btn);
-        } else if (item.slot === "compact-header") {
-          btn.style.marginLeft = "auto";
-          node.appendChild(btn);
-        } else if (item.slot === "panel-top-right") {
-          let host = node.querySelector("div[data-context-help-host='1']");
-          if (!host) {
-            host = document.createElement("div");
-            host.setAttribute("data-context-help-host", "1");
-            host.style.display = "flex";
-            host.style.justifyContent = "flex-end";
-            host.style.marginBottom = "8px";
-            node.prepend(host);
-          }
-          host.appendChild(btn);
-        } else {
-          node.appendChild(btn);
-        }
-      }
-      btn.textContent = translateText("help_button");
-      btn.setAttribute("title", translateText("help_open_title"));
-      btn.setAttribute("aria-label", translateText("help_open_title"));
-    });
-  });
+  // Help buttons are wired explicitly in each section header.
 }
 
 async function openWikiGuideSection(sectionKey){
