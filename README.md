@@ -138,6 +138,7 @@ Change this password immediately in shared environments.
 - XML Structured Import plugin (`/plugin/xml-structured-import/upload`) is a quick tool for **single-file** structured XML import, flattening data to CSV in `import_data`.
 - XML Batch Import module (`/module/xml-batch-import/upload`) handles **multi-file** XML ingestion with optional unique-key deduplication (`rows_in`, `rows_out`, `duplicates_dropped`) and writes the generated CSV in `import_data` for source auto-detection.
 - Voting Analytics plugin/module (`/plugin/voting-analytics/process`) adds ranking, thresholds (`eletti/riserva/esclusi`), multi-column comparison view, pivot-style grouped counts and chart datasets from existing sources.
+- Voting Analytics export/report endpoint (`/plugin/voting-analytics/export`) supports dedicated HTML/PDF-style printable reports and XLSX export, with app/developer logo visibility controlled by license level.
 - Source delete endpoint (`POST /sources/delete`) supports optional `delete_linked_presets=true` to remove JSON presets belonging only to that source in the same confirmation workflow.
 - UI localization (English/Italian).
 

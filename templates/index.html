@@ -2275,7 +2275,7 @@ window.LICENSE_CONTEXT = {
       <div class="small" style="margin-bottom:8px; color:#475467;">
         Campi obbligatori: <strong>Sorgente</strong>, <strong>Colonna nome</strong>, <strong>Colonna voti</strong>. Le dimensioni aggiuntive sono facoltative.
       </div>
-      <div class="builder-actions" style="justify-content:flex-start;">
+      <div class="builder-actions" style="justify-content:flex-start; flex-wrap:wrap;">
         <label style="display:flex; align-items:center; gap:8px;">
           <input id="votingThresholdPercent" type="checkbox">
           <span>Soglie percentuali sul totale voti</span>
@@ -2283,6 +2283,17 @@ window.LICENSE_CONTEXT = {
         <button id="btnRunVotingAnalytics" type="button">Esegui analisi</button>
         <button id="btnSaveVotingPresetConfig" type="button">Salva config nel preset attivo</button>
       </div>
+      <div class="builder-actions" style="justify-content:flex-start; flex-wrap:wrap; margin-top:8px;">
+        <div class="small" style="display:flex; align-items:center; gap:10px;">
+          <strong>Branding report:</strong>
+          <label style="display:flex; align-items:center; gap:6px;"><input id="votingIncludeAppLogo" type="checkbox" checked> Logo app</label>
+          <label style="display:flex; align-items:center; gap:6px;"><input id="votingIncludeDevLogo" type="checkbox" checked> Logo sviluppatore</label>
+        </div>
+        <button id="btnExportVotingHtml" type="button">Export HTML report</button>
+        <button id="btnExportVotingPdf" type="button">Report PDF</button>
+        <button id="btnExportVotingXlsx" type="button">Export Excel</button>
+      </div>
+      <div id="votingExportLicenseHint" class="small" style="margin-bottom:8px; color:#475467;"></div>
       <div class="plugin-tools-tabs" style="margin-top:10px;">
         <button type="button" class="quick-toggle active" id="btnVotingViewRanking">Classifica</button>
         <button type="button" class="quick-toggle" id="btnVotingViewColumns">Colonne</button>
@@ -5467,6 +5478,7 @@ async function initVotingAnalyticsModule(){
     sourceSel.value = String(CURRENT_SOURCE);
   }
   await loadVotingSourceFields();
+  refreshVotingBrandingUi();
   setVotingViewPane("ranking");
 }
 
@@ -5494,6 +5506,108 @@ async function runVotingAnalyticsFromUi(){
   renderVotingResult(res);
   setStatus("Voting analytics completato.");
 }
+
+function canCustomizeVotingBranding(){
+  const ctx = window.LICENSE_CONTEXT || {};
+  const status = String(ctx.license_status || ctx.status || "").toLowerCase().trim();
+  return hasFeature("print") && !["", "demo", "free", "trial", "community"].includes(status);
+}
+
+function refreshVotingBrandingUi(){
+  const allowCustomize = canCustomizeVotingBranding();
+  const appChk = document.getElementById("votingIncludeAppLogo");
+  const devChk = document.getElementById("votingIncludeDevLogo");
+  const hint = document.getElementById("votingExportLicenseHint");
+  [appChk, devChk].forEach(chk => {
+    if (!chk) return;
+    chk.disabled = !allowCustomize;
+    if (!allowCustomize) chk.checked = true;
+  });
+  if (hint) {
+    hint.textContent = allowCustomize
+      ? "Licenza valida: puoi includere/escludere i loghi app/sviluppatore negli export Voting."
+      : "Licenza demo/base: i loghi app/sviluppatore restano inclusi nei report export.";
+  }
+}
+
+function buildVotingAnalyticsPayload(){
+  const sourceId = String(document.getElementById("votingSourceSelect")?.value || "").trim();
+  const nameColumn = String(document.getElementById("votingNameColumn")?.value || "").trim();
+  const votesColumn = String(document.getElementById("votingVotesColumn")?.value || "").trim();
+  const extraDimensions = String(document.getElementById("votingDimsColumns")?.value || "").split(",").map(x => x.trim()).filter(Boolean);
+  const thresholdMain = Number(document.getElementById("votingThresholdMain")?.value || 0);
+  const thresholdMin = Number(document.getElementById("votingThresholdMin")?.value || 0);
+  const thresholdsAsPercent = !!document.getElementById("votingThresholdPercent")?.checked;
+  if (!sourceId || !nameColumn || !votesColumn) throw new Error("Compila sorgente, colonna nome e colonna voti.");
+  return {
+    source_id: sourceId,
+    name_column: nameColumn,
+    votes_column: votesColumn,
+    extra_dimensions: extraDimensions,
+    threshold_main: thresholdMain,
+    threshold_min: thresholdMin,
+    thresholds_as_percent: thresholdsAsPercent,
+    top_n: 500
+  };
+}
+
+async function exportVotingAnalyticsReport(fmt){
+  const payload = buildVotingAnalyticsPayload();
+  const canCustomize = canCustomizeVotingBranding();
+  payload.fmt = String(fmt || "html").toLowerCase();
+  payload.include_app_logo = canCustomize ? !!document.getElementById("votingIncludeAppLogo")?.checked : true;
+  payload.include_dev_logo = canCustomize ? !!document.getElementById("votingIncludeDevLogo")?.checked : true;
+  payload.title = "Voting Analytics - Report";
+
+  if (payload.fmt === "xlsx") {
+    const r = await fetch("/plugin/voting-analytics/export", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      throw new Error(String(err?.detail || err?.error || "Errore export Voting XLSX"));
+    }
+    const blob = await r.blob();
+    const cd = String(r.headers.get("Content-Disposition") || "");
+    const match = cd.match(/filename="?([^";]+)"?/i);
+    const filename = (match && match[1]) ? String(match[1]) : "voting_report.xlsx";
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    setStatus("Export Voting Excel completato: " + filename);
+    return;
+  }
+
+  const r = await fetch("/plugin/voting-analytics/export", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  const html = await r.text();
+  if (!r.ok) {
+    throw new Error("Errore export Voting report");
+  }
+  const w = window.open("", "_blank", "width=1200,height=900");
+  if (!w) {
+    throw new Error("Impossibile aprire finestra report. Consenti popup e riprova.");
+  }
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
+  if (payload.fmt === "html") {
+    setStatus("Export Voting HTML aperto in nuova scheda.");
+  } else {
+    setStatus("Report Voting PDF pronto: usa la finestra di stampa per salvare in PDF.");
+  }
+}
+
 
 function saveVotingAnalyticsConfigIntoPreset(){
   const cfg = {
@@ -9557,6 +9671,27 @@ bindClick("btnRunVotingAnalytics", async () => {
     await runVotingAnalyticsFromUi();
   } catch (e) {
     setStatus("ERRORE voting analytics: " + e.message);
+  }
+});
+bindClick("btnExportVotingHtml", async () => {
+  try {
+    await exportVotingAnalyticsReport("html");
+  } catch (e) {
+    setStatus("ERRORE export voting HTML: " + (e?.message || e));
+  }
+});
+bindClick("btnExportVotingPdf", async () => {
+  try {
+    await exportVotingAnalyticsReport("pdf");
+  } catch (e) {
+    setStatus("ERRORE report voting PDF: " + (e?.message || e));
+  }
+});
+bindClick("btnExportVotingXlsx", async () => {
+  try {
+    await exportVotingAnalyticsReport("xlsx");
+  } catch (e) {
+    setStatus("ERRORE export voting XLSX: " + (e?.message || e));
   }
 });
 bindClick("btnSaveVotingPresetConfig", () => saveVotingAnalyticsConfigIntoPreset());
