@@ -2262,6 +2262,8 @@ window.LICENSE_CONTEXT = {
         <div class="field">
           <label for="votingDimsColumns">Dimensioni aggiuntive opzionali (separate da virgola)</label>
           <input id="votingDimsColumns" placeholder="es. categoria,gruppo,lista">
+          <div class="small" style="margin:6px 0 4px; color:#475467;">Usale per spezzare i risultati per gruppi (es. Lista, Circoscrizione). Se vuote, il report aggrega solo per stato.</div>
+          <button id="btnHelpVotingDims" type="button" class="btn-mini" style="margin-bottom:6px;">❓ Aiuto dimensioni</button>
           <div class="small" style="margin:6px 0 4px;">Selezione guidata (drag/click):</div>
           <div id="votingDimsAvailable" style="display:flex; flex-wrap:wrap; gap:6px; min-height:36px; padding:8px; border:1px dashed #c7d7fe; border-radius:8px; margin-bottom:6px;"></div>
           <div id="votingDimsSelected" style="display:flex; flex-wrap:wrap; gap:6px; min-height:36px; padding:8px; border:1px solid #98a2b3; border-radius:8px; background:#f8fafc;"></div>
@@ -9716,6 +9718,7 @@ bindClick("btnCloseXmlBatchImportModuleScreen", () => closeDedicatedModuleScreen
 bindClick("btnHelpXmlBatchImportModuleScreen", () => openWikiGuideSection("xml"));
 bindClick("btnCloseVotingAnalyticsModuleScreen", () => closeDedicatedModuleScreen());
 bindClick("btnHelpVotingAnalyticsModuleScreen", () => openWikiGuideSection("voting"));
+bindClick("btnHelpVotingDims", () => openWikiGuideSection("voting_usage"));
 bindClick("btnCloseInlineModulePanel", () => closeInlineModulePanel());
 bindClick("btnHelpSourcePanel", () => openWikiGuideSection("data_sources"));
 bindClick("btnHelpPresetPanel", () => openWikiGuideSection("presets"));

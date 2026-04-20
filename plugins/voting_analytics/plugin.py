@@ -195,6 +195,14 @@ def _build_voting_report_html(result: dict[str, Any], title: str, include_app_lo
     pivot_rows = result.get("pivot_status") if isinstance(result.get("pivot_status"), list) else []
     pivot_cols = list(pivot_rows[0].keys()) if pivot_rows else ["status", "count"]
 
+    multi_rows = ((result.get("multi_column") or {}).get("rows") if isinstance(result.get("multi_column"), dict) else []) or []
+    multi_cols = ["Eletti", "Riserva", "Esclusi"]
+
+    chart = result.get("chart") if isinstance(result.get("chart"), dict) else {}
+    ranking_chart = chart.get("ranking") if isinstance(chart.get("ranking"), dict) else {}
+    chart_labels = ranking_chart.get("labels") if isinstance(ranking_chart.get("labels"), list) else []
+    chart_values = ranking_chart.get("values") if isinstance(ranking_chart.get("values"), list) else []
+
     summary = result.get("summary") if isinstance(result.get("summary"), dict) else {}
     source_id = str(summary.get("source_id") or "")
     total_rows = int(summary.get("total_rows") or 0)
@@ -212,6 +220,22 @@ def _build_voting_report_html(result: dict[str, Any], title: str, include_app_lo
     if include_dev_logo:
         footer_parts.append('<div class="footer-logo"><img src="/static/img/IltuoConsulenteIT.png" alt="IlTuoConsulenteIT"></div>')
     footer_html = f"<div class='footer'>{''.join(footer_parts)}</div>" if footer_parts else ""
+
+    max_chart = max([float(x) for x in chart_values if isinstance(x, (int, float))] + [0.0])
+    chart_rows = []
+    for idx, label in enumerate(chart_labels[:20]):
+        val = float(chart_values[idx]) if idx < len(chart_values) and isinstance(chart_values[idx], (int, float)) else 0.0
+        width = (val / max_chart * 100.0) if max_chart > 0 else 0.0
+        chart_rows.append(
+            "<div class='bar-row'><div class='bar-label'>"
+            + _escape_html(label)
+            + "</div><div class='bar-track'><div class='bar-fill' style='width:"
+            + _escape_html(f"{width:.2f}")
+            + "%;'></div></div><div class='bar-value'>"
+            + _escape_html(f"{val:.2f}")
+            + "</div></div>"
+        )
+    chart_html = "".join(chart_rows) if chart_rows else "<div class='muted'>Nessun dato grafico disponibile.</div>"
 
     auto_print_script = "<script>window.addEventListener('load',()=>window.print());</script>" if auto_print else ""
 
@@ -235,6 +259,11 @@ def _build_voting_report_html(result: dict[str, Any], title: str, include_app_lo
         ".summary-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2mm 6mm;font-size:9pt;}"
         ".footer{margin-top:6mm;padding-top:3mm;border-top:1px solid #d0d5dd;display:flex;justify-content:space-between;align-items:center;gap:8mm;}"
         ".footer-logo img{height:4.2mm;max-width:22mm;object-fit:contain;opacity:.78;}"
+        ".muted{color:#667085;font-size:9pt;}"
+        ".bar-row{display:grid;grid-template-columns:minmax(120px,1fr) 3fr minmax(68px,auto);gap:6px;align-items:center;margin:4px 0;}"
+        ".bar-track{height:10px;background:#eef2f7;border-radius:999px;overflow:hidden;}"
+        ".bar-fill{height:100%;background:#4f46e5;}"
+        ".bar-label,.bar-value{font-size:8.8pt;}"
         "</style>"
         f"{auto_print_script}"
         "</head><body><div class='wrap'>"
@@ -251,8 +280,14 @@ def _build_voting_report_html(result: dict[str, Any], title: str, include_app_lo
         "<div class='section'><h2>Classifica</h2>"
         f"{_render_html_table(ranking_rows, ranking_cols)}"
         "</div>"
+        "<div class='section'><h2>Colonne (Eletti / Riserva / Esclusi)</h2>"
+        f"{_render_html_table(multi_rows, multi_cols)}"
+        "</div>"
         "<div class='section'><h2>Distribuzione (vista pivot)</h2>"
         f"{_render_html_table(pivot_rows, pivot_cols)}"
+        "</div>"
+        "<div class='section'><h2>Grafico ranking (Top 20)</h2>"
+        f"{chart_html}"
         "</div>"
         f"{footer_html}"
         "</div></body></html>"
