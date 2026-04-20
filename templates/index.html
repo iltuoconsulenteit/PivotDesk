@@ -1941,9 +1941,6 @@ window.LICENSE_CONTEXT = {
     <div class="card source-tab-panel hidden" data-source-tab="plugins" style="margin-top:16px;">
       <div class="section-title">Plugin sorgenti (lookup)</div>
       <div class="small" style="margin-bottom:10px; color:#475467;">Il tab plugin ospita utility lookup. I moduli Merge/API Scheduler sono disponibili nelle rispettive pagine dedicate dal menu Moduli.</div>
-      <div class="builder-actions" style="justify-content:flex-start; margin-bottom:10px;">
-        <button type="button" id="btnOpenPluginsHelp" class="ghost-btn" data-i18n="help_modules_plugins" data-i18n-title="help_open_title">❓ Guida moduli/plugin</button>
-      </div>
       <div class="plugin-tools-tabs">
         <button type="button" class="quick-toggle active" id="btnPluginTabLookup">Lookup guidato</button>
         <button type="button" class="quick-toggle" id="btnPluginTabMerge">Merge guidato</button>
@@ -2181,7 +2178,6 @@ window.LICENSE_CONTEXT = {
         <div class="small">Pagina dedicata del modulo aggiuntivo per creare sorgenti unite ed esportarle.</div>
       </div>
       <div style="display:flex; gap:8px;">
-        <button type="button" id="btnGuideMergeModuleScreen" class="ghost-btn" data-i18n="help_button" data-i18n-title="help_open_title">❓ Aiuto</button>
         <button type="button" id="btnCloseMergeModuleScreen">Chiudi modulo</button>
       </div>
     </div>
@@ -2197,7 +2193,6 @@ window.LICENSE_CONTEXT = {
         <div class="small">Pagina dedicata per configurare endpoint multipli e scarico manuale/schedulato.</div>
       </div>
       <div style="display:flex; gap:8px;">
-        <button type="button" id="btnGuideApiSchedulerModuleScreen" class="ghost-btn" data-i18n="help_button" data-i18n-title="help_open_title">❓ Aiuto</button>
         <button type="button" id="btnCloseApiSchedulerModuleScreen">Chiudi modulo</button>
       </div>
     </div>
@@ -2213,7 +2208,6 @@ window.LICENSE_CONTEXT = {
         <div class="small" data-i18n="xml_batch_module_subtitle">Carica più XML, applica deduplica per chiavi e genera CSV in import_data.</div>
       </div>
       <div style="display:flex; gap:8px;">
-        <button type="button" id="btnGuideXmlBatchImportModuleScreen" class="ghost-btn" data-i18n="help_button" data-i18n-title="help_open_title">❓ Aiuto</button>
         <button type="button" id="btnCloseXmlBatchImportModuleScreen" data-i18n="close_module">Chiudi modulo</button>
       </div>
     </div>
@@ -2237,7 +2231,6 @@ window.LICENSE_CONTEXT = {
         <div class="small">Classifica, soglie eletti/riserva/esclusi, vista multi-colonna, pivot e grafici.</div>
       </div>
       <div style="display:flex; gap:8px;">
-        <button type="button" id="btnGuideVotingAnalyticsModuleScreen" class="ghost-btn" data-i18n="help_button" data-i18n-title="help_open_title">❓ Aiuto</button>
         <button type="button" id="btnCloseVotingAnalyticsModuleScreen">Chiudi modulo</button>
       </div>
     </div>
@@ -2280,7 +2273,6 @@ window.LICENSE_CONTEXT = {
         </label>
         <button id="btnRunVotingAnalytics" type="button">Esegui analisi</button>
         <button id="btnSaveVotingPresetConfig" type="button">Salva config nel preset attivo</button>
-        <button id="btnHelpVotingAnalyticsUsage" type="button" class="ghost-btn" data-i18n="help_usage" data-i18n-title="help_open_title">❓ Help utilizzo</button>
       </div>
       <div class="plugin-tools-tabs" style="margin-top:10px;">
         <button type="button" class="quick-toggle active" id="btnVotingViewRanking">Classifica</button>
@@ -2852,6 +2844,7 @@ function applyI18n(){
   if (btnV) btnV.textContent = "↕ " + translateText("layout_vertical");
   const btnH = document.getElementById("btnLayoutHorizontal");
   if (btnH) btnH.textContent = "↔ " + translateText("layout_horizontal");
+  ensureContextHelpButtons();
 }
 
 const BUILDER = {
@@ -9296,7 +9289,6 @@ bindClick("btnOpenWikiHelp", async () => {
 bindClick("btnCloseWikiDrawer", () => closeWikiDrawer());
 bindClick("btnWikiIt", () => setWikiLocale("it"));
 bindClick("btnWikiEn", () => setWikiLocale("en"));
-bindClick("btnOpenPluginsHelp", () => openWikiGuideSection("plugins"));
 bindInput("wikiWidthRange", "input", ev => setWikiWidth(ev && ev.target ? ev.target.value : ""));
 bindClick("btnCloseChartsModal", () => closeChartsModal());
 bindClick("chartsModal", ev => { if (ev && ev.target && ev.target.id === "chartsModal") closeChartsModal(); });
@@ -9374,10 +9366,6 @@ bindClick("btnCloseMergeModuleScreen", () => closeDedicatedModuleScreen());
 bindClick("btnCloseApiSchedulerModuleScreen", () => closeDedicatedModuleScreen());
 bindClick("btnCloseXmlBatchImportModuleScreen", () => closeDedicatedModuleScreen());
 bindClick("btnCloseVotingAnalyticsModuleScreen", () => closeDedicatedModuleScreen());
-bindClick("btnGuideMergeModuleScreen", () => openWikiGuideSection("merge"));
-bindClick("btnGuideApiSchedulerModuleScreen", () => openWikiGuideSection("api_scheduler"));
-bindClick("btnGuideXmlBatchImportModuleScreen", () => openWikiGuideSection("xml"));
-bindClick("btnGuideVotingAnalyticsModuleScreen", () => openWikiGuideSection("voting"));
 bindClick("btnCloseInlineModulePanel", () => closeInlineModulePanel());
 bindClick("btnSourceTabBase", () => setSourceManagerTab("base"));
 bindClick("btnSourceTabCatalog", () => setSourceManagerTab("catalog"));
@@ -9487,7 +9475,6 @@ bindClick("btnRunVotingAnalytics", async () => {
   }
 });
 bindClick("btnSaveVotingPresetConfig", () => saveVotingAnalyticsConfigIntoPreset());
-bindClick("btnHelpVotingAnalyticsUsage", () => openWikiGuideSection("voting_usage"));
 bindClick("btnVotingViewRanking", () => setVotingViewPane("ranking"));
 bindClick("btnVotingViewColumns", () => setVotingViewPane("columns"));
 bindClick("btnVotingViewPivot", () => setVotingViewPane("pivot"));
@@ -10214,6 +10201,54 @@ function openWikiDrawer(){
   box.classList.add("active");
   box.setAttribute("aria-hidden", "false");
   document.body.classList.add("wiki-open");
+}
+
+function ensureContextHelpButtons(){
+  const targets = [
+    { selector: "#mergeModuleScreen .builder-head", key: "merge" },
+    { selector: "#apiSchedulerModuleScreen .builder-head", key: "api_scheduler" },
+    { selector: "#xmlBatchImportModuleScreen .builder-head", key: "xml" },
+    { selector: "#votingAnalyticsModuleScreen .builder-head", key: "voting" },
+    { selector: "[data-source-tab='plugins'] .section-title", key: "plugins" },
+    { selector: "#pluginToolLookup .plugin-tool-card", key: "plugins" },
+    { selector: "#pluginToolMerge .plugin-tool-card", key: "merge" },
+    { selector: "#pluginToolApiScheduler .plugin-tool-card", key: "api_scheduler" },
+  ];
+
+  targets.forEach(item => {
+    document.querySelectorAll(item.selector).forEach(node => {
+      if (!node) return;
+      let btn = null;
+      if (node.classList.contains("section-title")) {
+        btn = node.parentElement ? node.parentElement.querySelector("button[data-context-help='" + item.key + "']") : null;
+      } else {
+        btn = node.querySelector("button[data-context-help='" + item.key + "']");
+      }
+      if (!btn) {
+        btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "ghost-btn";
+        btn.setAttribute("data-context-help", item.key);
+        btn.style.marginLeft = "8px";
+        btn.addEventListener("click", ev => {
+          if (ev) ev.preventDefault();
+          openWikiGuideSection(item.key);
+        });
+        if (node.classList.contains("section-title")) {
+          node.insertAdjacentElement("afterend", btn);
+        } else if (node.classList.contains("builder-head")) {
+          const right = node.querySelector("div:last-child");
+          if (right) right.prepend(btn);
+          else node.appendChild(btn);
+        } else {
+          node.prepend(btn);
+        }
+      }
+      btn.textContent = translateText("help_button");
+      btn.setAttribute("title", translateText("help_open_title"));
+      btn.setAttribute("aria-label", translateText("help_open_title"));
+    });
+  });
 }
 
 async function openWikiGuideSection(sectionKey){
