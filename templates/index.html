@@ -10205,25 +10205,28 @@ function openWikiDrawer(){
 
 function ensureContextHelpButtons(){
   const targets = [
-    { selector: "#mergeModuleScreen .builder-head", key: "merge" },
-    { selector: "#apiSchedulerModuleScreen .builder-head", key: "api_scheduler" },
-    { selector: "#xmlBatchImportModuleScreen .builder-head", key: "xml" },
-    { selector: "#votingAnalyticsModuleScreen .builder-head", key: "voting" },
-    { selector: "[data-source-tab='plugins'] .section-title", key: "plugins" },
-    { selector: "#pluginToolLookup .plugin-tool-card", key: "plugins" },
-    { selector: "#pluginToolMerge .plugin-tool-card", key: "merge" },
-    { selector: "#pluginToolApiScheduler .plugin-tool-card", key: "api_scheduler" },
+    { selector: "#mergeModuleScreen .builder-head", key: "merge", slot: "head-right" },
+    { selector: "#apiSchedulerModuleScreen .builder-head", key: "api_scheduler", slot: "head-right" },
+    { selector: "#xmlBatchImportModuleScreen .builder-head", key: "xml", slot: "head-right" },
+    { selector: "#votingAnalyticsModuleScreen .builder-head", key: "voting", slot: "head-right" },
+    { selector: "#sourcesScreen .builder-head", key: "data_sources", slot: "head-right" },
+    { selector: "#builderScreen .builder-head", key: "presets", slot: "head-right" },
+    { selector: "#catalogScreen .builder-head", key: "plugins", slot: "head-right" },
+    { selector: "#settingsScreen .builder-head", key: "plugins", slot: "head-right" },
+    { selector: ".compact-col.source .compact-panel-head-actions", key: "data_sources", slot: "compact-actions" },
+    { selector: ".compact-col.preset .compact-panel-head-actions", key: "presets", slot: "compact-actions" },
+    { selector: ".filters-col .compact-panel-head", key: "filters", slot: "compact-header" },
+    { selector: "#pivotQuickbarPanel .compact-panel-head", key: "layout", slot: "compact-header" },
+    { selector: "[data-source-tab='plugins']", key: "plugins", slot: "panel-top-right" },
+    { selector: "#pluginToolLookup", key: "plugins", slot: "panel-top-right" },
+    { selector: "#pluginToolMerge", key: "merge", slot: "panel-top-right" },
+    { selector: "#pluginToolApiScheduler", key: "api_scheduler", slot: "panel-top-right" },
   ];
 
   targets.forEach(item => {
     document.querySelectorAll(item.selector).forEach(node => {
       if (!node) return;
-      let btn = null;
-      if (node.classList.contains("section-title")) {
-        btn = node.parentElement ? node.parentElement.querySelector("button[data-context-help='" + item.key + "']") : null;
-      } else {
-        btn = node.querySelector("button[data-context-help='" + item.key + "']");
-      }
+      let btn = node.querySelector("button[data-context-help='" + item.key + "']");
       if (!btn) {
         btn = document.createElement("button");
         btn.type = "button";
@@ -10234,14 +10237,28 @@ function ensureContextHelpButtons(){
           if (ev) ev.preventDefault();
           openWikiGuideSection(item.key);
         });
-        if (node.classList.contains("section-title")) {
-          node.insertAdjacentElement("afterend", btn);
-        } else if (node.classList.contains("builder-head")) {
+        if (item.slot === "head-right") {
           const right = node.querySelector("div:last-child");
           if (right) right.prepend(btn);
           else node.appendChild(btn);
-        } else {
+        } else if (item.slot === "compact-actions") {
           node.prepend(btn);
+        } else if (item.slot === "compact-header") {
+          btn.style.marginLeft = "auto";
+          node.appendChild(btn);
+        } else if (item.slot === "panel-top-right") {
+          let host = node.querySelector("div[data-context-help-host='1']");
+          if (!host) {
+            host = document.createElement("div");
+            host.setAttribute("data-context-help-host", "1");
+            host.style.display = "flex";
+            host.style.justifyContent = "flex-end";
+            host.style.marginBottom = "8px";
+            node.prepend(host);
+          }
+          host.appendChild(btn);
+        } else {
+          node.appendChild(btn);
         }
       }
       btn.textContent = translateText("help_button");
@@ -10264,6 +10281,10 @@ async function openWikiGuideSection(sectionKey){
       xml: ["moduli e plugin operativi", "import xml", "importa xml"],
       voting: ["moduli e plugin operativi", "voting analytics", "votazioni"],
       plugins: ["moduli e plugin operativi", "moduli", "plugin"],
+      data_sources: ["3) sorgenti dati", "sorgenti dati", "tipi supportati"],
+      presets: ["4) preset pivot e builder", "preset pivot", "builder"],
+      filters: ["6) filtri, ordinamento", "filtri", "subtotali"],
+      layout: ["16) usabilità layout home", "layout home", "quickbar"],
       voting_usage: ["voting analytics", "classifica", "votazioni"],
     },
     en: {
@@ -10272,17 +10293,28 @@ async function openWikiGuideSection(sectionKey){
       xml: ["operational modules and plugins", "xml import", "xml"],
       voting: ["operational modules and plugins", "voting analytics", "voting"],
       plugins: ["operational modules and plugins", "modules", "plugins"],
+      data_sources: ["3) data sources", "data sources", "supported source types"],
+      presets: ["4) pivot presets and builder", "pivot presets", "builder"],
+      filters: ["6) filters, sorting, totals", "filters", "totals"],
+      layout: ["16) home layout usability", "home layout", "quickbar"],
       voting_usage: ["voting analytics", "ranking", "voting"],
     }
   };
   const candidatesTerms = (termMap[lang] && termMap[lang][key]) ? termMap[lang][key] : [key];
   const box = document.getElementById("wikiContent");
   if (!box) return;
-  const candidates = Array.from(box.querySelectorAll("h1, h2, h3, p, li"));
-  const hit = candidates.find(el => {
+  const headingCandidates = Array.from(box.querySelectorAll("h1, h2, h3"));
+  let hit = headingCandidates.find(el => {
     const txt = String(el?.textContent || "").toLowerCase();
     return candidatesTerms.some(term => txt.includes(String(term).toLowerCase()));
   });
+  if (!hit) {
+    const fallbackCandidates = Array.from(box.querySelectorAll("p, li"));
+    hit = fallbackCandidates.find(el => {
+      const txt = String(el?.textContent || "").toLowerCase();
+      return candidatesTerms.some(term => txt.includes(String(term).toLowerCase()));
+    });
+  }
   if (hit && typeof hit.scrollIntoView === "function") {
     hit.scrollIntoView({ behavior: "smooth", block: "start" });
   }
