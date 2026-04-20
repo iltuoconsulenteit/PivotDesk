@@ -2176,7 +2176,10 @@ window.LICENSE_CONTEXT = {
         <div class="section-title">Modulo: Multi Source Merge</div>
         <div class="small">Pagina dedicata del modulo aggiuntivo per creare sorgenti unite ed esportarle.</div>
       </div>
-      <div><button type="button" id="btnCloseMergeModuleScreen">Chiudi modulo</button></div>
+      <div style="display:flex; gap:8px;">
+        <button type="button" id="btnGuideMergeModuleScreen">Guida</button>
+        <button type="button" id="btnCloseMergeModuleScreen">Chiudi modulo</button>
+      </div>
     </div>
     <div id="mergeModuleHost"></div>
   </div>
@@ -2189,7 +2192,10 @@ window.LICENSE_CONTEXT = {
         <div class="section-title">Modulo: API Data Scheduler</div>
         <div class="small">Pagina dedicata per configurare endpoint multipli e scarico manuale/schedulato.</div>
       </div>
-      <div><button type="button" id="btnCloseApiSchedulerModuleScreen">Chiudi modulo</button></div>
+      <div style="display:flex; gap:8px;">
+        <button type="button" id="btnGuideApiSchedulerModuleScreen">Guida</button>
+        <button type="button" id="btnCloseApiSchedulerModuleScreen">Chiudi modulo</button>
+      </div>
     </div>
     <div id="apiSchedulerModuleHost"></div>
   </div>
@@ -2202,7 +2208,10 @@ window.LICENSE_CONTEXT = {
         <div class="section-title" data-i18n="xml_batch_module_title">Modulo: Import XML multiplo</div>
         <div class="small" data-i18n="xml_batch_module_subtitle">Carica più XML, applica deduplica per chiavi e genera CSV in import_data.</div>
       </div>
-      <div><button type="button" id="btnCloseXmlBatchImportModuleScreen" data-i18n="close_module">Chiudi modulo</button></div>
+      <div style="display:flex; gap:8px;">
+        <button type="button" id="btnGuideXmlBatchImportModuleScreen">Guida</button>
+        <button type="button" id="btnCloseXmlBatchImportModuleScreen" data-i18n="close_module">Chiudi modulo</button>
+      </div>
     </div>
     <div class="plugin-tool-card">
       <div class="field"><label for="xmlBatchImportTitle" data-i18n="xml_batch_source_title">Titolo sorgente suggerito</label><input id="xmlBatchImportTitle" placeholder="es. XML fatture batch"></div>
@@ -2223,7 +2232,10 @@ window.LICENSE_CONTEXT = {
         <div class="section-title">Modulo: Voting Analytics</div>
         <div class="small">Classifica, soglie eletti/riserva/esclusi, vista multi-colonna, pivot e grafici.</div>
       </div>
-      <div><button type="button" id="btnCloseVotingAnalyticsModuleScreen">Chiudi modulo</button></div>
+      <div style="display:flex; gap:8px;">
+        <button type="button" id="btnGuideVotingAnalyticsModuleScreen">Guida</button>
+        <button type="button" id="btnCloseVotingAnalyticsModuleScreen">Chiudi modulo</button>
+      </div>
     </div>
     <div class="plugin-tool-card">
       <div class="builder-top">
@@ -5335,7 +5347,7 @@ async function loadVotingSourceFields(){
   if (Array.isArray(source?.config?.detected_columns) && source.config.detected_columns.length) cols = source.config.detected_columns;
   if (!cols.length && sourceId) {
     try {
-      const r = await api("/source/preview?source_id=" + encodeURIComponent(sourceId));
+      const r = await api("/source-preview?source_id=" + encodeURIComponent(sourceId));
       cols = Array.isArray(r?.columns) ? r.columns : [];
     } catch (_e) {
       cols = [];
@@ -9327,6 +9339,10 @@ bindClick("btnCloseMergeModuleScreen", () => closeDedicatedModuleScreen());
 bindClick("btnCloseApiSchedulerModuleScreen", () => closeDedicatedModuleScreen());
 bindClick("btnCloseXmlBatchImportModuleScreen", () => closeDedicatedModuleScreen());
 bindClick("btnCloseVotingAnalyticsModuleScreen", () => closeDedicatedModuleScreen());
+bindClick("btnGuideMergeModuleScreen", () => openWikiGuideSection("merge"));
+bindClick("btnGuideApiSchedulerModuleScreen", () => openWikiGuideSection("scheduler api"));
+bindClick("btnGuideXmlBatchImportModuleScreen", () => openWikiGuideSection("xml"));
+bindClick("btnGuideVotingAnalyticsModuleScreen", () => openWikiGuideSection("voting"));
 bindClick("btnCloseInlineModulePanel", () => closeInlineModulePanel());
 bindClick("btnSourceTabBase", () => setSourceManagerTab("base"));
 bindClick("btnSourceTabCatalog", () => setSourceManagerTab("catalog"));
@@ -10162,6 +10178,20 @@ function openWikiDrawer(){
   box.classList.add("active");
   box.setAttribute("aria-hidden", "false");
   document.body.classList.add("wiki-open");
+}
+
+async function openWikiGuideSection(searchTerm){
+  openWikiDrawer();
+  await setWikiLocale(SETTINGS.language || "it").catch(() => {});
+  const wanted = String(searchTerm || "").trim().toLowerCase();
+  if (!wanted) return;
+  const box = document.getElementById("wikiContent");
+  if (!box) return;
+  const candidates = Array.from(box.querySelectorAll("h1, h2, h3, p, li"));
+  const hit = candidates.find(el => String(el?.textContent || "").toLowerCase().includes(wanted));
+  if (hit && typeof hit.scrollIntoView === "function") {
+    hit.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 }
 
 function closeWikiDrawer(){
