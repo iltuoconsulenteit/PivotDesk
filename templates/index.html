@@ -5429,33 +5429,60 @@ function renderVotingDimensionsPicker(allColumns){
   };
 }
 
-async function loadVotingSourceFields(){
+function votingSourceNeedsPath(srcType){
+  return ["csv", "xlsx", "excel", "xls", "xlsm", "ods"].includes(String(srcType || "").toLowerCase());
+}
+
+function isVotingSourceConfigured(source){
+  if (!source || typeof source !== "object") return false;
+  const t = String(source.type || "").toLowerCase();
+  if (!votingSourceNeedsPath(t)) return true;
+  const path = String(source.path || source?.config?.path || "").trim();
+  return !!path;
+}
+
+async function loadVotingSourceFields(options){
+  const opts = options || {};
+  const silent = !!opts.silent;
   const sourceSel = document.getElementById("votingSourceSelect");
   if (!sourceSel) return [];
   const sourceId = String(sourceSel.value || "").trim();
   const source = (SOURCES || []).find(s => String(s?.id || "").trim() === sourceId);
   let cols = [];
 
-  if (Array.isArray(source?.config?.detected_columns) && source.config.detected_columns.length) {
+  if (!sourceId) return [];
+  if (source && !isVotingSourceConfigured(source)) {
+    if (!silent) {
+      setStatus("Sorgente Voting non configurata (migrata/placeholders). Seleziona una sorgente completa o apri Gestione sorgenti.");
+    }
+    cols = [];
+  }
+
+  if (!cols.length && Array.isArray(source?.config?.detected_columns) && source.config.detected_columns.length) {
     cols = source.config.detected_columns;
   }
 
-  if (!cols.length && sourceId) {
+  if (!cols.length) {
     try {
       const f = await api("/fields?source_id=" + encodeURIComponent(sourceId));
       cols = Array.isArray(f?.fields) ? f.fields : [];
-    } catch (_e) {
+    } catch (e) {
       cols = [];
+      if (!silent) {
+        setStatus("ATTENZIONE: /fields non disponibile per la sorgente Voting selezionata (" + String(e?.message || e) + ").");
+      }
     }
   }
 
-  if (!cols.length && sourceId) {
+  if (!cols.length) {
     try {
       const r = await api("/source-preview?source_id=" + encodeURIComponent(sourceId) + "&limit=5");
       cols = Array.isArray(r?.columns) ? r.columns : [];
     } catch (e) {
       cols = [];
-      setStatus("ATTENZIONE: impossibile caricare automaticamente le colonne Voting per la sorgente selezionata.");
+      if (!silent) {
+        setStatus("ATTENZIONE: impossibile caricare automaticamente le colonne Voting (" + String(e?.message || e) + ").");
+      }
     }
   }
 
@@ -5489,6 +5516,37 @@ async function loadVotingSourceFields(){
   return cols;
 }
 
+async function ensureVotingSourceWithColumns(){
+  const sourceSel = document.getElementById("votingSourceSelect");
+  if (!sourceSel) return [];
+  const current = String(sourceSel.value || "").trim();
+  const candidateIds = [];
+  const pushId = (id) => {
+    const sid = String(id || "").trim();
+    if (sid && !candidateIds.includes(sid)) candidateIds.push(sid);
+  };
+  pushId(current);
+  pushId("demo_voting");
+  (SOURCES || []).forEach(s => {
+    if (isVotingSourceConfigured(s)) pushId(s.id);
+  });
+  (SOURCES || []).forEach(s => pushId(s.id));
+
+  for (const sid of candidateIds) {
+    sourceSel.value = sid;
+    const cols = await loadVotingSourceFields({ silent: true });
+    if (Array.isArray(cols) && cols.length) {
+      if (sid !== current) {
+        setStatus("Sorgente Voting aggiornata automaticamente su '" + sid + "' perché la precedente non era utilizzabile.");
+      }
+      return cols;
+    }
+  }
+
+  setStatus("Nessuna sorgente Voting pronta. Configura una sorgente valida da Gestione sorgenti o usa demo_voting.");
+  return [];
+}
+
 async function previewVotingSourceFromModule(){
   const sourceId = String(document.getElementById("votingSourceSelect")?.value || "").trim();
   if (!sourceId) {
@@ -5502,7 +5560,7 @@ async function previewVotingSourceFromModule(){
     if (modal) modal.style.display = "flex";
     setStatus("Anteprima sorgente Voting caricata.");
   } catch (e) {
-    setStatus("ERRORE anteprima sorgente Voting: " + (e?.message || e));
+    setStatus("ERRORE anteprima sorgente Voting: " + (e?.message || e) + ". Se la sorgente è migrata/non configurata, seleziona demo_voting.");
   }
 }
 
@@ -5510,11 +5568,17 @@ async function initVotingAnalyticsModule(){
   const sourceSel = document.getElementById("votingSourceSelect");
   if (!sourceSel) return;
   await loadSources();
-  sourceSel.innerHTML = (SOURCES || []).map(s => "<option value='" + escapeHtml(String(s?.id || "")) + "'>" + escapeHtml(String(s?.title || s?.id || "")) + "</option>").join("");
+  sourceSel.innerHTML = (SOURCES || []).map(s => {
+    const configured = isVotingSourceConfigured(s);
+    const suffix = configured ? "" : " (da configurare)";
+    return "<option value='" + escapeHtml(String(s?.id || "")) + "'>" + escapeHtml(String(s?.title || s?.id || "") + suffix) + "</option>";
+  }).join("");
   if (CURRENT_SOURCE && (SOURCES || []).some(s => String(s?.id || "").trim() === String(CURRENT_SOURCE).trim())) {
     sourceSel.value = String(CURRENT_SOURCE);
+  } else if ((SOURCES || []).some(s => String(s?.id || "").trim() === "demo_voting")) {
+    sourceSel.value = "demo_voting";
   }
-  await loadVotingSourceFields();
+  await ensureVotingSourceWithColumns();
   refreshVotingBrandingUi();
   setVotingViewPane("ranking");
 }
