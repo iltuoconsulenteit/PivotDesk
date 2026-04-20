@@ -7,7 +7,10 @@ from typing import Any
 import pandas as pd
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import HTMLResponse, StreamingResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, conint
+
+
+NonNegativeInt = conint(strict=True, ge=0)
 
 
 class VotingAnalyticsRequest(BaseModel):
@@ -15,8 +18,8 @@ class VotingAnalyticsRequest(BaseModel):
     name_column: str
     votes_column: str
     extra_dimensions: list[str] = Field(default_factory=list)
-    threshold_main: float = 0
-    threshold_min: float = 0
+    threshold_main: NonNegativeInt = 0
+    threshold_min: NonNegativeInt = 0
     thresholds_as_percent: bool = False
     top_n: int = Field(default=200, ge=1, le=5000)
 

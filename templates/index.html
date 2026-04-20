@@ -2270,11 +2270,11 @@ window.LICENSE_CONTEXT = {
         </div>
         <div class="field">
           <label for="votingThresholdMain">Soglia principale (eletti)</label>
-          <input id="votingThresholdMain" type="number" step="0.01" value="0">
+          <input id="votingThresholdMain" type="number" step="1" min="0" value="0">
         </div>
         <div class="field">
           <label for="votingThresholdMin">Soglia minima (riserva)</label>
-          <input id="votingThresholdMin" type="number" step="0.01" value="0">
+          <input id="votingThresholdMin" type="number" step="1" min="0" value="0">
         </div>
       </div>
       <div class="small" style="margin-bottom:8px; color:#475467;">
@@ -5585,14 +5585,51 @@ async function initVotingAnalyticsModule(){
   setVotingViewPane("ranking");
 }
 
+
+let VOTING_AUTORUN_TIMER = null;
+
+function normalizeVotingThresholdInputs(){
+  const mainEl = document.getElementById("votingThresholdMain");
+  const minEl = document.getElementById("votingThresholdMin");
+  const norm = el => {
+    if (!el) return 0;
+    const raw = Number(el.value || 0);
+    const val = Number.isFinite(raw) ? Math.max(0, Math.round(raw)) : 0;
+    if (String(el.value || "") !== String(val)) el.value = String(val);
+    return val;
+  };
+  const mainVal = norm(mainEl);
+  const minVal = norm(minEl);
+  if (mainVal < minVal && mainEl) {
+    mainEl.value = String(minVal);
+  }
+}
+
+function scheduleVotingAutoRecalc(){
+  if (VOTING_AUTORUN_TIMER) window.clearTimeout(VOTING_AUTORUN_TIMER);
+  VOTING_AUTORUN_TIMER = window.setTimeout(async () => {
+    try {
+      normalizeVotingThresholdInputs();
+      const hasResult = !!(VOTING_ANALYTICS_RESULT && VOTING_ANALYTICS_RESULT.ok);
+      const sourceId = String(document.getElementById("votingSourceSelect")?.value || "").trim();
+      const nameColumn = String(document.getElementById("votingNameColumn")?.value || "").trim();
+      const votesColumn = String(document.getElementById("votingVotesColumn")?.value || "").trim();
+      if (!hasResult || !sourceId || !nameColumn || !votesColumn) return;
+      await runVotingAnalyticsFromUi();
+      setStatus("Voting analytics ricalcolato dopo modifica soglie.");
+    } catch (_e) {}
+  }, 300);
+}
+
 async function runVotingAnalyticsFromUi(){
   await ensureVotingSourceWithColumns();
+  normalizeVotingThresholdInputs();
   const sourceId = String(document.getElementById("votingSourceSelect")?.value || "").trim();
   const nameColumn = String(document.getElementById("votingNameColumn")?.value || "").trim();
   const votesColumn = String(document.getElementById("votingVotesColumn")?.value || "").trim();
   const extraDimensions = String(document.getElementById("votingDimsColumns")?.value || "").split(",").map(x => x.trim()).filter(Boolean);
-  const thresholdMain = Number(document.getElementById("votingThresholdMain")?.value || 0);
-  const thresholdMin = Number(document.getElementById("votingThresholdMin")?.value || 0);
+  const thresholdMain = Math.max(0, Math.round(Number(document.getElementById("votingThresholdMain")?.value || 0)));
+  const thresholdMin = Math.max(0, Math.round(Number(document.getElementById("votingThresholdMin")?.value || 0)));
   const thresholdsAsPercent = !!document.getElementById("votingThresholdPercent")?.checked;
   if (!sourceId || !nameColumn || !votesColumn) throw new Error("Compila sorgente, colonna nome e colonna voti.");
 
@@ -5639,8 +5676,8 @@ function buildVotingAnalyticsPayload(){
   const nameColumn = String(document.getElementById("votingNameColumn")?.value || "").trim();
   const votesColumn = String(document.getElementById("votingVotesColumn")?.value || "").trim();
   const extraDimensions = String(document.getElementById("votingDimsColumns")?.value || "").split(",").map(x => x.trim()).filter(Boolean);
-  const thresholdMain = Number(document.getElementById("votingThresholdMain")?.value || 0);
-  const thresholdMin = Number(document.getElementById("votingThresholdMin")?.value || 0);
+  const thresholdMain = Math.max(0, Math.round(Number(document.getElementById("votingThresholdMain")?.value || 0)));
+  const thresholdMin = Math.max(0, Math.round(Number(document.getElementById("votingThresholdMin")?.value || 0)));
   const thresholdsAsPercent = !!document.getElementById("votingThresholdPercent")?.checked;
   if (!sourceId || !nameColumn || !votesColumn) throw new Error("Compila sorgente, colonna nome e colonna voti.");
   return {
@@ -5731,8 +5768,8 @@ function saveVotingAnalyticsConfigIntoPreset(){
     name_column: String(document.getElementById("votingNameColumn")?.value || "").trim(),
     votes_column: String(document.getElementById("votingVotesColumn")?.value || "").trim(),
     extra_dimensions: String(document.getElementById("votingDimsColumns")?.value || "").split(",").map(x => x.trim()).filter(Boolean),
-    threshold_main: Number(document.getElementById("votingThresholdMain")?.value || 0),
-    threshold_min: Number(document.getElementById("votingThresholdMin")?.value || 0),
+    threshold_main: Math.max(0, Math.round(Number(document.getElementById("votingThresholdMain")?.value || 0))),
+    threshold_min: Math.max(0, Math.round(Number(document.getElementById("votingThresholdMin")?.value || 0))),
     thresholds_as_percent: !!document.getElementById("votingThresholdPercent")?.checked,
     active_view: ["ranking", "columns", "pivot", "chart"].find(v => !document.getElementById("votingView" + v.charAt(0).toUpperCase() + v.slice(1) + "Pane")?.classList.contains("hidden")) || "ranking",
   };
@@ -9889,6 +9926,9 @@ bindInput("votingDimsColumns", "input", () => {
   const cols = Array.isArray(source?.config?.detected_columns) ? source.config.detected_columns : [];
   renderVotingDimensionsPicker(cols);
 });
+bindInput("votingThresholdMain", "input", () => scheduleVotingAutoRecalc());
+bindInput("votingThresholdMin", "input", () => scheduleVotingAutoRecalc());
+bindInput("votingThresholdPercent", "change", () => scheduleVotingAutoRecalc());
 bindClick("btnRunMultiMergeFromTemplate", async () => {
   try {
     await runMultiSourceMergeFromTemplateUi();
