@@ -5355,8 +5355,24 @@ async function loadVotingSourceFields(){
   }
   const nameSel = document.getElementById("votingNameColumn");
   const votesSel = document.getElementById("votingVotesColumn");
-  if (nameSel) nameSel.innerHTML = cols.map(c => "<option value='" + escapeHtml(String(c)) + "'>" + escapeHtml(String(c)) + "</option>").join("");
-  if (votesSel) votesSel.innerHTML = cols.map(c => "<option value='" + escapeHtml(String(c)) + "'>" + escapeHtml(String(c)) + "</option>").join("");
+  if (nameSel) {
+    nameSel.innerHTML = "";
+    cols.forEach(c => {
+      const opt = document.createElement("option");
+      opt.value = String(c);
+      opt.textContent = String(c);
+      nameSel.appendChild(opt);
+    });
+  }
+  if (votesSel) {
+    votesSel.innerHTML = "";
+    cols.forEach(c => {
+      const opt = document.createElement("option");
+      opt.value = String(c);
+      opt.textContent = String(c);
+      votesSel.appendChild(opt);
+    });
+  }
   const nameGuess = cols.find(c => String(c).toLowerCase().includes("nome")) || cols.find(c => String(c).toLowerCase().includes("name")) || cols[0];
   const votesGuess = cols.find(c => String(c).toLowerCase().includes("vot")) || cols.find(c => String(c).toLowerCase().includes("score")) || cols[1] || cols[0];
   if (nameSel && nameGuess) nameSel.value = String(nameGuess);
