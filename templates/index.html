@@ -4904,10 +4904,9 @@ function remapMergeMappingToCurrentSourceFields(mapping, sourceId, fields){
       const asSource = String(aliasReverse.get(resolved) || "").trim();
       if (asSource && availableSet.has(asSource)) resolved = asSource;
     }
-    if (!availableSet.has(resolved)) {
-      return;
-    }
-    out[String(target || "").trim()] = resolved;
+    const targetKey = String(target || "").trim();
+    if (!targetKey) return;
+    out[targetKey] = availableSet.has(resolved) ? resolved : raw;
   });
   return out;
 }
@@ -5172,14 +5171,8 @@ async function refreshMergeTemplateSourceStateAfterSourceUpdate(updatedSourceId 
   }
 
   const selected = String(sel.value || "").trim();
-  const sourceModeActive = !!document.getElementById("btnMergeTemplateModeSource")?.classList.contains("active");
-  if (!sourceModeActive || !selected || !wanted || selected !== wanted) return;
-
-  try {
-    await loadTemplateHeadersFromSourceFromUi();
-    setStatus("Template merge riallineato alle intestazioni aggiornate della sorgente: " + wanted);
-  } catch (e) {
-    setStatus("Aggiornata sorgente merge, ma non è stato possibile riallineare automaticamente le intestazioni template: " + (e?.message || e));
+  if (wanted && selected === wanted) {
+    setStatus("Sorgente template merge aggiornata: " + wanted + ". Gli abbinamenti esistenti sono stati mantenuti.");
   }
 }
 
