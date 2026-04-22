@@ -2793,6 +2793,14 @@ window.LICENSE_CONTEXT = {
           <label for="licenseActivationKey">Chiave licenza</label>
           <input id="licenseActivationKey" placeholder="Inserisci chiave/licence key">
         </div>
+        <div class="field">
+          <label for="licensePurchaseChannelSelect">Canale acquisto</label>
+          <select id="licensePurchaseChannelSelect"><option value="">Nessun canale configurato</option></select>
+        </div>
+        <div class="field" style="display:flex; align-items:flex-end;">
+          <button id="btnLicensePurchaseNow" type="button">🛒 Acquista licenza</button>
+        </div>
+        <div class="small" style="grid-column:1 / -1;" id="licensePurchaseHint"></div>
         <div class="small" style="grid-column:1 / -1;" id="licenseActivationHint">
           Suggerimento: puoi pre-selezionare il provider da URL con <code>?provider=gumroad</code> oppure <code>?provider=lemonsqueezy</code>.
         </div>
@@ -9923,6 +9931,13 @@ bindClick("btnLicenseActivateNow", async () => {
     setStatus("ERRORE: " + e.message);
   }
 });
+bindClick("btnLicensePurchaseNow", async () => {
+  try {
+    await openLicensePurchaseFromModal();
+  } catch (e) {
+    setStatus("ERRORE acquisto licenza: " + e.message);
+  }
+});
 
 bindClick("btnCloseSources", () => closeSourcesScreen());
 bindClick("btnCloseSourcesBottom", () => closeSourcesScreen());
@@ -10754,10 +10769,13 @@ function guessPreferredLicenseProvider(available){
 async function openLicenseActivationModal(){
   const modal = document.getElementById("licenseActivationModal");
   const sel = document.getElementById("licenseProviderSelect");
+  const purchaseSel = document.getElementById("licensePurchaseChannelSelect");
+  const purchaseHint = document.getElementById("licensePurchaseHint");
   const hint = document.getElementById("licenseActivationHint");
   if (!modal || !sel) return;
 
   sel.innerHTML = "";
+  if (purchaseSel) purchaseSel.innerHTML = '<option value="">Nessun canale configurato</option>';
   try {
     const data = await api("/license/providers");
     const providers = (data && Array.isArray(data.providers) ? data.providers : []).map(x => String(x || "").toLowerCase());
@@ -10770,11 +10788,31 @@ async function openLicenseActivationModal(){
       sel.appendChild(o);
     });
     if (preferred) localStorage.setItem("pivotdesk_preferred_license_provider", preferred);
+
+    const purchaseOptions = Array.isArray(data?.purchase_options) ? data.purchase_options : [];
+    if (purchaseSel && purchaseOptions.length) {
+      purchaseSel.innerHTML = '<option value="">Seleziona canale acquisto...</option>';
+      purchaseOptions.forEach(opt => {
+        const id = String(opt?.id || "").trim();
+        if (!id) return;
+        const o = document.createElement("option");
+        o.value = id;
+        o.textContent = String(opt?.label || id);
+        purchaseSel.appendChild(o);
+      });
+    }
+    if (purchaseHint) {
+      purchaseHint.textContent = purchaseOptions.length
+        ? "Canali acquisto configurati: " + purchaseOptions.map(opt => String(opt?.label || opt?.id || "")).filter(Boolean).join(", ") + "."
+        : "Nessun canale acquisto configurato. Imposta purchase_channels o purchase_url in data/license_settings.json.";
+    }
+
     if (hint) hint.textContent = providers.length
       ? ("Provider disponibili: " + providers.join(", ") + ".")
       : "Nessun provider disponibile.";
   } catch (e) {
     if (hint) hint.textContent = "Impossibile leggere i provider: " + (e && e.message ? e.message : e);
+    if (purchaseHint) purchaseHint.textContent = "Impossibile leggere i canali acquisto.";
   }
 
   modal.classList.add("active");
@@ -10963,6 +11001,23 @@ function initWikiResizer(){
     window.addEventListener("mousemove", move);
     window.addEventListener("mouseup", up);
   });
+}
+
+async function openLicensePurchaseFromModal(){
+  const channelId = String(document.getElementById("licensePurchaseChannelSelect")?.value || "").trim();
+  const email = String(document.getElementById("licenseActivationEmail")?.value || "").trim();
+  if (!channelId) throw new Error("Seleziona un canale acquisto.");
+  const res = await api("/license/purchase/link", {
+    method: "POST",
+    body: JSON.stringify({ channel_id: channelId, email })
+  });
+  const url = String(res?.purchase_url || "").trim();
+  if (!url) throw new Error("URL acquisto non disponibile.");
+  const w = window.open(url, "_blank");
+  if (!w) {
+    window.location.href = url;
+  }
+  setStatus("Reindirizzamento acquisto licenza: " + channelId);
 }
 
 async function activateLicenseFromModal(){

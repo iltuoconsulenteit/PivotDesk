@@ -160,6 +160,7 @@ The following diagrams are visual examples derived from the HTML layout structur
 - Premium features such as print, charts, and drilldown are available only for paid/dev licenses (based on feature flags/policy).
 - LAN exposure is license-controlled and validated by diagnostics endpoints.
 - Licensing runtime is now adapter-ready: `data/license_settings.json` supports `backend_module` (python module path exposing `create_license_module(default_module=...)`) to plug alternative licensing systems without replacing core endpoints/UI.
+- Purchase flow is adapter-ready too: the same module can expose multiple purchase channels (`purchase_channels`) and generate purchase links via `/license/purchase/options` + `/license/purchase/link`, so licensing + purchase logic can be reused in other Python software with the same API contract.
 
 ---
 

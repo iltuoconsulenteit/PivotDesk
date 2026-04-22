@@ -27,6 +27,12 @@ class LicenseRuntimeModule(Protocol):
     def deactivate(self) -> tuple[dict[str, Any], int]:
         ...
 
+    def get_purchase_options(self) -> list[dict[str, Any]]:
+        ...
+
+    def create_purchase_link(self, *, channel_id: str, email: str = "", context: dict[str, Any] | None = None) -> tuple[dict[str, Any], int]:
+        ...
+
 
 def load_license_runtime_module(
     module_path: str,
@@ -64,6 +70,8 @@ def load_license_runtime_module(
         "activate",
         "validate",
         "deactivate",
+        "get_purchase_options",
+        "create_purchase_link",
     )
     if not all(callable(getattr(candidate, name, None)) for name in required):
         logger.warning(

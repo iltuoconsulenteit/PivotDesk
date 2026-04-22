@@ -855,6 +855,7 @@ class BuiltinLicenseRuntimeModule:
         return {
             "multistore_available": MULTISTORE_LICENSE_AVAILABLE,
             "providers": self.get_available_providers(),
+            "purchase_options": self.get_purchase_options(),
             "settings": {
                 "developer": {"enabled": bool(settings.get("developer", {}).get("enabled", True))},
                 "gumroad": {
@@ -870,8 +871,90 @@ class BuiltinLicenseRuntimeModule:
                     "enabled": bool(settings.get("custom", {}).get("enabled", False)),
                     "activate_url": settings.get("custom", {}).get("activate_url", ""),
                 },
+                "purchase_channels": settings.get("purchase_channels", []),
             },
         }
+
+    def get_purchase_options(self) -> list[dict[str, Any]]:
+        settings = load_license_settings()
+        out: list[dict[str, Any]] = []
+        seen: set[str] = set()
+
+        def add_option(channel_id: str, label: str, url: str, description: str = ""):
+            cid = str(channel_id or "").strip().lower()
+            link = str(url or "").strip()
+            if not cid or not link or cid in seen:
+                return
+            seen.add(cid)
+            out.append({
+                "id": cid,
+                "label": str(label or cid).strip() or cid,
+                "url": link,
+                "description": str(description or "").strip(),
+            })
+
+        channels = settings.get("purchase_channels")
+        if isinstance(channels, list):
+            for raw in channels:
+                if not isinstance(raw, dict):
+                    continue
+                if raw.get("enabled") is False:
+                    continue
+                add_option(
+                    channel_id=str(raw.get("id") or raw.get("channel_id") or ""),
+                    label=str(raw.get("label") or raw.get("name") or raw.get("id") or ""),
+                    url=str(raw.get("url") or raw.get("purchase_url") or ""),
+                    description=str(raw.get("description") or ""),
+                )
+
+        gumroad = settings.get("gumroad") if isinstance(settings.get("gumroad"), dict) else {}
+        add_option(
+            "gumroad",
+            "Gumroad",
+            str(gumroad.get("purchase_url") or ""),
+            "Acquisto licenza via Gumroad",
+        )
+        lemonsqueezy = settings.get("lemonsqueezy") if isinstance(settings.get("lemonsqueezy"), dict) else {}
+        add_option(
+            "lemonsqueezy",
+            "Lemon Squeezy",
+            str(lemonsqueezy.get("purchase_url") or ""),
+            "Acquisto licenza via Lemon Squeezy",
+        )
+        custom = settings.get("custom") if isinstance(settings.get("custom"), dict) else {}
+        add_option(
+            "custom",
+            "Canale custom",
+            str(custom.get("purchase_url") or custom.get("activate_url") or ""),
+            "Acquisto/attivazione su endpoint custom",
+        )
+        return out
+
+    def create_purchase_link(self, *, channel_id: str, email: str = "", context: dict[str, Any] | None = None) -> tuple[dict[str, Any], int]:
+        wanted = str(channel_id or "").strip().lower()
+        if not wanted:
+            return {"ok": False, "error": "channel_id obbligatorio"}, 400
+
+        options = self.get_purchase_options()
+        selected = next((opt for opt in options if str(opt.get("id") or "").strip().lower() == wanted), None)
+        if not selected:
+            return {"ok": False, "error": f"Canale acquisto non disponibile: {wanted}", "options": options}, 404
+
+        link = str(selected.get("url") or "").strip()
+        if not link:
+            return {"ok": False, "error": "URL acquisto non configurato"}, 400
+
+        if email and "?" not in link:
+            link = link + "?email=" + email
+        elif email:
+            link = link + "&email=" + email
+
+        return {
+            "ok": True,
+            "channel": selected,
+            "purchase_url": link,
+            "context": context or {},
+        }, 200
 
     def activate(self, *, provider_name: str, email: str, license_key: str) -> tuple[dict[str, Any], int]:
         manager = build_license_manager()
@@ -3562,6 +3645,30 @@ def license_providers():
     module = get_license_runtime_module()
     settings = load_license_settings()
     return module.get_providers_payload(settings=settings)
+
+
+@app.get("/license/purchase/options")
+def license_purchase_options():
+    module = get_license_runtime_module()
+    return {"ok": True, "options": module.get_purchase_options()}
+
+
+@app.post("/license/purchase/link")
+async def license_purchase_link(request: Request):
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+
+    channel_id = str(payload.get("channel_id") or payload.get("id") or "").strip().lower()
+    email = str(payload.get("email") or "").strip()
+    module = get_license_runtime_module()
+    response, status_code = module.create_purchase_link(
+        channel_id=channel_id,
+        email=email,
+        context={"source": "pivotdesk"},
+    )
+    return JSONResponse(response, status_code=status_code)
 
 
 @app.get("/lan/status")
