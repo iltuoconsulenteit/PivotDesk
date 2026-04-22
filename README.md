@@ -159,6 +159,7 @@ The following diagrams are visual examples derived from the HTML layout structur
 - **Free tier:** CSV-based on-screen pivots only.
 - Premium features such as print, charts, and drilldown are available only for paid/dev licenses (based on feature flags/policy).
 - LAN exposure is license-controlled and validated by diagnostics endpoints.
+- Licensing runtime is now adapter-ready: `data/license_settings.json` supports `backend_module` (python module path exposing `create_license_module(default_module=...)`) to plug alternative licensing systems without replacing core endpoints/UI.
 
 ---
 

@@ -31,6 +31,7 @@ from services.pivot_engine import apply_filters, normalize_df, run_pivot, table_
 from services.source_manager import load_dataframe_from_source
 from services.plugin_manager import PluginAPI, PluginManager
 from services.module_registry import ModuleRegistry
+from services.license_module import load_license_runtime_module
 from plugins.calculated_fields.backend import (
     apply_calculated_fields,
     build_calculated_definitions,
@@ -155,6 +156,7 @@ _SOURCE_DATAFRAME_CACHE: "OrderedDict[str, dict[str, Any]]" = OrderedDict()
 
 DEFAULT_LICENSE_SETTINGS = {
     "license_file": str(APPDATA_LICENSE_PATH),
+    "backend_module": "",
     "developer": {
         "enabled": True,
         "allowed_keys": ["PIVOTDESK-DEV", "PIVOTDESK-DEVELOPER"],
@@ -840,6 +842,112 @@ def get_license_context(prefer_online: bool = False) -> dict[str, Any]:
         "license_purchase_url": "",
     }
 
+
+
+class BuiltinLicenseRuntimeModule:
+    def get_context(self, *, prefer_online: bool = False) -> dict[str, Any]:
+        return get_license_context(prefer_online=prefer_online)
+
+    def get_available_providers(self) -> list[str]:
+        return get_available_license_providers()
+
+    def get_providers_payload(self, *, settings: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "multistore_available": MULTISTORE_LICENSE_AVAILABLE,
+            "providers": self.get_available_providers(),
+            "settings": {
+                "developer": {"enabled": bool(settings.get("developer", {}).get("enabled", True))},
+                "gumroad": {
+                    "enabled": bool(settings.get("gumroad", {}).get("enabled", False)),
+                    "product_id": settings.get("gumroad", {}).get("product_id", ""),
+                },
+                "lemonsqueezy": {
+                    "enabled": bool(settings.get("lemonsqueezy", {}).get("enabled", False)),
+                    "product_id": settings.get("lemonsqueezy", {}).get("product_id", ""),
+                    "variant_id": settings.get("lemonsqueezy", {}).get("variant_id", ""),
+                },
+                "custom": {
+                    "enabled": bool(settings.get("custom", {}).get("enabled", False)),
+                    "activate_url": settings.get("custom", {}).get("activate_url", ""),
+                },
+            },
+        }
+
+    def activate(self, *, provider_name: str, email: str, license_key: str) -> tuple[dict[str, Any], int]:
+        manager = build_license_manager()
+        if not manager:
+            return {"ok": False, "error": "Sistema di licensing non disponibile"}, 500
+
+        if provider_name not in manager.providers:
+            return {
+                "ok": False,
+                "error": f"Provider non disponibile: {provider_name}",
+                "providers": sorted(manager.providers.keys()),
+            }, 400
+
+        result = manager.activate(provider_name=provider_name, email=email, license_key=license_key)
+        status_code = 200 if result.ok else 400
+        response = {
+            "ok": result.ok,
+            "message": result.message,
+            "error_code": result.error_code,
+            "provider": provider_name,
+            "license": result.record.__dict__ if result.record else None,
+            "context": self.get_context(prefer_online=False),
+        }
+        return response, status_code
+
+    def validate(self, *, prefer_online: bool = True) -> tuple[dict[str, Any], int]:
+        manager = build_license_manager()
+        if not manager:
+            return {"ok": False, "error": "Sistema di licensing non disponibile"}, 500
+
+        result = manager.validate_current(prefer_online=prefer_online)
+        status_code = 200 if result.ok else 400
+        return {
+            "ok": result.ok,
+            "message": result.message,
+            "error_code": result.error_code,
+            "license": result.record.__dict__ if result.record else None,
+            "context": self.get_context(prefer_online=False),
+        }, status_code
+
+    def deactivate(self) -> tuple[dict[str, Any], int]:
+        manager = build_license_manager()
+        if not manager:
+            return {"ok": False, "error": "Sistema di licensing non disponibile"}, 500
+
+        result = manager.deactivate_current()
+        status_code = 200 if result.ok else 400
+        return {
+            "ok": result.ok,
+            "message": result.message,
+            "error_code": result.error_code,
+            "license": result.record.__dict__ if result.record else None,
+            "context": self.get_context(prefer_online=False),
+        }, status_code
+
+
+_LICENSE_RUNTIME_MODULE: Any = None
+_LICENSE_RUNTIME_MODULE_KEY = ""
+
+
+def get_license_runtime_module():
+    global _LICENSE_RUNTIME_MODULE, _LICENSE_RUNTIME_MODULE_KEY
+    settings = load_license_settings()
+    backend_module = str(settings.get("backend_module") or "").strip()
+    cache_key = backend_module or "__builtin__"
+    if _LICENSE_RUNTIME_MODULE is not None and _LICENSE_RUNTIME_MODULE_KEY == cache_key:
+        return _LICENSE_RUNTIME_MODULE
+
+    default_module = BuiltinLicenseRuntimeModule()
+    runtime_module = load_license_runtime_module(
+        backend_module,
+        default_module=default_module,
+    )
+    _LICENSE_RUNTIME_MODULE = runtime_module
+    _LICENSE_RUNTIME_MODULE_KEY = cache_key
+    return runtime_module
 
 def has_license_feature(feature_name: str) -> bool:
     ctx = get_license_context(prefer_online=False)
@@ -3442,25 +3550,18 @@ async def admin_upload_customer_logo(request: Request, file: UploadFile = File(.
 
 @app.get("/license/status")
 def license_status(prefer_online: bool = Query(False)):
-    ctx = get_license_context(prefer_online=prefer_online)
-    ctx["available_providers"] = get_available_license_providers()
+    module = get_license_runtime_module()
+    ctx = module.get_context(prefer_online=prefer_online)
+    ctx["available_providers"] = module.get_available_providers()
     ctx["multistore_available"] = MULTISTORE_LICENSE_AVAILABLE
     return ctx
 
 
 @app.get("/license/providers")
 def license_providers():
+    module = get_license_runtime_module()
     settings = load_license_settings()
-    return {
-        "multistore_available": MULTISTORE_LICENSE_AVAILABLE,
-        "providers": get_available_license_providers(),
-        "settings": {
-            "developer": {"enabled": bool(settings.get("developer", {}).get("enabled", True))},
-            "gumroad": {"enabled": bool(settings.get("gumroad", {}).get("enabled", False)), "product_id": settings.get("gumroad", {}).get("product_id", "")},
-            "lemonsqueezy": {"enabled": bool(settings.get("lemonsqueezy", {}).get("enabled", False)), "product_id": settings.get("lemonsqueezy", {}).get("product_id", ""), "variant_id": settings.get("lemonsqueezy", {}).get("variant_id", "")},
-            "custom": {"enabled": bool(settings.get("custom", {}).get("enabled", False)), "activate_url": settings.get("custom", {}).get("activate_url", "")},
-        },
-    }
+    return module.get_providers_payload(settings=settings)
 
 
 @app.get("/lan/status")
@@ -3764,58 +3865,27 @@ async def license_activate(request: Request):
     if not license_key:
         return JSONResponse({"ok": False, "error": "license_key obbligatoria"}, status_code=400)
 
-    manager = build_license_manager()
-    if not manager:
-        return JSONResponse({"ok": False, "error": "Sistema di licensing non disponibile"}, status_code=500)
-
-    if provider_name not in manager.providers:
-        return JSONResponse({"ok": False, "error": f"Provider non disponibile: {provider_name}", "providers": sorted(manager.providers.keys())}, status_code=400)
-
-    result = manager.activate(provider_name=provider_name, email=email, license_key=license_key)
-    status_code = 200 if result.ok else 400
-    response = {
-        "ok": result.ok,
-        "message": result.message,
-        "error_code": result.error_code,
-        "provider": provider_name,
-        "license": result.record.__dict__ if result.record else None,
-        "context": get_license_context(prefer_online=False),
-    }
+    module = get_license_runtime_module()
+    response, status_code = module.activate(
+        provider_name=provider_name,
+        email=email,
+        license_key=license_key,
+    )
     return JSONResponse(response, status_code=status_code)
 
 
 @app.post("/license/validate")
 def license_validate(prefer_online: bool = Query(True)):
-    manager = build_license_manager()
-    if not manager:
-        return JSONResponse({"ok": False, "error": "Sistema di licensing non disponibile"}, status_code=500)
-
-    result = manager.validate_current(prefer_online=prefer_online)
-    status_code = 200 if result.ok else 400
-    return JSONResponse({
-        "ok": result.ok,
-        "message": result.message,
-        "error_code": result.error_code,
-        "license": result.record.__dict__ if result.record else None,
-        "context": get_license_context(prefer_online=False),
-    }, status_code=status_code)
+    module = get_license_runtime_module()
+    response, status_code = module.validate(prefer_online=prefer_online)
+    return JSONResponse(response, status_code=status_code)
 
 
 @app.post("/license/deactivate")
 def license_deactivate():
-    manager = build_license_manager()
-    if not manager:
-        return JSONResponse({"ok": False, "error": "Sistema di licensing non disponibile"}, status_code=500)
-
-    result = manager.deactivate_current()
-    status_code = 200 if result.ok else 400
-    return JSONResponse({
-        "ok": result.ok,
-        "message": result.message,
-        "error_code": result.error_code,
-        "license": result.record.__dict__ if result.record else None,
-        "context": get_license_context(prefer_online=False),
-    }, status_code=status_code)
+    module = get_license_runtime_module()
+    response, status_code = module.deactivate()
+    return JSONResponse(response, status_code=status_code)
 
 
 @app.post("/dev/license/create")
