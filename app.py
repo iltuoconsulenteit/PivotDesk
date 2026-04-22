@@ -2099,10 +2099,10 @@ def get_module_roots() -> list[Path]:
     return out
 
 
-def get_menu_module_config() -> list[dict[str, Any]]:
+def get_menu_module_config() -> dict[str, Any]:
     """
     Carica la configurazione menu dal modulo dedicato `main_menu`.
-    Fallback: ritorna lista vuota per non bloccare il rendering.
+    Fallback: ritorna configurazione base per non bloccare il rendering.
     """
     for root in get_module_roots():
         config_path = root / "main_menu" / "menu.json"
@@ -2116,8 +2116,11 @@ def get_menu_module_config() -> list[dict[str, Any]]:
             continue
         sections = raw.get("sections")
         if isinstance(sections, list):
-            return [s for s in sections if isinstance(s, dict)]
-    return []
+            return {
+                "layout_mode": str(raw.get("layout_mode") or "topbar").strip().lower() or "topbar",
+                "sections": [s for s in sections if isinstance(s, dict)],
+            }
+    return {"layout_mode": "topbar", "sections": []}
 
 
 def load_plugins_enabled_map() -> dict[str, bool]:
@@ -3600,12 +3603,14 @@ module_registry.load_all()
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request):
     customer_logo_url = get_customer_logo_url() if CUSTOMER_LOGO_PATH.exists() else ""
+    menu_cfg = get_menu_module_config()
     ctx = {
         "request": request,
         "current_user": get_current_user_from_session(request),
         "customer_logo_url": customer_logo_url,
         "app_version": APP_VERSION,
-        "menu_sections": get_menu_module_config(),
+        "menu_sections": menu_cfg.get("sections", []),
+        "menu_layout_mode": menu_cfg.get("layout_mode", "topbar"),
         **get_license_context(),
     }
     return templates.TemplateResponse("index.html", ctx)
@@ -4228,7 +4233,8 @@ def modules_registry():
 
 @app.get("/modules/menu-config")
 def modules_menu_config():
-    return {"ok": True, "sections": get_menu_module_config()}
+    menu_cfg = get_menu_module_config()
+    return {"ok": True, "layout_mode": menu_cfg.get("layout_mode", "topbar"), "sections": menu_cfg.get("sections", [])}
 
 
 @app.get("/plugins/status")

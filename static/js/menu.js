@@ -21,7 +21,24 @@
     }
   }
 
+  function initMenuShellLayout() {
+    const shell = document.getElementById("menuShell");
+    const toggle = document.getElementById("btnToggleMenuShell");
+    if (!shell || !toggle) return;
+    const layout = (shell.getAttribute("data-menu-layout") || "topbar").toLowerCase();
+    if (layout !== "sidebar") {
+      toggle.classList.add("hidden");
+      return;
+    }
+    toggle.classList.remove("hidden");
+    toggle.addEventListener("click", function (ev) {
+      ev.stopPropagation();
+      shell.classList.toggle("collapsed");
+    });
+  }
+
   window.initMenus = function initMenus() {
+    initMenuShellLayout();
     document.querySelectorAll(".menu-btn").forEach(btn => {
       btn.addEventListener("click", function (ev) {
         ev.stopPropagation();

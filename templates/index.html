@@ -17,6 +17,11 @@
       align-items:center;
       gap:12px;
       margin-bottom:14px;
+      background:#ffffff;
+      border:1px solid #d7ddea;
+      border-radius:16px;
+      padding:10px 12px;
+      box-shadow:0 3px 10px rgba(16, 24, 40, .06);
     }
     .userbar-left{
       display:flex;
@@ -51,11 +56,22 @@
       flex-wrap:nowrap;
       justify-content:flex-end;
     }
+    .menu-shell{
+      margin:0;
+      min-width:0;
+    }
     .inline-menu{
+      display:flex;
       margin:0;
       flex-wrap:wrap;
       overflow:visible;
       row-gap:8px;
+      gap:8px;
+    }
+    .menu-shell.sidebar .inline-menu{
+      flex-direction:column;
+      align-items:stretch;
+      gap:6px;
     }
     .inline-menu .menu-group{
       flex:0 0 auto;
@@ -64,6 +80,41 @@
       min-width:92px;
       padding:8px 12px;
       white-space:nowrap;
+      border-radius:12px;
+      border:1px solid #d0d5dd;
+      background:#f8fafd;
+      color:#1d2939;
+      font-weight:600;
+      transition:all .18s ease;
+    }
+    .inline-menu .menu-btn:hover{
+      background:#eef4ff;
+      border-color:#b2ccff;
+    }
+    .menu-shell.sidebar .inline-menu .menu-btn{
+      width:100%;
+      text-align:left;
+      justify-content:flex-start;
+      min-width:190px;
+    }
+    .menu-shell.sidebar .inline-menu .menu-dropdown{
+      position:relative;
+      inset:auto;
+      min-width:0;
+      width:100%;
+      margin-top:4px;
+    }
+    .menu-shell-toggle{
+      display:none;
+      width:36px;
+      height:36px;
+      border-radius:10px;
+      border:1px solid #d0d5dd;
+      background:#fff;
+      cursor:pointer;
+      align-items:center;
+      justify-content:center;
+      color:#344054;
     }
     @media (min-width: 1480px){
       .inline-menu{
@@ -76,6 +127,9 @@
       }
       .inline-menu{
         order:3;
+      }
+      .menu-shell.sidebar{
+        width:100%;
       }
       .userbar-right{
         justify-content:flex-start;
@@ -95,6 +149,12 @@
         width:100%;
         min-width:unset;
         margin-top:6px;
+      }
+      .menu-shell-toggle{
+        display:inline-flex;
+      }
+      .menu-shell.sidebar.collapsed .inline-menu{
+        display:none;
       }
     }
     .ghost-btn{
@@ -1307,12 +1367,14 @@ window.LICENSE_CONTEXT = {
   <div class="card">
     <div class="userbar">
       <div class="userbar-left">
+        <button id="btnToggleMenuShell" type="button" class="menu-shell-toggle" title="Menu" aria-label="Menu">☰</button>
         <div class="user-badge">
           <strong>{{ (current_user.display_name or current_user.username) if current_user else "Utente" }}</strong>
           <span class="user-role">{{ (current_user.role or "user") if current_user else "user" }}</span>
         </div>
         <span data-i18n="user_space_active">Spazio personale attivo.</span>
       </div>
+      <div id="menuShell" class="menu-shell {{ 'sidebar' if menu_layout_mode == 'sidebar' else 'topbar' }} {% if menu_layout_mode == 'sidebar' %}collapsed{% endif %}" data-menu-layout="{{ menu_layout_mode }}">
       <div class="menu-bar inline-menu">
         {% for section in menu_sections %}
         {% set section_id = section.get("id", "menu-section-" ~ loop.index) %}
@@ -1335,6 +1397,7 @@ window.LICENSE_CONTEXT = {
           </div>
         </div>
         {% endfor %}
+      </div>
       </div>
       <div class="userbar-right">
         <label for="appLanguageSelect" class="small" data-i18n="settings_language_label" style="margin-right:4px;">Lingua interfaccia</label>
