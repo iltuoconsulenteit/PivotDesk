@@ -4501,6 +4501,7 @@ async function refreshLookupBuilders(){
 let MERGE_BLOCK_COUNTER = 0;
 let MERGE_TEMPLATES = [];
 let MERGE_TEMPLATE_COL_DRAG_INDEX = -1;
+let LAST_SAVED_SOURCE_ID = "";
 
 function getMergeTemplateColumnsFromUi(){
   return String(document.getElementById("mergeTemplateColumns")?.value || "")
@@ -5150,6 +5151,36 @@ async function addMergeSourceBlock(initial = null){
     applyMappingToBlockSlots(block, initial.column_map);
   }
   suggestMergeSourceIdentity(false);
+}
+
+async function refreshMergeTemplateSourceStateAfterSourceUpdate(updatedSourceId = ""){
+  const wanted = String(updatedSourceId || "").trim();
+  const sel = document.getElementById("mergeTemplateFromSource");
+  if (!sel) return;
+  const current = String(sel.value || "").trim();
+  sel.innerHTML = '<option value="">Seleziona sorgente...</option>';
+  (SOURCES || []).forEach(src => {
+    const o = document.createElement("option");
+    o.value = src.id;
+    o.textContent = src.title || src.id;
+    sel.appendChild(o);
+  });
+  if (current && (SOURCES || []).some(s => String(s?.id || "").trim() === current)) {
+    sel.value = current;
+  } else if (wanted && (SOURCES || []).some(s => String(s?.id || "").trim() === wanted)) {
+    sel.value = wanted;
+  }
+
+  const selected = String(sel.value || "").trim();
+  const sourceModeActive = !!document.getElementById("btnMergeTemplateModeSource")?.classList.contains("active");
+  if (!sourceModeActive || !selected || !wanted || selected !== wanted) return;
+
+  try {
+    await loadTemplateHeadersFromSourceFromUi();
+    setStatus("Template merge riallineato alle intestazioni aggiornate della sorgente: " + wanted);
+  } catch (e) {
+    setStatus("Aggiornata sorgente merge, ma non è stato possibile riallineare automaticamente le intestazioni template: " + (e?.message || e));
+  }
 }
 
 async function refreshMergeSourceBlocksAfterSourceUpdate(updatedSourceId = ""){
@@ -6183,12 +6214,17 @@ async function runApiSchedulerDueJobsFromUi(){
   setStatus("Esecuzione schedulata completata. Job eseguiti: " + String(res?.run_count || 0));
 }
 
-function closeSourcesScreen(){
+async function closeSourcesScreen(){
   const backToModule = String(SOURCE_SCREEN_CONTEXT?.return_to_module || "").trim();
   closeModuleScreens();
   document.getElementById("sourcesScreen").classList.remove("active");
   if (backToModule === "merge") {
     openInlineModulePanel("merge", "Multi Source Merge");
+    if (LAST_SAVED_SOURCE_ID) {
+      await refreshMergeTemplateSourceStateAfterSourceUpdate(LAST_SAVED_SOURCE_ID).catch(() => {});
+      await refreshMergeSourceBlocksAfterSourceUpdate(LAST_SAVED_SOURCE_ID).catch(() => {});
+      LAST_SAVED_SOURCE_ID = "";
+    }
   } else if (backToModule === "api_scheduler") {
     openInlineModulePanel("api_scheduler", "API Data Scheduler");
   } else {
@@ -7539,6 +7575,8 @@ async function saveSourceFromForm(){
     loadSourceIntoForm(savedSource);
     await previewSourceFromForm(true).catch(() => {});
   }
+  LAST_SAVED_SOURCE_ID = String(payload.id || "").trim();
+  await refreshMergeTemplateSourceStateAfterSourceUpdate(payload.id).catch(() => {});
   await refreshMergeSourceBlocksAfterSourceUpdate(payload.id).catch(() => {});
   if (BUILDER_SOURCE) {
     await loadSourcePreview(BUILDER_SOURCE);
