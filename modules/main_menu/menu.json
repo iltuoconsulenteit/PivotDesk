@@ -1,0 +1,76 @@
+{
+  "sections": [
+    {
+      "id": "menu-data",
+      "label": "Dati",
+      "i18n": "menu_data",
+      "items": [
+        { "id": "menuReload", "label": "Ricarica", "i18n": "menu_reload" },
+        { "id": "menuOpenCatalog", "label": "Elenco sorgenti e pivot", "i18n": "menu_sources_pivots_catalog" },
+        { "id": "menuOpenSources", "label": "Gestisci sorgenti dati", "i18n": "menu_manage_sources" },
+        { "id": "menuToggleColumns", "label": "Mostra/Nascondi colonne CSV", "i18n": "menu_toggle_columns" }
+      ]
+    },
+    {
+      "id": "menu-pivot",
+      "label": "Pivot",
+      "i18n": "menu_pivot",
+      "items": [
+        { "id": "menuOpenBuilder", "label": "Apri costruttore pivot", "i18n": "menu_open_builder" },
+        { "id": "menuEditCurrentPreset", "label": "Modifica preset attivo", "i18n": "menu_edit_preset" },
+        { "id": "menuDeleteCurrentPreset", "label": "Elimina preset attivo", "i18n": "menu_delete_preset" }
+      ]
+    },
+    {
+      "id": "menu-view",
+      "label": "Visualizza",
+      "i18n": "menu_view",
+      "items": [
+        { "id": "menuSetVerticalLayout", "label": "Layout misure verticale", "i18n": "menu_layout_vertical" },
+        { "id": "menuSetHorizontalLayout", "label": "Layout misure orizzontale", "i18n": "menu_layout_horizontal" },
+        { "id": "menuToggleRowTotals", "label": "Totali righe on/off", "i18n": "menu_row_totals_toggle" },
+        { "id": "menuToggleColTotals", "label": "Totali colonne on/off", "i18n": "menu_col_totals_toggle" },
+        { "id": "menuToggleSubtotals", "label": "Subtotali on/off", "i18n": "menu_subtotals_toggle", "feature": "subtotals" },
+        { "id": "menuOpenCharts", "label": "Grafico da pivot" }
+      ]
+    },
+    {
+      "id": "menu-print",
+      "label": "Stampa",
+      "i18n": "menu_print",
+      "items": [
+        { "id": "menuPrint", "label": "Stampa pivot", "i18n": "menu_print_pivot", "feature": "print" },
+        { "id": "menuExportPivotCsv", "label": "Export pivot CSV", "i18n": "menu_export_pivot_csv", "feature": "print" },
+        { "id": "menuExportPivotXlsx", "label": "Export pivot XLSX", "i18n": "menu_export_pivot_xlsx", "feature": "print" },
+        { "id": "menuExportPivotOds", "label": "Export pivot ODS", "i18n": "menu_export_pivot_ods", "feature": "print" },
+        { "id": "menuExportPivotHtml", "label": "Export pivot HTML", "i18n": "menu_export_pivot_html", "feature": "print" }
+      ]
+    },
+    {
+      "id": "menu-settings",
+      "label": "Impostazioni",
+      "i18n": "menu_settings",
+      "items": [
+        { "id": "menuOpenSettings", "label": "Impostazioni globali", "i18n": "menu_global_settings" }
+      ]
+    },
+    {
+      "id": "menu-backup",
+      "label": "Backup",
+      "items": [
+        { "id": "menuExportBackup", "label": "Esporta backup", "i18n": "menu_export_backup" },
+        { "id": "menuRestoreBackup", "label": "Ripristina backup", "i18n": "menu_restore_backup" }
+      ]
+    },
+    {
+      "id": "menu-modules",
+      "label": "Moduli",
+      "items": [
+        { "id": "menuOpenMergeModule", "label": "Merge sorgenti" },
+        { "id": "menuOpenApiSchedulerModule", "label": "Scheduler API" },
+        { "id": "menuOpenXmlBatchModule", "label": "Import XML multiplo", "i18n": "menu_open_xml_batch_module" },
+        { "id": "menuOpenVotingAnalyticsModule", "label": "Voting Analytics" }
+      ]
+    }
+  ]
+}

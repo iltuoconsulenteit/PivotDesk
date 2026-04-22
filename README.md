@@ -26,8 +26,9 @@ This repository is a working local-development baseline. Main components:
 ### Modules vs Plugins (maintenance structure)
 
 - `modules/` contains **functional modules** (business pages/features) described by `module.json` manifests.
+- Main topbar navigation is managed as module `main_menu` via `modules/main_menu/menu.json`, so menu structure/graphics can evolve without hardcoding changes in core template blocks.
 - `plugins/` contains **technical extensions** that can enrich modules (providers/tools/endpoints).
-- Runtime module metadata is available via `GET /modules`; plugin metadata remains under `GET /plugins` and `GET /plugins/status`.
+- Runtime module metadata is available via `GET /modules`; menu module config is available via `GET /modules/menu-config`; plugin metadata remains under `GET /plugins` and `GET /plugins/status`.
 
 ---
 

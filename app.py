@@ -2099,6 +2099,27 @@ def get_module_roots() -> list[Path]:
     return out
 
 
+def get_menu_module_config() -> list[dict[str, Any]]:
+    """
+    Carica la configurazione menu dal modulo dedicato `main_menu`.
+    Fallback: ritorna lista vuota per non bloccare il rendering.
+    """
+    for root in get_module_roots():
+        config_path = root / "main_menu" / "menu.json"
+        if not config_path.exists():
+            continue
+        try:
+            raw = json.loads(config_path.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if not isinstance(raw, dict):
+            continue
+        sections = raw.get("sections")
+        if isinstance(sections, list):
+            return [s for s in sections if isinstance(s, dict)]
+    return []
+
+
 def load_plugins_enabled_map() -> dict[str, bool]:
     raw = read_json(PLUGINS_CONFIG_PATH, None)
     if not isinstance(raw, dict) and LEGACY_PLUGINS_CONFIG_PATH.exists():
@@ -3584,6 +3605,7 @@ def index(request: Request):
         "current_user": get_current_user_from_session(request),
         "customer_logo_url": customer_logo_url,
         "app_version": APP_VERSION,
+        "menu_sections": get_menu_module_config(),
         **get_license_context(),
     }
     return templates.TemplateResponse("index.html", ctx)
@@ -4202,6 +4224,11 @@ def plugins_registry():
 def modules_registry():
     module_registry.load_all()
     return module_registry.get_status()
+
+
+@app.get("/modules/menu-config")
+def modules_menu_config():
+    return {"ok": True, "sections": get_menu_module_config()}
 
 
 @app.get("/plugins/status")

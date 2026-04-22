@@ -7,3 +7,5 @@ Questa cartella separa i **moduli applicativi** dai **plugin**:
 
 Ogni modulo contiene un file `module.json` con metadati stabili (`id`, `name`, `kind`, `plugin_id`, `ui`, ...),
 così la manutenzione resta ordinata anche quando aumentano plugin e varianti.
+
+Per la topbar, il modulo `main_menu` include anche `menu.json` con le sezioni/voci renderizzate in homepage.
