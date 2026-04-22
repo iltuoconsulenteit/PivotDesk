@@ -7545,10 +7545,13 @@ async function deleteCurrentPreset(){
     setStatus("Eliminazione preset in corso...");
     const filename = presetFilenameFromPreset(p);
 
+    const targetSource = String(p.source_id || CURRENT_SOURCE || BUILDER_SOURCE || "").trim();
+    if (!targetSource) throw new Error("Impossibile risolvere la sorgente del preset da eliminare.");
+
     await api("/preset-editor/delete", {
       method: "POST",
       body: JSON.stringify({
-        source_id: BUILDER_SOURCE,
+        source_id: targetSource,
         filename: filename,
         preset_id: p.id
       })
@@ -7556,8 +7559,6 @@ async function deleteCurrentPreset(){
 
     CURRENT = null;
     await loadPresets();
-    await renderFilters();
-    await runCurrent();
     refreshQuickbarFromPreset();
     setStatus("Preset eliminato: " + (p.title || p.id));
   } catch (e) {
@@ -7761,7 +7762,7 @@ async function loadPresets(){
   }
 
   const j = await api("/pivots?source_id=" + encodeURIComponent(CURRENT_SOURCE));
-  PRESETS = (j.items || []).filter(p => p && p.id && (!p.source_id || p.source_id === CURRENT_SOURCE));
+  PRESETS = (j.items || []).filter(p => p && p.id);
 
   if (!PRESETS.length) {
     CURRENT = null;
