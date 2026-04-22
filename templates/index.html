@@ -7823,7 +7823,8 @@ async function loadSources(){
   }
 }
 
-async function loadFields(){
+async function loadFields(options = {}){
+  const allowAutoSourceSwitch = !!(options && options.allowAutoSourceSwitch);
   if (!CURRENT_SOURCE) {
     CURRENT_FIELDS = [];
     renderFieldsSidebar();
@@ -7839,22 +7840,26 @@ async function loadFields(){
     if (x && !candidateIds.includes(x)) candidateIds.push(x);
   };
   pushCandidate(CURRENT_SOURCE);
-  (SOURCES || []).forEach(s => {
-    if (isSourceLikelyConfigured(s)) pushCandidate(s.id);
-  });
-  (SOURCES || []).forEach(s => pushCandidate(s.id));
+  if (allowAutoSourceSwitch) {
+    (SOURCES || []).forEach(s => {
+      if (isSourceLikelyConfigured(s)) pushCandidate(s.id);
+    });
+    (SOURCES || []).forEach(s => pushCandidate(s.id));
+  }
 
   let lastErr = null;
   for (const sid of candidateIds) {
     try {
       const j = await api("/fields?source_id=" + encodeURIComponent(sid));
-      CURRENT_SOURCE = sid;
-      if (sourceSelect) sourceSelect.value = sid;
+      if (sid !== CURRENT_SOURCE && allowAutoSourceSwitch) {
+        CURRENT_SOURCE = sid;
+        if (sourceSelect) sourceSelect.value = sid;
+      }
       CURRENT_FIELDS = j.fields || [];
       renderFieldsSidebar();
       renderColumnsPanel();
       fillSortFieldOptions();
-      if (sid !== candidateIds[0]) {
+      if (sid !== candidateIds[0] && allowAutoSourceSwitch) {
         setStatus("Sorgente corrente aggiornata automaticamente a '" + sid + "' perché la precedente non era valida.");
       }
       return;
@@ -7867,7 +7872,11 @@ async function loadFields(){
   renderFieldsSidebar();
   renderColumnsPanel();
   fillSortFieldOptions();
-  setStatus("ATTENZIONE: nessuna sorgente valida disponibile per caricare i campi. " + String(lastErr?.message || "Configura una sorgente valida da Gestione sorgenti."));
+  if (allowAutoSourceSwitch) {
+    setStatus("ATTENZIONE: nessuna sorgente valida disponibile per caricare i campi. " + String(lastErr?.message || "Configura una sorgente valida da Gestione sorgenti."));
+  } else {
+    setStatus("ATTENZIONE: impossibile caricare i campi della sorgente selezionata. " + String(lastErr?.message || "Verifica la configurazione della sorgente corrente."));
+  }
   return;
 }
 

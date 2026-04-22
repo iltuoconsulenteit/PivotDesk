@@ -29,6 +29,7 @@ This repository is a working local-development baseline. Main components:
 - Main navigation is managed as module `main_menu` via `modules/main_menu/menu.json` (`layout_mode: topbar|sidebar` + sections/items), so menu structure/graphics can evolve without hardcoding changes in core template blocks.
 - `plugins/` contains **technical extensions** that can enrich modules (providers/tools/endpoints).
 - Runtime module metadata is available via `GET /modules`; menu module config is available via `GET /modules/menu-config`; plugin metadata remains under `GET /plugins` and `GET /plugins/status`.
+- Source selector UX: when loading fields fails, the frontend keeps the selected source and does not auto-switch to another source unless explicitly requested by the caller.
 
 ---
 
