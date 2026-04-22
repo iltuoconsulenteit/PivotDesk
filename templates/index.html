@@ -492,6 +492,19 @@
       flex: 0 0 auto;
     }
 
+    .logo-home-btn {
+      border: 0;
+      background: transparent;
+      padding: 0;
+      cursor: pointer;
+    }
+
+    .logo-home-btn:focus-visible {
+      outline: 2px solid #175cd3;
+      outline-offset: 2px;
+      border-radius: 6px;
+    }
+
     .logo-main {
       width: min(360px, 42vw);
       height: auto;
@@ -1244,7 +1257,9 @@ window.LICENSE_CONTEXT = {
     <div class="branding">
       <div class="brand-left">
         <div class="logo-main-wrap">
-          <img id="brandMainLogo" src="/static/img/pivotdesk-logo.png" alt="PivotDesk" class="logo-main">
+          <button type="button" id="btnBrandHome" class="logo-home-btn" title="Torna alla pagina principale" aria-label="Torna alla pagina principale">
+            <img id="brandMainLogo" src="/static/img/pivotdesk-logo.png" alt="PivotDesk" class="logo-main">
+          </button>
         </div>
         <div class="brand-copy">
           <div class="brand-subtitle" data-i18n="brand_subtitle">Viewer CSV e pivot server-side multi-misura</div>
@@ -4151,6 +4166,18 @@ function closeModuleScreens(){
 function closeDedicatedModuleScreen(){
   closeModuleScreens();
   document.getElementById("mainView")?.classList.remove("hidden");
+}
+
+function goToHomeScreen(){
+  closeModuleScreens();
+  closeInlineModulePanel();
+  document.getElementById("builderScreen")?.classList.remove("active");
+  document.getElementById("sourcesScreen")?.classList.remove("active");
+  document.getElementById("settingsScreen")?.classList.remove("active");
+  document.getElementById("catalogScreen")?.classList.remove("active");
+  document.getElementById("mainView")?.classList.remove("hidden");
+  document.getElementById("mainView")?.classList.remove("module-header-only");
+  window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 function closeInlineModulePanel(){
@@ -10105,6 +10132,7 @@ bindInput("srcColumnAliasesJson", "input", () => {
 });
 
 bindClick("btnCloseSettings", () => closeSettingsScreen());
+bindClick("btnBrandHome", () => goToHomeScreen());
 bindClick("btnHelpSettingsScreen", () => openWikiGuideSection("plugins"));
 bindClick("menuExportPivotCsv", () => exportPivotResult("csv"));
 bindClick("menuExportPivotXlsx", () => exportPivotResult("xlsx"));
