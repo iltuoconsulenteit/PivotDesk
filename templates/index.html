@@ -4751,6 +4751,7 @@ async function handleMergeActionClick(action){
     try { window.alert("Errore merge:\n" + msg); } catch (_e) {}
   }
 }
+window.handleMergeActionClick = handleMergeActionClick;
 
 async function saveMergeTemplateFromUi(){
   const titleEl = document.getElementById("mergeTemplateTitle");
@@ -6425,6 +6426,7 @@ async function initSourcePluginBuilders(){
   suggestMergeTemplateIdentity(false);
   renderMergeTemplateColumnChips();
   setMergeTemplateMode("source");
+  bindMergeActionButtons();
   if (tabLookupBtn && !tabLookupBtn.dataset.bound) {
     tabLookupBtn.dataset.bound = "1";
     tabLookupBtn.addEventListener("click", () => setPluginToolTab("lookup"));
@@ -9589,6 +9591,31 @@ function bindClick(id, handler){
   el.onclick = handler;
 }
 
+function bindMergeActionButtons(){
+  const actionById = {
+    btnRunMultiMergeFromTemplate: "run_template",
+    btnRunMultiMerge: "preview",
+    btnSaveMergeTemplateFull: "save_template_full",
+    btnExportMultiMergeCsv: "export_csv",
+    btnSaveMultiMergeSource: "save_source",
+    btnRefreshMultiMergeSource: "refresh_source"
+  };
+  Object.entries(actionById).forEach(([id, action]) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (el.dataset.boundMergeAction === "1") return;
+    el.dataset.boundMergeAction = "1";
+    el.addEventListener("click", async (ev) => {
+      if (ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+      }
+      await handleMergeActionClick(action);
+      return false;
+    });
+  });
+}
+
 function bindInput(id, eventName, handler){
   const el = document.getElementById(id);
   if (!el) {
@@ -10071,27 +10098,7 @@ bindInput("votingDimsColumns", "input", () => {
 bindInput("votingThresholdMain", "input", () => scheduleVotingAutoRecalc());
 bindInput("votingThresholdMin", "input", () => scheduleVotingAutoRecalc());
 bindInput("votingThresholdPercent", "change", () => scheduleVotingAutoRecalc());
-bindClick("btnRunMultiMergeFromTemplate", async () => {
-  try {
-    await runMultiSourceMergeFromTemplateUi();
-  } catch (e) {
-    setStatus("ERRORE merge da template: " + e.message);
-  }
-});
-bindClick("btnRunMultiMerge", async () => {
-  try {
-    await runMultiSourceMergeFromUi();
-  } catch (e) {
-    setStatus("ERRORE plugin merge: " + e.message);
-  }
-});
-bindClick("btnSaveMultiMergeSource", async () => {
-  try {
-    await saveMultiSourceMergeAsSourceFromUi();
-  } catch (e) {
-    setStatus("ERRORE salvataggio merge: " + e.message);
-  }
-});
+bindMergeActionButtons();
 bindClick("btnToggleMergeDuplicatesTable", () => {
   const wrap = document.getElementById("mergeDuplicatesWrap");
   const btn = document.getElementById("btnToggleMergeDuplicatesTable");
@@ -10099,13 +10106,6 @@ bindClick("btnToggleMergeDuplicatesTable", () => {
   const willShow = wrap.classList.contains("hidden");
   wrap.classList.toggle("hidden", !willShow);
   btn.textContent = willShow ? "Nascondi tabella scarti duplicati" : "Mostra tabella scarti duplicati";
-});
-bindClick("btnRefreshMultiMergeSource", async () => {
-  try {
-    await refreshMultiMergeSourceFromUi();
-  } catch (e) {
-    setStatus("ERRORE aggiornamento merge: " + e.message);
-  }
 });
 
 
