@@ -7762,7 +7762,26 @@ async function loadPresets(){
   }
 
   const j = await api("/pivots?source_id=" + encodeURIComponent(CURRENT_SOURCE));
-  PRESETS = (j.items || []).filter(p => p && p.id);
+  const currentSrc = (SOURCES || []).find(s => String(s?.id || "").trim() === String(CURRENT_SOURCE || "").trim()) || null;
+  const sourceCandidates = new Set();
+  const addCandidate = val => {
+    const sid = String(val || "").trim();
+    if (sid) sourceCandidates.add(sid);
+  };
+  addCandidate(CURRENT_SOURCE);
+  addCandidate(currentSrc?.config?.legacy_source_id);
+  (SOURCES || []).forEach(s => {
+    if (String(s?.config?.legacy_source_id || "").trim() === String(CURRENT_SOURCE || "").trim()) {
+      addCandidate(s?.id);
+    }
+  });
+
+  PRESETS = (j.items || []).filter(p => {
+    if (!p || !p.id) return false;
+    const pidSource = String(p.source_id || "").trim();
+    if (!pidSource) return true;
+    return sourceCandidates.has(pidSource);
+  });
 
   if (!PRESETS.length) {
     CURRENT = null;
