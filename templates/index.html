@@ -4878,6 +4878,39 @@ function applyMappingToBlockSlots(block, mapping){
   });
 }
 
+function remapMergeMappingToCurrentSourceFields(mapping, sourceId, fields){
+  const base = (mapping && typeof mapping === "object") ? mapping : {};
+  const available = Array.isArray(fields) ? fields.map(f => String(f || "").trim()).filter(Boolean) : [];
+  if (!available.length) return { ...base };
+  const availableSet = new Set(available);
+  const source = (SOURCES || []).find(s => String(s?.id || "").trim() === String(sourceId || "").trim()) || null;
+  const aliasesRaw = source?.column_aliases || source?.config?.column_aliases || {};
+  const aliases = (aliasesRaw && typeof aliasesRaw === "object" && !Array.isArray(aliasesRaw)) ? aliasesRaw : {};
+  const aliasEntries = Object.entries(aliases).map(([from, to]) => [String(from || "").trim(), String(to || "").trim()]);
+  const aliasForward = new Map(aliasEntries.filter(([from, to]) => from && to));
+  const aliasReverse = new Map(aliasEntries.filter(([from, to]) => from && to).map(([from, to]) => [to, from]));
+
+  const out = {};
+  Object.entries(base).forEach(([target, sourceField]) => {
+    const raw = String(sourceField || "").trim();
+    if (!raw) return;
+    let resolved = raw;
+    if (!availableSet.has(resolved)) {
+      const asAlias = String(aliasForward.get(resolved) || "").trim();
+      if (asAlias && availableSet.has(asAlias)) resolved = asAlias;
+    }
+    if (!availableSet.has(resolved)) {
+      const asSource = String(aliasReverse.get(resolved) || "").trim();
+      if (asSource && availableSet.has(asSource)) resolved = asSource;
+    }
+    if (!availableSet.has(resolved)) {
+      return;
+    }
+    out[String(target || "").trim()] = resolved;
+  });
+  return out;
+}
+
 function renderSourceFieldChipsForBlock(block, fields){
   const wrap = block?.querySelector("[data-merge-source-fields]");
   if (!wrap) return;
@@ -5146,9 +5179,10 @@ async function refreshMergeSourceBlocksAfterSourceUpdate(updatedSourceId = ""){
     }
     const prevMap = extractMappingFromBlock(block);
     const fields = await loadSourceFields(currentValue);
+    const remappedMap = remapMergeMappingToCurrentSourceFields(prevMap, currentValue, fields);
     renderSourceFieldChipsForBlock(block, fields);
     await renderTemplateSlotsForBlock(block, false);
-    applyMappingToBlockSlots(block, prevMap);
+    applyMappingToBlockSlots(block, remappedMap);
   }
 }
 
