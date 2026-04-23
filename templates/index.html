@@ -4766,8 +4766,11 @@ async function handleMergeActionClick(action){
     if (key === "refresh_source") {
       setMergeStatus("Aggiornamento sorgente merge in corso...");
       setStatus("Aggiornamento sorgente merge in corso...");
-      await refreshMultiMergeSourceFromUi();
-      setMergeStatus("Sorgente merge aggiornata.");
+      const refreshed = await refreshMultiMergeSourceFromUi();
+      const suffix = refreshed?.rows != null
+        ? (" (righe: " + String(refreshed.rows) + ", duplicati rimossi: " + String(refreshed.dropped || 0) + ")")
+        : "";
+      setMergeStatus("Sorgente merge aggiornata." + suffix);
       return;
     }
   } catch (e) {
@@ -6005,7 +6008,13 @@ async function saveMultiSourceMergeAsSourceFromUi(){
   } else {
     setSourcePluginOutput(res);
   }
-  await refreshAll().catch(() => {});
+  if (typeof refreshAll === "function") {
+    await refreshAll().catch(() => {});
+  } else {
+    await loadSources().catch(() => {});
+    await loadFields().catch(() => {});
+    await loadPresets().catch(() => {});
+  }
   const rows = Number(res?.merge?.row_count || 0);
   const dropped = Number(res?.merge?.duplicates_dropped || 0);
   const usedDelimiter = String(res?.csv_delimiter || csv_delimiter || ";");
@@ -6062,6 +6071,7 @@ async function refreshMultiMergeSourceFromUi(){
       ...base,
       source_id,
       source_title: source_title || ("Merge " + source_id),
+      csv_delimiter: String(SETTINGS.merge_csv_delimiter || ";"),
       set_default: false
     })
   });
@@ -6071,8 +6081,20 @@ async function refreshMultiMergeSourceFromUi(){
   } else {
     setSourcePluginOutput(res);
   }
-  await refreshAll().catch(() => {});
-  setStatus("Sorgente merge aggiornata: " + source_id);
+  if (typeof refreshAll === "function") {
+    await refreshAll().catch(() => {});
+  } else {
+    await loadSources().catch(() => {});
+    await loadFields().catch(() => {});
+    await loadPresets().catch(() => {});
+  }
+  const rows = Number(res?.merge?.row_count || 0);
+  const dropped = Number(res?.merge?.duplicates_dropped || 0);
+  const keyField = String(res?.merge?.unique_key_field || "_merge_key");
+  const message = "Sorgente merge aggiornata: " + source_id + " · righe: " + String(rows) + " · duplicati rimossi: " + String(dropped) + " · chiave: " + keyField;
+  setStatus(message);
+  try { window.alert(message); } catch (_e) {}
+  return { source_id, rows, dropped, keyField, message };
 }
 
 function resetApiSchedulerJobForm(){
@@ -6259,8 +6281,6 @@ async function closeSourcesScreen(){
 
 async function initSourcePluginBuilders(){
   await refreshLookupBuilders();
-  const mergeActionStatus = document.getElementById("mergeActionStatus");
-  if (mergeActionStatus) mergeActionStatus.textContent = "";
 
   const primarySel = document.getElementById("lkPrimarySourceSel");
   const secondarySel = document.getElementById("lkSecondarySourceSel");
