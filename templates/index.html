@@ -4448,9 +4448,17 @@ async function loadPluginSourcesIntoSelect(selectId){
 }
 
 async function loadSourceFields(sourceId){
-  if (!sourceId) return [];
+  const wanted = String(sourceId || "").trim();
+  if (!wanted) return [];
+  const exact = (SOURCES || []).find(src => String(src?.id || "").trim() === wanted) || null;
+  const byLegacy = (SOURCES || []).find(src => String(src?.config?.legacy_source_id || "").trim() === wanted) || null;
+  const resolved = exact || byLegacy || null;
+  const resolvedId = String(resolved?.id || wanted).trim();
+  if (resolved && typeof isSourceLikelyConfigured === "function" && !isSourceLikelyConfigured(resolved)) {
+    return [];
+  }
   try {
-    const res = await api("/fields?source_id=" + encodeURIComponent(sourceId));
+    const res = await api("/fields?source_id=" + encodeURIComponent(resolvedId));
     return Array.isArray(res.fields) ? res.fields : [];
   } catch (_e) {
     return [];
