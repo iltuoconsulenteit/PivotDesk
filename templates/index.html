@@ -2098,7 +2098,7 @@ window.LICENSE_CONTEXT = {
               <button id="btnSaveMultiMergeSource" type="button" class="primary" onclick="handleMergeActionClick('save_source'); return false;">💾 Salva come nuova sorgente</button>
               <button id="btnRefreshMultiMergeSource" type="button" onclick="handleMergeActionClick('refresh_source'); return false;">🔄 Aggiorna sorgente merge</button>
             </div>
-            <div id="mergeActionStatus" class="small" style="margin-bottom:8px; color:#175cd3;"></div>
+            <div id="mergeActionStatus" class="small" style="margin-bottom:8px; color:#175cd3; min-height:22px; padding:6px 10px; border-radius:10px; background:#eff8ff; border:1px solid #d1e9ff;"></div>
           </div>
 
           <div id="mergeAdvancedPanel" class="hidden">
@@ -4720,63 +4720,79 @@ async function applySelectedMergeTemplateToUi(){
 async function handleMergeActionClick(action){
   const key = String(action || "").trim().toLowerCase();
   const mergeStatusEl = document.getElementById("mergeActionStatus");
-  const setMergeStatus = (msg, isError = false) => {
+  const setMergeStatus = (msg, tone = "info") => {
     if (mergeStatusEl) {
       mergeStatusEl.textContent = String(msg || "");
-      mergeStatusEl.style.color = isError ? "#b42318" : "#175cd3";
+      if (tone === "error") {
+        mergeStatusEl.style.color = "#b42318";
+        mergeStatusEl.style.background = "#fef3f2";
+        mergeStatusEl.style.border = "1px solid #fecdca";
+      } else if (tone === "success") {
+        mergeStatusEl.style.color = "#067647";
+        mergeStatusEl.style.background = "#ecfdf3";
+        mergeStatusEl.style.border = "1px solid #abefc6";
+      } else if (tone === "progress") {
+        mergeStatusEl.style.color = "#175cd3";
+        mergeStatusEl.style.background = "#eff8ff";
+        mergeStatusEl.style.border = "1px solid #b2ddff";
+      } else {
+        mergeStatusEl.style.color = "#175cd3";
+        mergeStatusEl.style.background = "#eff8ff";
+        mergeStatusEl.style.border = "1px solid #d1e9ff";
+      }
     }
   };
   try {
     if (key === "run_template") {
-      setMergeStatus("Avvio merge da template...");
+      setMergeStatus("Avvio merge da template...", "progress");
       setStatus("Avvio merge da template...");
       await runMultiSourceMergeFromTemplateUi();
-      setMergeStatus("Merge da template completato.");
+      setMergeStatus("Merge da template completato.", "success");
       return;
     }
     if (key === "preview") {
-      setMergeStatus("Avvio anteprima merge...");
+      setMergeStatus("Avvio anteprima merge...", "progress");
       setStatus("Avvio anteprima merge...");
       await runMultiSourceMergeFromUi();
-      setMergeStatus("Anteprima merge completata.");
+      setMergeStatus("Anteprima merge completata.", "success");
       return;
     }
     if (key === "save_source") {
-      setMergeStatus("Salvataggio sorgente merge in corso...");
+      setMergeStatus("Salvataggio sorgente merge in corso...", "progress");
       setStatus("Salvataggio sorgente merge in corso...");
       const saved = await saveMultiSourceMergeAsSourceFromUi();
       const suffix = saved?.rows != null ? (" (righe: " + String(saved.rows) + ")") : "";
-      setMergeStatus("Sorgente merge salvata." + suffix);
+      setMergeStatus("Sorgente merge salvata." + suffix, "success");
       return;
     }
     if (key === "save_template_full") {
-      setMergeStatus("Salvataggio template completo in corso...");
+      setMergeStatus("Salvataggio template completo in corso...", "progress");
       setStatus("Salvataggio template completo in corso...");
       await saveMergeTemplateFromUi();
-      setMergeStatus("Template completo salvato.");
+      setMergeStatus("Template completo salvato.", "success");
       return;
     }
     if (key === "export_csv") {
-      setMergeStatus("Export CSV merge in corso...");
+      setMergeStatus("Export CSV merge in corso...", "progress");
       setStatus("Export CSV merge in corso...");
       await exportMultiSourceMergeCsvFromUi();
-      setMergeStatus("CSV merge esportato.");
+      setMergeStatus("CSV merge esportato.", "success");
       return;
     }
     if (key === "refresh_source") {
-      setMergeStatus("Aggiornamento sorgente merge in corso...");
+      setMergeStatus("Aggiornamento sorgente merge in corso...", "progress");
       setStatus("Aggiornamento sorgente merge in corso...");
       const refreshed = await refreshMultiMergeSourceFromUi();
-      const suffix = refreshed?.rows != null
-        ? (" (righe: " + String(refreshed.rows) + ", duplicati rimossi: " + String(refreshed.dropped || 0) + ")")
-        : "";
-      setMergeStatus("Sorgente merge aggiornata." + suffix);
+      const rows = Number(refreshed?.rows || 0);
+      const dropped = Number(refreshed?.dropped || 0);
+      const keyField = String(refreshed?.keyField || "_merge_key");
+      setMergeStatus("✅ Sorgente aggiornata · righe: " + String(rows) + " · duplicati rimossi: " + String(dropped) + " · chiave: " + keyField, "success");
       return;
     }
   } catch (e) {
     const msg = String(e?.message || e || "Errore azione merge");
     console.error("Errore merge action [" + key + "]:", e);
-    setMergeStatus("ERRORE: " + msg, true);
+    setMergeStatus("ERRORE: " + msg, "error");
     setStatus("ERRORE merge: " + msg);
     try { window.alert("Errore merge:\n" + msg); } catch (_e) {}
   }
@@ -6093,7 +6109,6 @@ async function refreshMultiMergeSourceFromUi(){
   const keyField = String(res?.merge?.unique_key_field || "_merge_key");
   const message = "Sorgente merge aggiornata: " + source_id + " · righe: " + String(rows) + " · duplicati rimossi: " + String(dropped) + " · chiave: " + keyField;
   setStatus(message);
-  try { window.alert(message); } catch (_e) {}
   return { source_id, rows, dropped, keyField, message };
 }
 
