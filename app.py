@@ -2684,6 +2684,293 @@ def _restore_merge_templates_from_backup(items: list[dict[str, Any]]) -> int:
     return restored
 
 
+def _upsert_merge_templates_from_backup(items: list[dict[str, Any]]) -> int:
+    if not isinstance(items, list):
+        return 0
+    db_path = DATA_DIR / "app_data" / "merge_templates.db"
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    restored = 0
+    with sqlite3.connect(str(db_path)) as conn:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS merge_templates (
+                template_id TEXT PRIMARY KEY,
+                title TEXT NOT NULL,
+                columns_json TEXT NOT NULL,
+                sources_json TEXT NOT NULL,
+                include_source_tag INTEGER NOT NULL DEFAULT 1,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+        for row in items:
+            if not isinstance(row, dict):
+                continue
+            template_id = str(row.get("template_id", "")).strip()
+            if not template_id:
+                continue
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO merge_templates
+                (template_id, title, columns_json, sources_json, include_source_tag, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    template_id,
+                    str(row.get("title") or template_id).strip(),
+                    str(row.get("columns_json") or "[]"),
+                    str(row.get("sources_json") or "[]"),
+                    int(row.get("include_source_tag", 1) or 0),
+                    str(row.get("updated_at") or datetime.utcnow().isoformat()),
+                ),
+            )
+            restored += 1
+        conn.commit()
+    return restored
+
+
+def _is_demo_source_item(src: dict[str, Any]) -> bool:
+    if not isinstance(src, dict):
+        return False
+    sid = str(src.get("id") or "").strip().lower()
+    legacy_sid = str((src.get("config") or {}).get("legacy_source_id") or "").strip().lower()
+    path = str(src.get("path") or src.get("config", {}).get("path") or "").strip().replace("\\", "/").lower()
+    title = str(src.get("title") or "").strip().lower()
+    if sid.startswith("demo_") or legacy_sid.startswith("demo_"):
+        return True
+    if path.startswith("demo/") or "/demo/" in path:
+        return True
+    return title.startswith("demo ")
+
+
+def _source_preset_rows_for_source(source_id: str, legacy_source_id: str = "") -> list[dict[str, Any]]:
+    sid = normalize_source_id(source_id)
+    legacy_sid = str(legacy_source_id or "").strip()
+    rows: list[dict[str, Any]] = []
+    for item in load_pivot_files():
+        if not isinstance(item, dict):
+            continue
+        item_sid = normalize_source_id(item.get("source_id"))
+        if item_sid != sid and (not legacy_sid or item_sid != legacy_sid):
+            continue
+        filename = sanitize_filename(item.get("_filename") or f"{item.get('id', 'preset')}.json")
+        payload = dict(item)
+        payload.pop("_filename", None)
+        payload["source_id"] = sid
+        rows.append({"filename": filename, "preset": payload})
+    return rows
+
+
+def _merge_templates_linked_to_source(source_id: str, legacy_source_id: str = "") -> list[dict[str, Any]]:
+    sid = normalize_source_id(source_id)
+    legacy_sid = str(legacy_source_id or "").strip()
+    out: list[dict[str, Any]] = []
+    for row in _export_merge_templates_for_backup():
+        if not isinstance(row, dict):
+            continue
+        sources_json = str(row.get("sources_json") or "[]")
+        try:
+            arr = json.loads(sources_json)
+        except Exception:
+            arr = []
+        if not isinstance(arr, list):
+            continue
+        linked = False
+        for src_row in arr:
+            if not isinstance(src_row, dict):
+                continue
+            src_id = normalize_source_id(src_row.get("source_id"))
+            if src_id == sid or (legacy_sid and src_id == legacy_sid):
+                linked = True
+                break
+        if linked:
+            out.append(row)
+    return out
+
+
+def build_source_bundle_payload(source_ids: list[str] | None = None) -> dict[str, Any]:
+    sources_data = load_sources_data()
+    items = sources_data.get("items", []) if isinstance(sources_data, dict) else []
+    selected = {normalize_source_id(x) for x in (source_ids or []) if normalize_source_id(x)}
+    merge_defs = _load_merge_definitions()
+    bundles: list[dict[str, Any]] = []
+    for src in items:
+        if not isinstance(src, dict):
+            continue
+        sid = normalize_source_id(src.get("id"))
+        if not sid:
+            continue
+        if selected and sid not in selected:
+            continue
+        legacy_sid = str((src.get("config") or {}).get("legacy_source_id") or "").strip()
+        bundle = {
+            "source": src,
+            "presets": _source_preset_rows_for_source(sid, legacy_sid),
+            "merge_definition": merge_defs.get(sid) if isinstance(merge_defs.get(sid), dict) else None,
+            "merge_templates": _merge_templates_linked_to_source(sid, legacy_sid),
+        }
+        bundles.append(bundle)
+    return {
+        "app": "PivotDesk",
+        "version": 1,
+        "exported_at": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "bundles": bundles,
+    }
+
+
+def import_source_bundle_payload(payload: dict[str, Any], replace_existing: bool = True) -> dict[str, Any]:
+    bundles = payload.get("bundles", []) if isinstance(payload, dict) else []
+    if isinstance(payload, dict) and isinstance(payload.get("source"), dict):
+        bundles = [payload]
+    if not isinstance(bundles, list):
+        raise ValueError("Formato non valido: bundles deve essere una lista.")
+
+    sources_data = load_sources_data()
+    items = list(sources_data.get("items", []) if isinstance(sources_data, dict) else [])
+    by_id = {normalize_source_id(x.get("id")): x for x in items if isinstance(x, dict) and normalize_source_id(x.get("id"))}
+    merge_defs = _load_merge_definitions()
+
+    imported_sources = 0
+    imported_presets = 0
+    imported_merge_defs = 0
+    imported_merge_templates = 0
+
+    for bundle in bundles:
+        if not isinstance(bundle, dict):
+            continue
+        source_raw = bundle.get("source")
+        source = normalize_source_item(source_raw) if isinstance(source_raw, dict) else None
+        if not source:
+            continue
+        sid = normalize_source_id(source.get("id"))
+        if not sid:
+            continue
+
+        if sid in by_id:
+            for idx, row in enumerate(items):
+                if isinstance(row, dict) and normalize_source_id(row.get("id")) == sid:
+                    items[idx] = source
+                    break
+        else:
+            items.append(source)
+        by_id[sid] = source
+        imported_sources += 1
+
+        presets = bundle.get("presets", [])
+        if isinstance(presets, list):
+            if replace_existing:
+                folder = PIVOTS_DIR / sid
+                if folder.exists():
+                    for f in folder.glob("*.json"):
+                        try:
+                            f.unlink()
+                        except Exception:
+                            pass
+            for p in presets:
+                if not isinstance(p, dict):
+                    continue
+                filename = sanitize_filename(p.get("filename") or "")
+                preset_payload = p.get("preset")
+                if not filename or not isinstance(preset_payload, dict):
+                    continue
+                save_preset_file(sid, filename, {**preset_payload, "source_id": sid})
+                imported_presets += 1
+
+        merge_def = bundle.get("merge_definition")
+        if isinstance(merge_def, dict):
+            merge_defs[sid] = merge_def
+            imported_merge_defs += 1
+
+        merge_templates = bundle.get("merge_templates", [])
+        if isinstance(merge_templates, list) and merge_templates:
+            imported_merge_templates += _upsert_merge_templates_from_backup(merge_templates)
+
+    sources_data["items"] = items
+    if not normalize_source_id(sources_data.get("default_source")) and items:
+        sources_data["default_source"] = normalize_source_id(items[0].get("id"))
+    save_sources_data(sources_data)
+    _save_merge_definitions(merge_defs)
+
+    return {
+        "imported_sources": imported_sources,
+        "imported_presets": imported_presets,
+        "imported_merge_definitions": imported_merge_defs,
+        "imported_merge_templates": imported_merge_templates,
+        "bundle_count": len([b for b in bundles if isinstance(b, dict)]),
+    }
+
+
+def reset_to_demo_sources_and_presets() -> dict[str, Any]:
+    data = load_sources_data()
+    all_items = data.get("items", []) if isinstance(data, dict) else []
+    demo_items = [x for x in all_items if _is_demo_source_item(x)]
+    if not demo_items:
+        raise ValueError("Nessuna sorgente demo trovata.")
+
+    demo_ids = {normalize_source_id(x.get("id")) for x in demo_items if normalize_source_id(x.get("id"))}
+    demo_legacy_ids = {
+        str((x.get("config") or {}).get("legacy_source_id") or "").strip()
+        for x in demo_items
+        if isinstance(x, dict)
+    }
+
+    demo_presets = []
+    for row in load_pivot_files():
+        if not isinstance(row, dict):
+            continue
+        src_id = normalize_source_id(row.get("source_id"))
+        if src_id not in demo_ids and src_id not in demo_legacy_ids:
+            continue
+        filename = sanitize_filename(row.get("_filename") or f"{row.get('id', 'preset')}.json")
+        payload = dict(row)
+        payload.pop("_filename", None)
+        if src_id not in demo_ids:
+            resolved = next(
+                (
+                    normalize_source_id(x.get("id"))
+                    for x in demo_items
+                    if str((x.get("config") or {}).get("legacy_source_id") or "").strip() == src_id
+                ),
+                src_id,
+            )
+            src_id = resolved
+        payload["source_id"] = src_id
+        demo_presets.append({"source_id": src_id, "filename": filename, "preset": payload})
+
+    if PIVOTS_DIR.exists():
+        for folder in PIVOTS_DIR.iterdir():
+            if not folder.is_dir():
+                continue
+            for file in folder.glob("*.json"):
+                try:
+                    file.unlink()
+                except Exception:
+                    pass
+
+    restored_presets = 0
+    for row in demo_presets:
+        try:
+            save_preset_file(row["source_id"], row["filename"], row["preset"])
+            restored_presets += 1
+        except Exception:
+            continue
+
+    cleaned = save_sources_data({
+        "default_source": normalize_source_id(data.get("default_source")) if normalize_source_id(data.get("default_source")) in demo_ids else (normalize_source_id(demo_items[0].get("id")) if demo_items else ""),
+        "items": demo_items,
+    })
+
+    merge_defs = _load_merge_definitions()
+    next_defs = {sid: defs for sid, defs in merge_defs.items() if normalize_source_id(sid) in demo_ids}
+    _save_merge_definitions(next_defs)
+
+    return {
+        "sources_kept": len(cleaned.get("items", [])),
+        "presets_kept": restored_presets,
+        "default_source": cleaned.get("default_source", ""),
+    }
+
+
 def build_backup_payload(include_sections: set[str] | None = None) -> dict[str, Any]:
     sections = include_sections or {"settings", "presets", "sources", "merge", "users", "plugins", "api_scheduler"}
     presets = load_pivot_files()
@@ -4320,6 +4607,30 @@ def admin_backup_export(request: Request, sections: str | None = Query(None)):
     return {"ok": True, "backup": build_backup_payload(selected or None)}
 
 
+@app.get("/admin/backup/export-source")
+def admin_backup_export_source(request: Request, source_id: str = Query(...)):
+    current_user = require_admin(request)
+    if not current_user:
+        return JSONResponse({"error": "Non autorizzato"}, status_code=403)
+    if not has_license_feature("backup_restore"):
+        return JSONResponse({"error": "Funzione disponibile solo con licenza attiva."}, status_code=403)
+    sid = normalize_source_id(source_id)
+    if not sid:
+        return JSONResponse({"error": "source_id non valido."}, status_code=400)
+    return {"ok": True, "backup": build_source_bundle_payload([sid])}
+
+
+@app.get("/admin/backup/export-sources")
+def admin_backup_export_sources(request: Request, source_ids: str | None = Query(None)):
+    current_user = require_admin(request)
+    if not current_user:
+        return JSONResponse({"error": "Non autorizzato"}, status_code=403)
+    if not has_license_feature("backup_restore"):
+        return JSONResponse({"error": "Funzione disponibile solo con licenza attiva."}, status_code=403)
+    selected = [normalize_source_id(x.strip()) for x in str(source_ids or "").split(",") if normalize_source_id(x.strip())]
+    return {"ok": True, "backup": build_source_bundle_payload(selected or None)}
+
+
 @app.post("/admin/backup/restore")
 async def admin_backup_restore(request: Request):
     current_user = require_admin(request)
@@ -4338,6 +4649,43 @@ async def admin_backup_restore(request: Request):
         sections_raw = payload.get("sections", []) if isinstance(payload, dict) else []
         selected_sections = {str(x).strip() for x in sections_raw if str(x).strip()} if isinstance(sections_raw, list) else set()
         result = restore_backup_payload(backup, replace_existing=replace_existing, sections=selected_sections or None)
+        return {"ok": True, **result}
+    except ValueError as exc:
+        return JSONResponse({"error": str(exc)}, status_code=400)
+    except Exception as exc:
+        return JSONResponse({"error": str(exc)}, status_code=500)
+
+
+@app.post("/admin/backup/import-sources")
+async def admin_backup_import_sources(request: Request):
+    current_user = require_admin(request)
+    if not current_user:
+        return JSONResponse({"error": "Non autorizzato"}, status_code=403)
+    if not has_license_feature("backup_restore"):
+        return JSONResponse({"error": "Funzione disponibile solo con licenza attiva."}, status_code=403)
+    try:
+        payload = await request.json()
+        backup = payload.get("backup", payload) if isinstance(payload, dict) else {}
+        if not isinstance(backup, dict):
+            return JSONResponse({"error": "Payload backup sorgenti non valido."}, status_code=400)
+        replace_existing = bool(payload.get("replace_existing", True)) if isinstance(payload, dict) else True
+        result = import_source_bundle_payload(backup, replace_existing=replace_existing)
+        return {"ok": True, **result}
+    except ValueError as exc:
+        return JSONResponse({"error": str(exc)}, status_code=400)
+    except Exception as exc:
+        return JSONResponse({"error": str(exc)}, status_code=500)
+
+
+@app.post("/admin/data/reset-demo")
+async def admin_data_reset_demo(request: Request):
+    current_user = require_admin(request)
+    if not current_user:
+        return JSONResponse({"error": "Non autorizzato"}, status_code=403)
+    if not has_license_feature("backup_restore"):
+        return JSONResponse({"error": "Funzione disponibile solo con licenza attiva."}, status_code=403)
+    try:
+        result = reset_to_demo_sources_and_presets()
         return {"ok": True, **result}
     except ValueError as exc:
         return JSONResponse({"error": str(exc)}, status_code=400)
