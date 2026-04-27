@@ -257,8 +257,33 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 
+def cleanup_runtime_pycache_dirs() -> int:
+    roots = [BASE_DIR, APP_HOME_DIR]
+    removed = 0
+    seen: set[str] = set()
+    for root in roots:
+        if not root.exists():
+            continue
+        key = str(root.resolve())
+        if key in seen:
+            continue
+        seen.add(key)
+        for pycache_dir in root.rglob("__pycache__"):
+            if not pycache_dir.is_dir():
+                continue
+            try:
+                shutil.rmtree(pycache_dir, ignore_errors=False)
+                removed += 1
+            except Exception:
+                continue
+    return removed
+
+
 @app.on_event("startup")
 async def _pivotdesk_startup_enforce_lan_bind():
+    removed_pycache = cleanup_runtime_pycache_dirs()
+    if removed_pycache:
+        logger.info("Pulizia startup __pycache__ completata: %s cartelle rimosse.", removed_pycache)
     try:
         load_sources_data()
     except Exception:
