@@ -177,6 +177,7 @@ class PluginManager:
                 {
                     "id": p.manifest.id,
                     "name": p.manifest.name,
+                    "version": p.manifest.version,
                     "enabled": p.manifest.enabled,
                     "backend_registered": p.backend_registered,
                     "error": p.error,

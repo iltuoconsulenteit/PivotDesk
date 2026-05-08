@@ -1,0 +1,14 @@
+{
+  "id": "multi_source_merge",
+  "name": "Multi Source Merge",
+  "description": "Modulo merge multi-sorgente con supporto template e flussi guidati.",
+  "kind": "hybrid",
+  "plugin_id": "multi_source_merge",
+  "enabled": true,
+  "version": "1.0.0",
+  "ui": {
+    "screen_id": "moduleInlinePanel",
+    "tool_tab": "merge",
+    "menu_entry": "Moduli"
+  }
+}

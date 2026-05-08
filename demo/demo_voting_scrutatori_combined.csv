@@ -1,0 +1,19 @@
+Candidato,Voti,Scrutatore,Sezione,Lista,FileOrigine
+Giulia Riva,22,Anna Rossi,S1,Civica Nord,file_a
+Marco Fontana,19,Anna Rossi,S1,Uniti per la Citta,file_a
+Elena Bassi,18,Anna Rossi,S1,Riforma Civile,file_a
+Giulia Riva,17,Luca Neri,S2,Civica Nord,file_a
+Marco Fontana,16,Luca Neri,S2,Uniti per la Citta,file_a
+Sara Conti,15,Luca Neri,S2,Verde Futuro,file_a
+Davide Neri,14,Marta Gallo,S3,Civica Nord,file_a
+Elena Bassi,13,Marta Gallo,S3,Riforma Civile,file_a
+Sara Conti,12,Marta Gallo,S3,Verde Futuro,file_a
+Giulia Riva,21,Paolo Rizzi,S4,Civica Nord,file_b
+Marco Fontana,20,Paolo Rizzi,S4,Uniti per la Citta,file_b
+Elena Bassi,19,Paolo Rizzi,S4,Riforma Civile,file_b
+Giulia Riva,18,Chiara Sala,S5,Civica Nord,file_b
+Sara Conti,17,Chiara Sala,S5,Verde Futuro,file_b
+Davide Neri,16,Chiara Sala,S5,Civica Nord,file_b
+Marco Fontana,15,Fabio Villa,S6,Uniti per la Citta,file_b
+Elena Bassi,14,Fabio Villa,S6,Riforma Civile,file_b
+Sara Conti,13,Fabio Villa,S6,Verde Futuro,file_b

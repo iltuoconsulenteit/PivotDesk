@@ -1,0 +1,11 @@
+{
+  "id": "voting_analytics",
+  "name": "Voting Analytics",
+  "version": "0.1.0",
+  "description": "Analisi votazioni con soglie, ranking e viste comparative.",
+  "enabled": true,
+  "frontend": {
+    "tool_tab": "plugins",
+    "card_id": "voting_analytics"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "id": "api_data_scheduler",
+  "name": "API Data Scheduler",
+  "description": "Modulo schedulazione import API verso sorgenti CSV.",
+  "kind": "hybrid",
+  "plugin_id": "api_data_scheduler",
+  "enabled": true,
+  "version": "1.0.0",
+  "ui": {
+    "screen_id": "moduleInlinePanel",
+    "tool_tab": "api_scheduler",
+    "menu_entry": "Moduli"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "id": "voting_analytics",
+  "name": "Voting Analytics",
+  "description": "Modulo analisi votazioni con soglie, ranking e viste comparative.",
+  "kind": "hybrid",
+  "plugin_id": "voting_analytics",
+  "enabled": true,
+  "version": "1.0.0",
+  "ui": {
+    "screen_id": "votingAnalyticsModuleScreen",
+    "menu_entry": "Moduli"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "id": "source_manager",
+  "name": "Gestione sorgenti dati",
+  "description": "Modulo principale per creazione, modifica e manutenzione sorgenti.",
+  "kind": "core",
+  "enabled": true,
+  "version": "1.0.0",
+  "ui": {
+    "screen_id": "sourcesScreen",
+    "menu_entry": "Data",
+    "tab_id": "base"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "id": "main_menu",
+  "name": "Main Navigation Menu",
+  "description": "Modulo di navigazione principale: struttura menu topbar configurabile.",
+  "kind": "core",
+  "enabled": true,
+  "version": "1.0.0",
+  "ui": {
+    "screen_id": "mainView",
+    "menu_entry": "Topbar"
+  }
+}

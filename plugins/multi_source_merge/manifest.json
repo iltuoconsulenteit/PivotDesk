@@ -4,8 +4,14 @@
   "version": "0.1.0",
   "description": "Union/merge multiple source layouts into a common output schema.",
   "enabled": false,
+  "license_feature": "plugin_multi_source_merge",
   "frontend": {
-    "menu": [],
+    "menu": [
+      {
+        "id": "menuOpenMergeModule",
+        "label": "Merge sorgenti (plugin)"
+      }
+    ],
     "panel": {
       "id": "multiSourceMergePanel",
       "title": "Multi Source Merge"

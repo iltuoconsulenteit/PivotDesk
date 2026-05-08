@@ -18,8 +18,19 @@ This repository is a working local-development baseline. Main components:
 - FastAPI server (`app.py`)
 - desktop/web launchers (`main.py`, `run_pivotdesk.py`, `tray.py`)
 - pivot/data services (`services/`)
+- module registry + manifests (`modules/`)
+- plugin registry + extensions (`plugins/`)
 - licensing modules (`licensing/`)
 - Jinja templates (`templates/`)
+
+### Modules vs Plugins (maintenance structure)
+
+- `modules/` contains **functional modules** (business pages/features) described by `module.json` manifests.
+- Main navigation is managed as module `main_menu` via `modules/main_menu/menu.json` (`layout_mode: topbar|sidebar` + sections/items), so menu structure/graphics can evolve without hardcoding changes in core template blocks.
+- `plugins/` contains **technical extensions** that can enrich modules (providers/tools/endpoints).
+- Runtime module metadata is available via `GET /modules`; menu module config is available via `GET /modules/menu-config`; plugin metadata remains under `GET /plugins` and `GET /plugins/status`.
+- Source selector UX: when loading fields fails, the frontend keeps the selected source and does not auto-switch to another source unless explicitly requested by the caller.
+- Deleting a source now records a lightweight tombstone (`deleted_source_ids` / `deleted_source_paths`) so pivot-folder inference and `import_data` auto-scan do not immediately re-add it to the datasource list.
 
 ---
 
@@ -75,9 +86,11 @@ Runtime resources (templates/static/licenses) are resolved with a frozen-safe `_
 
 ### Built-in demo content (first-time onboarding)
 
-- Demo CSV dataset: `demo/demo_sales.csv`
-- Demo source seed: `sources.json` (`id: demo_sales`)
-- Demo pivot preset: `pivots/demo_sales/demo_sales_overview.json`
+- Demo CSV datasets: `demo/demo_sales.csv`, `demo/demo_voting_results.csv`, `demo/demo_voting_scrutatori_a.csv`, `demo/demo_voting_scrutatori_b.csv`, `demo/demo_voting_scrutatori_combined.csv`
+- Demo source seed: `sources.json` (`default_source: demo_voting_scrutatori`, includes split voting files `demo_voting_scrutatori_a` + `demo_voting_scrutatori_b` and a combined source)
+- Demo pivot presets: `pivots/demo_sales/demo_sales_overview.json`, `pivots/demo_voting/demo_voting_overview.json`, `pivots/demo_voting_scrutatori/demo_voting_scrutatori_overview.json`
+- Voting Analytics quick demo thresholds: aggregated demo `120/80`; scrutatori demo `70/50` (saved in respective preset options)
+- Scrutatori demo is intentionally non-aggregated by candidate: the same candidate appears multiple times across different scrutatori/sezioni and files, to support realistic Multi-Source Merge + Voting workflows.
 
 On first startup in source mode, `sources.json` is used as the legacy seed and migrated to the user runtime source bundle, so new users can immediately run a working pivot demo.
 
@@ -122,6 +135,15 @@ Change this password immediately in shared environments.
 - LAN diagnostics/probe/firewall helper endpoints.
 - Customer branding (logo upload + rendering in UI/print contexts).
 - Backup/restore endpoints for presets/settings.
+- Settings screen with accordion sections and dedicated visibility for both module registry (`/modules`) and plugin runtime status.
+- Catalog module for unified listing of all data sources and pivot presets (uses `GET /pivots/all` for cross-source preset inventory).
+- Source loading now applies a runtime duplicate guard on source IDs in UI, and pivot listing supports legacy source mapping fallback to preserve older source/preset associations.
+- Catalog actions include quick edit/delete buttons (with visual icon/color cues) for both sources and pivot presets.
+- XML Structured Import plugin (`/plugin/xml-structured-import/upload`) is a quick tool for **single-file** structured XML import, flattening data to CSV in `import_data`.
+- XML Batch Import module (`/module/xml-batch-import/upload`) handles **multi-file** XML ingestion with optional unique-key deduplication (`rows_in`, `rows_out`, `duplicates_dropped`) and writes the generated CSV in `import_data` for source auto-detection.
+- Voting Analytics plugin/module (`/plugin/voting-analytics/process`) adds ranking, thresholds (`eletti/riserva/esclusi`), multi-column comparison view, pivot-style grouped counts and chart datasets from existing sources.
+- Voting Analytics export/report endpoint (`/plugin/voting-analytics/export`) supports dedicated HTML/PDF-style printable reports and XLSX export, with app/developer logo visibility controlled by license level.
+- Source delete endpoint (`POST /sources/delete`) supports optional `delete_linked_presets=true` to remove JSON presets belonging only to that source in the same confirmation workflow.
 - UI localization (English/Italian).
 
 ## UI structure previews
@@ -140,6 +162,8 @@ The following diagrams are visual examples derived from the HTML layout structur
 - **Free tier:** CSV-based on-screen pivots only.
 - Premium features such as print, charts, and drilldown are available only for paid/dev licenses (based on feature flags/policy).
 - LAN exposure is license-controlled and validated by diagnostics endpoints.
+- Licensing runtime is now adapter-ready: `data/license_settings.json` supports `backend_module` (python module path exposing `create_license_module(default_module=...)`) to plug alternative licensing systems without replacing core endpoints/UI.
+- Purchase flow is adapter-ready too: the same module can expose multiple purchase channels (`purchase_channels`) and generate purchase links via `/license/purchase/options` + `/license/purchase/link`, so licensing + purchase logic can be reused in other Python software with the same API contract.
 
 ---
 
@@ -151,6 +175,7 @@ The following diagrams are visual examples derived from the HTML layout structur
 - `plugins/calculated_fields/backend.py` – formula engine
 - `plugins/cross_source_lookup/plugin.py` – lookup/VLOOKUP-like join between two sources (optional plugin, disabled by default)
 - `plugins/multi_source_merge/plugin.py` – multi-source schema merge/union builder (optional plugin, disabled by default)
+- `plugins/api_data_scheduler/plugin.py` – scheduler per scarico dati da API (manuale o a intervalli), con supporto auth basic/bearer (optional plugin, disabled by default)
 - `plugins/multi_pivot_derived/plugin.py` – derive/cross data from multiple pivots (optional plugin, disabled by default; demo output is watermarked)
 - `templates/` – frontend pages
 - `static/js/` – frontend logic
@@ -159,19 +184,47 @@ The following diagrams are visual examples derived from the HTML layout structur
 - Optional plugin `google_account_sheets` (disabled by default) enables OAuth device-flow authentication for private Google Drive Sheets and can be licensed as a Pro/Full add-on.
 - For direct Google connect from Source Manager, set OAuth credentials once via env (`PIVOTDESK_GOOGLE_CLIENT_ID`, `PIVOTDESK_GOOGLE_CLIENT_SECRET`) or `config.json` under `google_oauth.client_id` / `google_oauth.client_secret`.
 - Multi-source merge plugin can now persist merge output as a generated CSV source in `DATA_DIR/generated_sources`, so merged datasets can be reused like normal sources.
+- Merge save endpoint (`POST /plugin/multi-source-merge/build-and-save-source`) now also accepts `save_mode=sqlite` to mirror merged rows into `DATA_DIR/generated_sources/merge_outputs.db`, while still generating the CSV source file for compatibility.
+- Merge save operations now persist merge definitions in `DATA_DIR/generated_sources/merge_definitions.json` (save mode, columns, selected sources, and source file fingerprints) to support incremental refresh/rebuild flows.
 - Multi-source merge plugin also exposes template helpers: `POST /plugin/multi-source-merge/template/headers` (derive template columns from source or CSV/XLSX/ODS headers) and `POST /plugin/multi-source-merge/template/suggest-map` (auto-suggest target/source field mapping for guided drag/drop linking UX).
 - Multi-source merge plugin now supports template persistence + execution: create/list/get/delete templates (`/template/save`, `/template/list`, `/template/{id}`) and run append/union merges from a selected template (`POST /plugin/multi-source-merge/build-from-template`) so mapped rows from selected sources are appended under the same target headers.
+- Merge UI now includes `Salva template completo` in fase 3 (azioni finali), and template save prioritizes builder mappings/sources over raw JSON textarea content to ensure all linked sources + `column_map` associations are persisted.
+- Core fallback now also exposes merge template CRUD endpoints (`/plugin/multi-source-merge/template/list`, `/template/{id}`, `/template/save`, `/template/{id}` DELETE) so template save/load works even when external plugin routes are unavailable.
+- Core fallback template CRUD now auto-migrates legacy `DATA_DIR/merge_templates.json` into SQLite (`DATA_DIR/app_data/merge_templates.db`) when DB is empty, preserving previously saved template structures.
+- If no dedicated template records are found, merge UI template list can fallback to entries in `DATA_DIR/generated_sources/merge_definitions.json` (saved merge definitions) when they contain reusable output columns.
+- Merge CSV export/save now defaults to semicolon (`;`) delimiter, configurable via global settings (`merge_csv_delimiter`), and the saved merge source keeps the selected delimiter in source config metadata.
+- Dedicated module screens (Merge/API Scheduler) now keep the homepage top chrome (branding + user/menu bar) visible while hiding only the pivot workspace area, for consistent navigation context.
+- Multi-source merge now automatically generates a deterministic unique key column (`_merge_key` by default) and removes duplicates during union/append (`deduplicate=true` by default), reducing duplicate-risk in merged outputs.
+- Merge preview now exposes an on-demand duplicate-discard table (“tabella scarti duplicati”) and explicit status messaging when duplicates are detected/removed, for audit/control checks.
+- Source Manager alias editor now supports quick-add from detected source headers (clickable header chips), preserves empty/new alias rows correctly, and allows row reordering (↑/↓) for easier alias maintenance.
+- When editing a source launched from Merge module, saving now refreshes merge-source field chips/mappings with updated aliases and closing Source Manager returns to the originating module (Merge/API Scheduler) instead of forcing home view.
+- Module pages are also available in an inline panel anchored to `mainView` (home chrome visible: logo/menu/license bar), improving continuity while working inside Merge/API Scheduler workflows.
+- Multi-source merge now also supports direct CSV export of the unified dataset (`POST /plugin/multi-source-merge/export-csv`), so users can download and transfer merged data as a standalone source file.
+- Multi-source merge is managed as an installable/enableable add-on module (disabled by default), with a dedicated top-menu entry (`Moduli > Merge sorgenti (plugin)`) and independent license gating (`plugin_multi_source_merge` / `plugins.multi_source_merge`, plus global `plugins` fallback).
+- API Data Scheduler is also an installable/enableable add-on module (disabled by default), with dedicated menu entry (`Moduli > Scheduler API (plugin)`), multi-endpoint configuration, manual run (`/plugin/api-scheduler/run/{job_id}`) and scheduled batch execution (`/plugin/api-scheduler/run-due`) supporting schedule modes: monthly (day+time), weekly (weekday+time), daily (time), every N hours, every N minutes (discouraged for server load).
+- I moduli add-on Merge/API Scheduler hanno pagine dedicate (non il tab plugin generico) e generano file in `DATA_DIR/import_data` per import manuale/automatico.
+- PivotDesk esegue auto-censimento colonne sui file in `DATA_DIR/import_data` (`csv/xlsx/ods`) e li registra automaticamente come sorgenti (`config.auto_import_data=true`, `config.detected_columns=[...]`); endpoint di refresh: `POST /sources/scan-import-data`.
+- Backup/restore (`/admin/backup/export`, `/admin/backup/restore`) supporta ora sezioni selettive per migrazione installazioni: `settings`, `presets`, `sources`, `merge` (definitions+templates), `users`, `plugins`, `api_scheduler`.
+- Backup sorgente/preset collegati: export singolo `GET /admin/backup/export-source?source_id=...`, export massivo `GET /admin/backup/export-sources?source_ids=1,2,...` (o tutte le sorgenti senza filtro), import `POST /admin/backup/import-sources`; ogni bundle include sorgente, preset collegati, eventuale merge definition e template merge collegati alla sorgente.
+- Reset demo rapido: `POST /admin/data/reset-demo` per mantenere nel runtime solo sorgenti/preset demo e pulire il resto (utile per ripartenza ambiente test/demo).
+- Server startup hook now removes `__pycache__` folders under runtime roots (`BASE_DIR`, `APP_HOME_DIR`) on every start/restart to keep cache artifacts clean.
+- In Source Manager, selecting a merge template now reloads full template details (`/template/{id}`), restoring every saved source block and `column_map`; running from template also works even when no builder blocks are manually re-added (server falls back to template sources).
+- Merge templates can now also persist source blocks and field mappings (`sources` + `column_map`), so reloading a template restores both selected sources and saved associations in the guided merge UI.
+- When loading merge template source blocks, frontend field loading now resolves `legacy_source_id` and skips unconfigured sources to avoid noisy `/fields` 400 errors during template re-apply/save cycles.
+- Merge templates are stored in SQLite under `DATA_DIR/app_data/merge_templates.db` (application metadata) with legacy auto-migration from `merge_templates.json`, keeping app-state separated from runtime/source user files.
+- Core app now exposes built-in fallback endpoints for multi-source merge build/run/save (`/plugin/multi-source-merge/build*`) to guarantee deterministic behavior even when external plugin copies are stale or partially customized.
 - Multi-source template ids are handled as numeric index keys (auto-assigned when omitted/invalid, hidden in UI except preview), consistent with source/pivot indexing strategy.
 - Source Manager plugin panel includes a guided template-first merge flow with drag&drop mapping (save/load template headers, drag source fields onto template slots, auto-suggest mappings per source, run merge from template), source-header import to bootstrap template columns, and quick catalog views (templates/sources/pivots) for large workspaces.
 - Source management now supports optional `column_aliases` (header alias map) so previews/pivots/plugins can show user-defined column names without changing source files.
 - For Excel sources (`xlsx`), base Source Manager now includes `import_all_sheets` flag to union all worksheets into one source (with `_sheet` column), so users don't need to run a separate plugin tool when this feature is enabled.
 - Source IDs are normalized to numeric keys on startup/save; legacy non-numeric ids are preserved in source config as `legacy_source_id` for backward lookup compatibility.
+- During startup migration, PivotDesk also remaps legacy pivot folders/preset payloads to the new numeric source IDs so existing presets remain linked after restart.
 - Merge panel action area includes explicit preview/update flow: preview merge output, save as generated source, then refresh the same merge source id when upstream rows/sources change.
 
 Plugin visibility/enablement:
 - `GET /plugins/status` shows runtime status + license allow/deny flags.
 - `POST /plugins/config/save` persists plugin enable/disable map (`plugins.json`, restart required).
-- Plugin discovery scans these folders (first match by plugin id wins): `APP_HOME/plugins`, runtime `plugins/`, bundled `resource/plugins`.
+- Plugin discovery scans these folders (first match by plugin id wins): runtime `plugins/`, `APP_HOME/plugins`, bundled `resource/plugins`.
 - Source management includes guided plugin forms (dropdown + drag/drop for lookup fields, guided merge builder to generate JSON mapping).
 
 Startup UX:
