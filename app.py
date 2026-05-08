@@ -1709,16 +1709,23 @@ def _detect_columns_for_import_path(path: Path, source_type: str) -> list[str]:
     return []
 
 
-def _auto_import_data_sources(items: list[dict[str, Any]], used_numeric: set[int]) -> tuple[list[dict[str, Any]], bool]:
+def _auto_import_data_sources(
+    items: list[dict[str, Any]],
+    used_numeric: set[int],
+    deleted_source_paths: set[str] | None = None,
+) -> tuple[list[dict[str, Any]], bool]:
     IMPORT_DATA_DIR.mkdir(parents=True, exist_ok=True)
     files = [p for p in IMPORT_DATA_DIR.iterdir() if p.is_file() and p.suffix.lower() in {".csv", ".xlsx", ".xlsm", ".xls", ".ods"}]
     if not files:
         return items, False
+    deleted_paths = deleted_source_paths or set()
     by_path = {str(Path(str(row.get("path", ""))).resolve()): row for row in items}
     changed = False
     out = list(items)
     for f in sorted(files):
         f_resolved = str(f.resolve())
+        if f_resolved in deleted_paths:
+            continue
         stype = _infer_source_type_from_path(f)
         title = f"Import {f.stem}"
         columns = _detect_columns_for_import_path(f, stype)
@@ -1767,6 +1774,8 @@ def load_sources_data() -> dict[str, Any]:
             normalized_items.append(normalized)
 
     default_source = normalize_source_id(raw.get("default_source", ""))
+    deleted_source_ids = {normalize_source_id(x) for x in raw.get("deleted_source_ids", []) if normalize_source_id(x)}
+    deleted_source_paths = {str(x).strip() for x in raw.get("deleted_source_paths", []) if str(x).strip()}
 
     if not normalized_items and LEGACY_SOURCES_PATH.exists():
         legacy_raw = read_json(LEGACY_SOURCES_PATH, {}) or {}
@@ -1853,13 +1862,13 @@ def load_sources_data() -> dict[str, Any]:
     inferred_added = False
     for item in inferred_items:
         sid = item.get("id")
-        if not sid or sid in known_source_ids or sid in known_legacy_ids:
+        if not sid or sid in known_source_ids or sid in known_legacy_ids or sid in deleted_source_ids:
             continue
         known_source_ids.add(sid)
         normalized_items.append(item)
         inferred_added = True
 
-    normalized_items, import_data_added = _auto_import_data_sources(normalized_items, used_numeric)
+    normalized_items, import_data_added = _auto_import_data_sources(normalized_items, used_numeric, deleted_source_paths)
     normalized_items, legacy_seed_repaired = _enrich_sources_with_legacy_seed(normalized_items)
 
     # Rimuovi eventuali duplicati residui dopo infer/migrazione/auto-import.
@@ -1889,6 +1898,8 @@ def load_sources_data() -> dict[str, Any]:
     merged = {
         "default_source": default_source,
         "items": normalized_items,
+        "deleted_source_ids": sorted(deleted_source_ids),
+        "deleted_source_paths": sorted(deleted_source_paths),
     }
 
     pivots_remapped = remap_pivot_source_ids(id_remap) if changed_ids else False
@@ -1978,9 +1989,27 @@ def save_sources_data(data: dict[str, Any]) -> dict[str, Any]:
     if default_source and not any(x["id"] == default_source for x in normalized_items):
         default_source = normalized_items[0]["id"] if normalized_items else ""
 
+    deleted_source_ids = {normalize_source_id(x) for x in data.get("deleted_source_ids", []) if normalize_source_id(x)}
+    deleted_source_paths = {str(x).strip() for x in data.get("deleted_source_paths", []) if str(x).strip()}
+    for src in normalized_items:
+        sid = normalize_source_id(src.get("id"))
+        legacy_sid = str((src.get("config") or {}).get("legacy_source_id", "")).strip()
+        src_path = str(src.get("path") or src.get("config", {}).get("path") or "").strip()
+        if sid:
+            deleted_source_ids.discard(sid)
+        if legacy_sid:
+            deleted_source_ids.discard(legacy_sid)
+        if src_path:
+            try:
+                deleted_source_paths.discard(str(Path(src_path).resolve()))
+            except Exception:
+                deleted_source_paths.discard(src_path)
+
     clean_data = {
         "default_source": default_source,
         "items": normalized_items,
+        "deleted_source_ids": sorted(deleted_source_ids),
+        "deleted_source_paths": sorted(deleted_source_paths),
     }
 
     write_json(SOURCES_PATH, clean_data)
@@ -4932,8 +4961,30 @@ async def sources_delete(request: Request):
             return JSONResponse({"error": "source_id obbligatorio"}, status_code=400)
 
         data = load_sources_data()
-        items = [x for x in data.get("items", []) if x["id"] != source_id]
+        original_items = data.get("items", [])
+        removed_sources = [
+            x for x in original_items
+            if normalize_source_id(x.get("id")) == source_id
+            or str((x.get("config") or {}).get("legacy_source_id", "")).strip() == source_id
+        ]
+        items = [x for x in original_items if x not in removed_sources]
         data["items"] = items
+
+        deleted_ids = {normalize_source_id(x) for x in data.get("deleted_source_ids", []) if normalize_source_id(x)}
+        deleted_paths = {str(x).strip() for x in data.get("deleted_source_paths", []) if str(x).strip()}
+        deleted_ids.add(source_id)
+        for src in removed_sources:
+            legacy_sid = str((src.get("config") or {}).get("legacy_source_id", "")).strip()
+            src_path = str(src.get("path") or src.get("config", {}).get("path") or "").strip()
+            if legacy_sid:
+                deleted_ids.add(legacy_sid)
+            if src_path:
+                try:
+                    deleted_paths.add(str(Path(src_path).resolve()))
+                except Exception:
+                    deleted_paths.add(src_path)
+        data["deleted_source_ids"] = sorted(deleted_ids)
+        data["deleted_source_paths"] = sorted(deleted_paths)
 
         if data.get("default_source") == source_id:
             data["default_source"] = items[0]["id"] if items else ""

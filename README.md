@@ -30,6 +30,7 @@ This repository is a working local-development baseline. Main components:
 - `plugins/` contains **technical extensions** that can enrich modules (providers/tools/endpoints).
 - Runtime module metadata is available via `GET /modules`; menu module config is available via `GET /modules/menu-config`; plugin metadata remains under `GET /plugins` and `GET /plugins/status`.
 - Source selector UX: when loading fields fails, the frontend keeps the selected source and does not auto-switch to another source unless explicitly requested by the caller.
+- Deleting a source now records a lightweight tombstone (`deleted_source_ids` / `deleted_source_paths`) so pivot-folder inference and `import_data` auto-scan do not immediately re-add it to the datasource list.
 
 ---
 
